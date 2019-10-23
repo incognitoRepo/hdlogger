@@ -1,3 +1,3 @@
 def get_answer():
-    """Get an answer."""
-    return True
+  """Get an answer."""
+  return True

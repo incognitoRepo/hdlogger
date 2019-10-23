@@ -1,1 +1,4 @@
-from .core import hmm
+from .core import (
+  trace_hook_callback,
+  hmm
+)

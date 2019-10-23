@@ -38,5 +38,6 @@ def hmm():
     print(get_hmm())
 
 def trace_hook_callback(frame,event,arg):
+  print('adsf')
   logging.debug(f"{frame}\nf{event}\nf{arg}\n")
   return

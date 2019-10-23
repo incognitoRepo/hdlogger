@@ -1,7 +1,7 @@
 INFILE_DIR=${(%):-%N}
 pip install --upgrade stackprinter prettyprinter pyperclip pip
 git add .
-git commit -m 'startup $(date)'
+git commit -m "startup $(date)"
 export PYTHONSTARTUP=/Users/alberthan/.pythonvenvrc.py
 export VIRTUAL_ENV=$PWD
 export VIRTUAL_ENV_DISABLE_PROMPT=1

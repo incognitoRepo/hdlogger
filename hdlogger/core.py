@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import dis, sys, inspect
+from pprint import pprint
 import logging
 from .helpers import (
   get_answer
@@ -38,6 +40,25 @@ def hmm():
     print(get_hmm())
 
 def trace_hook_callback(frame,event,arg):
-  print('adsf')
-  logging.debug(f"{frame}\nf{event}\nf{arg}\n")
+  print(f"\n{'=='*40}")
+  print(f"{event=}\n{arg=}\n")
+  t = sys.gettrace()
+  pprint(inspect.getmembers(t))
+  f = inspect.currentframe()
+  e = 'kill'
+  a = None
+  print(f"{t(f,e,a)}")
+  if event == 'kill':
+    raise SystemExit()
+  print(f"{frame=}\n")
+  print(f"{frame.f_code=}\n")
+  print(f"{dis.code_info(frame.f_code)=}")
+  fc = frame.f_code
+  print(f"{dis.disassemble(fc)=}")
+  for instr in dis.get_instructions(fc):
+    print(f"{instr=}")
+  for line in dis.findlinestarts(fc):
+    print(f"{line=}")
+  print(f"\n{'=='*40}")
+  # logging.debug(f"{frame}\nf{event}\nf{arg}\n")
   return

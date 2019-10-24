@@ -9,6 +9,7 @@ class AdvancedTestSuite(unittest.TestCase):
   """Advanced test cases."""
 
   def test_thoughts(self):
+    print('test_thoughts')
     self.assertIsNone(hdlogger.hmm())
 
 

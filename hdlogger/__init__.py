@@ -4,5 +4,6 @@ from .core import (
   trace_hook_callback2,
   thcb_evt0,
   hmm,
-  StopTracer
+  StopTracer,
+  get_tracer_kill_pack,
 )

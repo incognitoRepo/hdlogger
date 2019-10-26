@@ -1,9 +1,30 @@
+# vscode-fold=1
 import collections
 import os
 import site
 import sys
 import re
 from distutils.sysconfig import get_python_lib
+
+STARTSWITH_PASS_MODULES = [
+  'IPython','traitlets',
+  'logging', 'hdlogger',
+  'inspect','_','tokenize',
+  'contextlib','re','textwrap',
+  'os','warnings','traceback',
+  'functools','types',
+  'genericlib','genericpath',
+  'collections','typing',
+  'threading','namedtuple'
+  'pluggy','importlib',
+  '_pytest','unittest',
+  'ast',
+  'py._io.terminalwriter', 'py._path',
+  'shutil',
+  'posixpath','pathlib',
+  'sre_parse','sre_compile',
+  'namedtuple_CaptureResult'
+]
 
 SITE_PACKAGES_PATHS = set()
 if hasattr(site, 'getsitepackages'):

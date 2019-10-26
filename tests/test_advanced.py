@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+# vscode-fold=1
 from .context import hdlogger
 
 import unittest

@@ -1,11 +1,32 @@
+# vscode-fold=1
+import dis, inspect
+import logging
+from collections import namedtuple
+
+from typing import Dict,List,Union,Any
 from types import (
   FrameType
 )
 from .constants import (
   SITE_PACKAGES_PATHS,
   SYS_PREFIX_PATHS,
-  CYTHON_SUFFIX_RE
+  CYTHON_SUFFIX_RE,
+  STARTSWITH_PASS_MODULES,
 )
+
+def filter(event_module):
+  em = event_module
+  for MOD in STARTSWITH_PASS_MODULES:
+    if em.startswith(MOD):
+      return True
+  return False
+
+def filter_only(event_module,target_modules:list):
+  em = event_module
+  for tmod in target_modules:
+    if tmod in em:
+      return True
+  return False
 
 def get_answer():
   """Get an answer."""
@@ -93,11 +114,17 @@ class MockCode:
 
 UNSET = object()
 class Event:
-  def __init__(self,frame:FrameType,event:str,arg):
+  MODULE_DATA = set()
+  def __init__(self,
+      frame:FrameType,
+      event:str,
+      arg:Any,
+      collect_module_data:bool = False):
     self.frame = frame
     self.event = event
     self.arg = arg
 
+    self._collect_module_data = collect_module_data
     # self._code = UNSET
     self._filename = UNSET
     # self._fullsource = UNSET
@@ -159,3 +186,79 @@ class Event:
       else:
         self._stdlib = False
     return self._stdlib
+
+  @property
+  def collect_module_data(self):
+    return self._collect_module_data
+
+  @collect_module_data.setter
+  def collect_module_data(self,flag:bool,filename:str=""):
+    self._collect_module_data = flag
+    if flag:
+      MODULE_DATA.add(self.module)
+
+  @property
+  def module_data(self):
+    return self.MODULE_DATA
+
+
+PackedFrameStrings = namedtuple(
+  'PackedFrameStrings',
+  'sb cs eas fs fcs fc_dcis fc_dass fc_dgis fc_flss eb'
+)
+def get_strs(event,counter=""):
+  frame = event.frame
+  fc = frame.f_code
+  sb = f"\n{'=='*40}" # start banner
+  cs = f"{counter=}\n" # counter str
+  eas = f"{event=}\n{arg=}\n" # event & arg str
+  ems = f"{event.module=}\n"
+  fs = f"{frame=}\n"
+  fcs = f"{frame.f_code=}\n"
+  fc_dcis = f"{dis.code_info(fc)=}"
+  fc_dass = f"{dis.disassemble(fc)=}"
+  fc_dgil:List = dis.get_instructions(fc)
+  fc_dgis:str  = '\n'.join(fc_dgil)
+  fc_flsl:List = dis.findlinestarts(fc)
+  fc_flss:str  = '\n'.join(fc_flsl)
+  eb = f"\n{'=='*40}" # end banner
+  pfss = PackedFrameStrings(
+    sb,cs,eas,fs,fcs,fc_dcis,fc_dass,fc_dgis,fc_flss,eb
+  )
+  return pfss
+
+TracerKillPack = namedtuple(
+  'TracerKillPack',
+  'frame event arg'
+)
+def get_tracer_kill_pack():
+  tkp = TracerKillPack(
+    inspect.currentframe(),
+    'kill',
+    None)
+  return tkp
+
+
+# create logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+# create console handler and set level to debug
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+
+# create formatter
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+# add formatter to ch
+ch.setFormatter(formatter)
+
+# add ch to logger
+logger.addHandler(ch)
+
+logging.basicConfig(
+  filename="example.log",
+  format="%(levelname)s:%(message)s",
+  level=logging.DEBUG
+  )
+logging.debug("This message should go to the log file")

@@ -3,8 +3,21 @@ import dis, sys, inspect
 from pprint import pprint
 import logging
 from .helpers import (
-  get_answer
+  get_answer,
+  Event
 )
+
+STARTSWITH_CANCEL_MODS = [
+  'IPython','traitlets',
+  'logging',
+  'threading',
+  'pluggy',
+  '_pytest',
+  'ast',
+  'py._io.terminalwriter', 'py._path',
+  'shutil',
+  'namedtuple_CaptureResult'
+]
 
 # create logger
 logger = logging.getLogger(__name__)
@@ -106,14 +119,35 @@ def trace_hook_callback2(frame,event,arg):
       stops when counter hits 10
   """
   global counter2
+  evt = Event(frame,event,arg)
+  if any([evt.module.startswith(MOD) for MOD in STARTSWITH_CANCEL_MODS]):
+    return
   counter2 += 1
   fc = frame.f_code
   print(f"{counter2=}")
-  # if counter2 >= 100:
-  #   return sys.settrace(None)
+  print(1)
   if event == 'kill':
     sys.settrace(None)
     return 'killed'
   return trace_hook_callback2
 
-
+def thcb_evt0(f,e,a):
+  STARTSWITH_CANCEL_MODS = [
+    'IPython','traitlets',
+    'logging',
+    'threading',
+    'pluggy',
+    '_pytest',
+    'ast',
+    'py._io.terminalwriter',
+  ]
+  evt = Event(f,e,a)
+  if any([evt.module.startswith(MOD) for MOD in STARTSWITH_CANCEL_MODS]):
+    return
+  print(f"{evt.module=}")
+  print(f"{evt.filename=}")
+  print(f"{evt.stdlib=}")
+  if e == 'kill':
+    sys.settrace(None)
+    return 'killed_evt0'
+  return thcb_evt0

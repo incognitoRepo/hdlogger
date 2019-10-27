@@ -2,6 +2,7 @@
 import dis, inspect
 import logging
 from collections import namedtuple
+from types import SimpleNamespace
 
 from typing import Dict,List,Union,Any
 from types import (
@@ -114,17 +115,15 @@ class MockCode:
 
 UNSET = object()
 class Event:
-  MODULE_DATA = set()
+  DATA = SimpleNamespace()
+  DATA.dataset = set()
+
   def __init__(self,
-      frame:FrameType,
-      event:str,
-      arg:Any,
-      collect_module_data:bool = False):
+      frame:FrameType,event:str,arg:Any,
+      collect_data:bool=False):
     self.frame = frame
     self.event = event
     self.arg = arg
-
-    self._collect_module_data = collect_module_data
     # self._code = UNSET
     self._filename = UNSET
     # self._fullsource = UNSET
@@ -139,6 +138,7 @@ class Event:
     # self._threadidn = UNSET
     # self._threadname = UNSET
     # self._thread = UNSET
+    if collect_data: self.setup_data_collection(collect_data)
 
   @property
   def module(self):
@@ -148,6 +148,12 @@ class Event:
         module = ''
       self._module = module
     return self._module
+
+  @module.setter
+  def module(self,module):
+    self._module = module
+    if self.DATA.kind == 'module':
+      self.DATA.dataset.add(self._module)
 
   @property
   def filename(self):
@@ -187,20 +193,13 @@ class Event:
         self._stdlib = False
     return self._stdlib
 
-  @property
-  def collect_module_data(self):
-    return self._collect_module_data
-
-  @collect_module_data.setter
-  def collect_module_data(self,flag:bool,filename:str=""):
-    self._collect_module_data = flag
-    if flag:
-      MODULE_DATA.add(self.module)
+  def setup_data_collection(self,which_data):
+    self.DATA.kind = which_data
+    self.DATA.dataset.add(getattr(self,which_data))
 
   @property
-  def module_data(self):
-    return self.MODULE_DATA
-
+  def data(self):
+    return self.DATA
 
 PackedFrameStrings = namedtuple(
   'PackedFrameStrings',
@@ -237,7 +236,6 @@ def get_tracer_kill_pack():
     'kill',
     None)
   return tkp
-
 
 # create logger
 logger = logging.getLogger(__name__)

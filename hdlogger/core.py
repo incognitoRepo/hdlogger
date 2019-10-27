@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # vscode-fold=1
 import dis, sys, inspect
+from ipdb import set_trace as st
 from pprint import pprint
 import logging
 from .helpers import (
@@ -53,30 +54,26 @@ def trace_hook_callback2(frame,event,arg):
       stops when counter hits 10
   """
   global counter2, modules2
-  evt = Event(frame,event,arg,collect_module_data=True)
+  evt = Event(frame,event,arg,collect_data='module')
   if not filter_only(evt.module,['hdlogger','tester']): return
   counter2 += 1
-  # print(f"{counter2=}")
-  # print(f"{evt.module}")
   if event == 'kill':
     sys.settrace(None)
     with open('zztrace2.log','a') as f:
-      f.write(f"{', '.join([elm for elm in evt.module_data])}")
-    print(evt.module_data)
-    return evt.module_data
+      f.write(f"{evt.data}")
+      return evt.data
   return trace_hook_callback2
 
-modules0 = set()
-def thcb_evt0(f,e,a):
-  global modules0
-  evt = Event(f,e,a)
-  if filter(evt.module): return
-  # print(f"{evt.module=}")
-  # print(f"{evt.filename=}")
-  # print(f"{evt.stdlib=}")
-  if e == 'kill':
+def thcb_evt0(frame,event,arg):
+  evt = Event(frame,event,arg,
+  collect_data='module')
+  if not filter_only(evt.module,['hdlogger','tester']): return
+  if event == 'kill':
     sys.settrace(None)
     with open('zzthcb_evt0.log','a') as f:
-      f.write(f"{', '.join([elm for elm in modules0])}")
+      f.write(f"{evt.data}")
     return 'killed_evt0'
   return thcb_evt0
+
+def thcb_gen0(frame,event,arg):
+  pass

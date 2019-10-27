@@ -1,7 +1,9 @@
 # vscode-fold=1
 import dis, inspect
 import logging
-from collections import namedtuple
+import jsonpickle as jsonpkl
+from pathlib import Path
+from collections import namedtuple, Counter
 from types import SimpleNamespace
 
 from typing import Dict,List,Union,Any
@@ -33,94 +35,15 @@ def get_answer():
   """Get an answer."""
   return True
 
-class MockFrame:
-  def string(self):
-    example = "<frame at 0x108756e50, file '<ipython-input-1-24d5ecc75ccb>', line 1, code <module>>"
-    print(f"{example=}")
-
-  def attributes(self,verbose=False):
-    attrsv = ['f_back','f_builtins',
-      'f_code','f_globals','f_lasti',
-      'f_lineno','f_locals','f_trace',
-      'f_trace_lines','f_trace_opcodes']
-    attrs = ['f_back','f_code','f_lasti',
-      'f_lineno','f_trace','f_trace_lines',
-      'f_trace_opcodes']
-    attrsj = '\n'.join(attrs)
-    print(attrsj)
-    return attrs
-
-  def get_attributes(self,f):
-    if f:
-      attrs = self.attributes(verbose=False)
-      d = {k:getattr(f,k) for k in attrs}
-      for k,v in d.items():
-        print(f"{k}={v}")
-    else:
-      raise Exception
-
-class MockCode:
-  def string(self):
-    example = '<code object <module> at 0x106c22240, file "<ipython-input-1-24d5ecc75ccb>", line 1>'
-    print(f"{example=}")
-
-  def attributes(self,verbose=False):
-    attrsv = [
-      'co_argcount',
-      'co_cellvars',
-      'co_code',
-      'co_consts',
-      'co_filename',
-      'co_firstlineno',
-      'co_flags',
-      'co_freevars',
-      'co_kwonlyargcount',
-      'co_lnotab',
-      'co_name',
-      'co_names',
-      'co_nlocals',
-      'co_posonlyargcount',
-      'co_stacksize',
-      'co_varnames']
-    attrs = [
-      'co_argcount',
-      'co_cellvars',
-      'co_code',
-      'co_consts',
-      'co_filename',
-      'co_firstlineno',
-      'co_flags',
-      'co_freevars',
-      'co_kwonlyargcount',
-      'co_lnotab',
-      'co_name',
-      'co_names',
-      'co_nlocals',
-      'co_posonlyargcount',
-      'co_stacksize',
-      'co_varnames']
-    attrsj = '\n'.join(attrs)
-    print(attrsj)
-    return attrs
-
-  def get_attributes(self,f):
-    if f:
-      attrs = self.attributes(verbose=False)
-      d = {k:getattr(fc,k) for k in attrs}
-      for k,v in d.items():
-        print(f"{k}={v}")
-    else:
-      raise Exception
-
-
 UNSET = object()
 class Event:
-  DATA = SimpleNamespace()
-  DATA.dataset = set()
-
-  def __init__(self,
-      frame:FrameType,event:str,arg:Any,
-      collect_data:bool=False):
+  DATA = SimpleNamespace(dataset = set())
+  COUNTER = Counter
+  def __init__(
+    self,
+    frame:FrameType,event:str,arg:Any,
+    collect_data:bool=False
+  ):
     self.frame = frame
     self.event = event
     self.arg = arg
@@ -193,13 +116,30 @@ class Event:
         self._stdlib = False
     return self._stdlib
 
+  @property
+  def data(self):
+    return self.DATA
+
   def setup_data_collection(self,which_data):
     self.DATA.kind = which_data
     self.DATA.dataset.add(getattr(self,which_data))
 
-  @property
-  def data(self):
-    return self.DATA
+  def write_data(self):
+    filepath = Path(f"_{self.DATA.kind}_data.log").resolve()
+    with open(filepath,"w") as f:
+      f.write('\n'.join(self.DATA.dataset))
+    assert filepath.exists(), f'failed to write data to {filepath}'
+    return filepath
+
+  def write_trace(self):
+    pfss = get_strs(self,self.COUNTER)
+    jp = jsonpkl.encode(pfss)
+    jp2 = jsonpkl.encode(pfss._asdict())
+    with open('jp.json','w') as f:
+      f.write(jp)
+    with open('jp2.json','w') as f:
+      f.write(jp2)
+
 
 PackedFrameStrings = namedtuple(
   'PackedFrameStrings',

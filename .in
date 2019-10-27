@@ -13,6 +13,6 @@ source ${${(%):-%N}:h}/bin/activate
 
 git add .
 git commit -m "startup $(date)"
-pip install --upgrade stackprinter prettyprinter pyperclip pip pytest
+pip install --upgrade stackprinter prettyprinter pyperclip pip pytest jsonpickle
 pytest ${${(%):-%N}:h}/tests/
 

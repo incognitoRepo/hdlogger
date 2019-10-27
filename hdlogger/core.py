@@ -59,21 +59,49 @@ def trace_hook_callback2(frame,event,arg):
   counter2 += 1
   if event == 'kill':
     sys.settrace(None)
-    with open('zztrace2.log','a') as f:
+    with open('_trace2.log','a') as f:
       f.write(f"{evt.data}")
       return evt.data
   return trace_hook_callback2
 
 def thcb_evt0(frame,event,arg):
   evt = Event(frame,event,arg,
-  collect_data='module')
+    collect_data='module')
   if not filter_only(evt.module,['hdlogger','tester']): return
   if event == 'kill':
     sys.settrace(None)
-    with open('zzthcb_evt0.log','a') as f:
+    with open('_thcb_evt0.log','a') as f:
       f.write(f"{evt.data}")
     return 'killed_evt0'
   return thcb_evt0
 
+def thcb_evt1(frame,event,arg):
+  """added write_data method to Event"""
+  evt = Event(frame,event,arg,
+    collect_data='module')
+  if not filter_only(evt.module,['hdlogger','tester']): return
+  if event == 'kill':
+    sys.settrace(None)
+    return evt.write_data()
+  return thcb_evt1
+
 def thcb_gen0(frame,event,arg):
-  pass
+  """added write_data method to Event"""
+  evt = Event(frame,event,arg,
+    collect_data='module')
+  if not filter_only(evt.module,['hdlogger','tester']): return
+  if event == 'kill':
+    sys.settrace(None)
+    return 'killed_gen0'
+  return thcb_gen0
+
+def thcb_gen0(frame,event,arg):
+  """added write_data method to Event"""
+  evt = Event(frame,event,arg,
+    collect_data='module')
+  if not filter_only(evt.module,['hdlogger','tester']): return
+  if event == 'kill':
+    sys.settrace(None)
+    evt.write_trace()
+    return 'killed_gen1'
+  return thcb_gen0

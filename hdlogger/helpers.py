@@ -135,9 +135,10 @@ class Event:
     pfss = get_strs(self,self.COUNTER)
     jp = jsonpkl.encode(pfss)
     jp2 = jsonpkl.encode(pfss._asdict())
-    with open('jp.json','w') as f:
+    jsonpath = Path('_jsnpkl.json').resolve()
+    with open(jsonpath,'w') as f:
       f.write(jp)
-    with open('jp2.json','w') as f:
+    with open('_jp2.json','w') as f:
       f.write(jp2)
 
 
@@ -147,6 +148,7 @@ PackedFrameStrings = namedtuple(
 )
 def get_strs(event,counter=""):
   frame = event.frame
+  arg = event.arg
   fc = frame.f_code
   sb = f"\n{'=='*40}" # start banner
   cs = f"{counter=}\n" # counter str
@@ -157,9 +159,9 @@ def get_strs(event,counter=""):
   fc_dcis = f"{dis.code_info(fc)=}"
   fc_dass = f"{dis.disassemble(fc)=}"
   fc_dgil:List = dis.get_instructions(fc)
-  fc_dgis:str  = '\n'.join(fc_dgil)
+  fc_dgis:str  = '\n'.join([repr(elm) for elm in fc_dgil])
   fc_flsl:List = dis.findlinestarts(fc)
-  fc_flss:str  = '\n'.join(fc_flsl)
+  fc_flss:str  = '\n'.join([repr(elm) for elm in fc_flsl])
   eb = f"\n{'=='*40}" # end banner
   pfss = PackedFrameStrings(
     sb,cs,eas,fs,fcs,fc_dcis,fc_dass,fc_dgis,fc_flss,eb

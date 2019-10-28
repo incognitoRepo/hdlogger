@@ -95,13 +95,12 @@ def thcb_gen0(frame,event,arg):
     return 'killed_gen0'
   return thcb_gen0
 
-def thcb_gen0(frame,event,arg):
+def thcb_gen1(frame,event,arg):
   """added write_data method to Event"""
   evt = Event(frame,event,arg,
     collect_data='module')
   if not filter_only(evt.module,['hdlogger','tester']): return
   if event == 'kill':
     sys.settrace(None)
-    evt.write_trace()
-    return 'killed_gen1'
+    return evt.write_trace()
   return thcb_gen0

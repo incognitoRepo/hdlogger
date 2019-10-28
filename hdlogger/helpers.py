@@ -141,7 +141,6 @@ class Event:
     with open('_jp2.json','w') as f:
       f.write(jp2)
 
-
 PackedFrameStrings = namedtuple(
   'PackedFrameStrings',
   'sb cs eas fs fcs fc_dcis fc_dass fc_dgis fc_flss eb'

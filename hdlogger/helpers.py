@@ -49,6 +49,7 @@ class Event:
     self.frame = frame
     self.event = event
     self.arg = arg
+    self.arg_type = type(arg)
     # self._code = UNSET
     self._filename = UNSET
     # self._fullsource = UNSET
@@ -130,7 +131,7 @@ class Event:
   def write_data(self):
     filepath = Path(f"_{self.DATA.kind}_data.log").resolve()
     with open(filepath,"w") as f:
-      f.write('\n'.join(self.DATA.dataset))
+      f.write('\n'.join([elm for elm in self.DATA.dataset if elm is not None]))
     assert filepath.exists(), f'failed to write data to {filepath}'
     return filepath
 
@@ -150,6 +151,7 @@ def get_strs(event,counter=""):
     "mod": event.module,
     "frm": event.frame,
     "cod": event.frame.f_code,
+    "atyp": event.arg_type,
     "dis_bc": dis.Bytecode(event.frame.f_code)
   }
   return packed_frame_strings

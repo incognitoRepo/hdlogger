@@ -3,6 +3,8 @@
 import dis, sys, inspect
 from ipdb import set_trace as st
 from itertools import tee
+from types import GeneratorType
+import inspect
 from pprint import pprint
 from .helpers import (
   get_answer,
@@ -106,11 +108,16 @@ def thcb_gen1(frame,event,arg):
   return thcb_gen1
 
 def thcb_gen2(frame,event,arg):
-  if isinstance(arg,GeneratorType):
+  print(f"{arg=}")
+  if isinstance(arg,GeneratorType) or inspect.isgeneratorfunction(arg):
     arg,arg2 = tee(arg)
-  evt = Event(frame,event,arg2,
-    write_flag=True,
-    collect_data='arg')
+    evt = Event(frame,event,arg2,
+      write_flag=True,
+      collect_data='arg')
+  else:
+    evt = Event(frame,event,arg,
+      write_flag=True,
+      collect_data='arg')
   if not filter_only(evt.module,['hdlogger','tester']): return
   if event == 'kill':
     sys.settrace(None)

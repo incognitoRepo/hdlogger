@@ -15,6 +15,6 @@ source ${${(%):-%N}:h}/bin/activate
 
 git add .
 git commit -m "startup $(date)"
-pip install --upgrade stackprinter prettyprinter pyperclip pip pytest jsonpickle
+pip install --upgrade stackprinter prettyprinter pyperclip pip pytest jsonpickle ipdb
 pytest ${${(%):-%N}:h}/tests/
 

@@ -46,7 +46,7 @@ class Event:
     write_flag:bool=True,
     collect_data:bool=False,
   ):
-    next(self.COUNT)
+    self.count = next(self.COUNT)
     self.frame = frame
     self.event = event
     self.arg = arg
@@ -124,10 +124,6 @@ class Event:
   def data(self):
     return self.DATA
 
-  @property
-  def count(self):
-    return self.COUNT
-
   def setup_data_collection(self,which_data):
     self.DATA.kind = which_data
     self.DATA.dataset.add(getattr(self,which_data))
@@ -155,19 +151,19 @@ def get_strs(event,counter=""):
   frame = event.frame
   arg = event.arg
   fc = frame.f_code
-  sb = f"\n{'=='*40}" # start banner
-  cs = f"{event.count=}\n" # counter str
-  eas = f"{event=}\n{arg=}\n" # event & arg str
-  ems = f"{event.module=}\n"
-  fs = f"{frame=}\n"
-  fcs = f"{frame.f_code=}\n"
-  fc_dcis = f"{dis.code_info(fc)=}"
-  fc_dass = f"{dis.disassemble(fc)=}"
-  fc_dgil:List = dis.get_instructions(fc)
-  fc_dgis:str  = '\n'.join([repr(elm) for elm in fc_dgil])
-  fc_flsl:List = dis.findlinestarts(fc)
-  fc_flss:str  = '\n'.join([repr(elm) for elm in fc_flsl])
-  eb = f"\n{'=='*40}" # end banner
+  bnr = f"\n{'=='*40}" # start banner
+  cnt = event.count # counter str
+  evt = event
+  arg = arg
+  mod = event.module
+  frm = frame
+  cod = frame.f_code
+  dis_info = dis.code_info(fc)
+  dis_ass = dis.disassemble(fc)
+  dis_instr = dis.get_instructions(fc)
+  # fc_dgis:str  = '\n'.join([repr(elm) for elm in fc_dgil])
+  dis_lsrts = dis.findlinestarts(fc)
+  # fc_flss:str  = '\n'.join([repr(elm) for elm in fc_flsl])
   pfss = PackedFrameStrings(
     sb,cs,eas,fs,fcs,fc_dcis,fc_dass,fc_dgis,fc_flss,eb
   )

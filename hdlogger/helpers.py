@@ -1,6 +1,5 @@
 # vscode-fold=1
 import dis, inspect
-import logging
 import jsonpickle as jsonpkl
 from pathlib import Path
 from collections import namedtuple, Counter
@@ -49,7 +48,7 @@ class Event:
     self.count = next(self.COUNT)
     self.frame = frame
     self.event = event
-    self.arg = self.set_arg(arg)
+    self.arg = arg
     # self._code = UNSET
     self._filename = UNSET
     # self._fullsource = UNSET
@@ -123,14 +122,6 @@ class Event:
   @property
   def data(self):
     return self.DATA
-
-  def set_arg(self,arg):
-    print(arg)
-    if isinstance(arg,GeneratorType):
-      arg,arg2 = tee(arg)
-      self.arg = arg2
-    else:
-      self.arg = arg
 
   def setup_data_collection(self,which_data):
     self.DATA.kind = which_data

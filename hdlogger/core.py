@@ -3,7 +3,6 @@
 import dis, sys, inspect
 from ipdb import set_trace as st
 from pprint import pprint
-import logging
 from .helpers import (
   get_answer,
   Event,
@@ -98,7 +97,7 @@ def thcb_gen1(frame,event,arg):
   """added write_data method to Event"""
   evt = Event(frame,event,arg,
     write_flag=True,
-    collect_data='module')
+    collect_data=False)
   if not filter_only(evt.module,['hdlogger','tester']): return
   if event == 'kill':
     sys.settrace(None)
@@ -106,12 +105,12 @@ def thcb_gen1(frame,event,arg):
   return thcb_gen1
 
 def thcb_gen2(frame,event,arg):
-  print(arg)
   evt = Event(frame,event,arg,
     write_flag=True,
     collect_data='arg')
   if not filter_only(evt.module,['hdlogger','tester']): return
   if event == 'kill':
     sys.settrace(None)
+    evt.write_data()
     return evt.write_trace()
   return thcb_gen1

@@ -2,6 +2,7 @@
 # vscode-fold=1
 import dis, sys, inspect
 from ipdb import set_trace as st
+from itertools import tee
 from pprint import pprint
 from .helpers import (
   get_answer,
@@ -105,7 +106,9 @@ def thcb_gen1(frame,event,arg):
   return thcb_gen1
 
 def thcb_gen2(frame,event,arg):
-  evt = Event(frame,event,arg,
+  if isinstance(arg,GeneratorType):
+    arg,arg2 = tee(arg)
+  evt = Event(frame,event,arg2,
     write_flag=True,
     collect_data='arg')
   if not filter_only(evt.module,['hdlogger','tester']): return

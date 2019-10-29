@@ -114,10 +114,13 @@ def thcb_gen2(frame,event,arg):
     evt = Event(frame,event,arg2,
       write_flag=True,
       collect_data='arg')
+    print(f"{evt.count=} {evt.arg}")
   else:
     evt = Event(frame,event,arg,
       write_flag=True,
       collect_data='arg')
+    print(f"{evt.count=} {evt.arg}")
+  print(f"{evt.count=} {evt.arg}")
   if not filter_only(evt.module,['hdlogger','tester']): return
   if event == 'kill':
     sys.settrace(None)

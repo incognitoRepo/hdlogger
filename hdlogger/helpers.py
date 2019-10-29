@@ -139,6 +139,7 @@ class Event:
     pfss = get_strs(self,self.COUNT)
     jp = jsonpkl.encode(pfss)
     jsonpath = Path('_jsnpkl.json').resolve()
+    print(f"{jp=}")
     with open(jsonpath,'a') as f:
       f.write(jp+'\n')
     return jsonpath

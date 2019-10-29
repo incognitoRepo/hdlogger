@@ -4,8 +4,8 @@ import logging
 import jsonpickle as jsonpkl
 from pathlib import Path
 from collections import namedtuple, Counter
-from itertools import count
-from types import SimpleNamespace
+from itertools import count, tee
+from types import SimpleNamespace, GeneratorType
 
 from typing import Dict,List,Union,Any
 from types import (
@@ -43,13 +43,13 @@ class Event:
   def __init__(
     self,
     frame:FrameType,event:str,arg:Any,
-    write_flag:bool=True,
+    write_flag:bool=False,
     collect_data:bool=False,
   ):
     self.count = next(self.COUNT)
     self.frame = frame
     self.event = event
-    self.arg = arg
+    self.arg = self.set_arg(arg)
     # self._code = UNSET
     self._filename = UNSET
     # self._fullsource = UNSET
@@ -124,6 +124,14 @@ class Event:
   def data(self):
     return self.DATA
 
+  def set_arg(self,arg):
+    print(arg)
+    if isinstance(arg,GeneratorType):
+      arg,arg2 = tee(arg)
+      self.arg = arg2
+    else:
+      self.arg = arg
+
   def setup_data_collection(self,which_data):
     self.DATA.kind = which_data
     self.DATA.dataset.add(getattr(self,which_data))
@@ -137,37 +145,23 @@ class Event:
 
   def write_trace(self):
     pfss = get_strs(self,self.COUNT)
-    jp = jsonpkl.encode(pfss._asdict())
+    jp = jsonpkl.encode(pfss)
     jsonpath = Path('_jsnpkl.json').resolve()
     with open(jsonpath,'a') as f:
       f.write(jp+'\n')
     return jsonpath
 
-PackedFrameStrings = namedtuple(
-  'PackedFrameStrings',
-  'sb cs eas fs fcs fc_dcis fc_dass fc_dgis fc_flss eb'
-)
 def get_strs(event,counter=""):
-  frame = event.frame
-  arg = event.arg
-  fc = frame.f_code
-  bnr = f"\n{'=='*40}" # start banner
-  cnt = event.count # counter str
-  evt = event
-  arg = arg
-  mod = event.module
-  frm = frame
-  cod = frame.f_code
-  dis_info = dis.code_info(fc)
-  dis_ass = dis.disassemble(fc)
-  dis_instr = dis.get_instructions(fc)
-  # fc_dgis:str  = '\n'.join([repr(elm) for elm in fc_dgil])
-  dis_lsrts = dis.findlinestarts(fc)
-  # fc_flss:str  = '\n'.join([repr(elm) for elm in fc_flsl])
-  pfss = PackedFrameStrings(
-    sb,cs,eas,fs,fcs,fc_dcis,fc_dass,fc_dgis,fc_flss,eb
-  )
-  return pfss
+  packed_frame_strings = {
+    "cnt": event.count,
+    "evt": event,
+    "arg": event.arg,
+    "mod": event.module,
+    "frm": event.frame,
+    "cod": event.frame.f_code,
+    "dis_bc": dis.Bytecode(event.frame.f_code)
+  }
+  return packed_frame_strings
 
 TracerKillPack = namedtuple(
   'TracerKillPack',
@@ -179,27 +173,3 @@ def get_tracer_kill_pack():
     'kill',
     None)
   return tkp
-
-# create logger
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-
-# create console handler and set level to debug
-ch = logging.StreamHandler()
-ch.setLevel(logging.DEBUG)
-
-# create formatter
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-# add formatter to ch
-ch.setFormatter(formatter)
-
-# add ch to logger
-logger.addHandler(ch)
-
-logging.basicConfig(
-  filename="example.log",
-  format="%(levelname)s:%(message)s",
-  level=logging.DEBUG
-  )
-logging.debug("This message should go to the log file")

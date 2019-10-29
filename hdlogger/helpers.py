@@ -4,6 +4,7 @@ import logging
 import jsonpickle as jsonpkl
 from pathlib import Path
 from collections import namedtuple, Counter
+from itertools import count
 from types import SimpleNamespace
 
 from typing import Dict,List,Union,Any
@@ -38,12 +39,14 @@ def get_answer():
 UNSET = object()
 class Event:
   DATA = SimpleNamespace(dataset = set())
-  COUNTER = Counter
+  COUNT = count()
   def __init__(
     self,
     frame:FrameType,event:str,arg:Any,
-    collect_data:bool=False
+    write_flag:bool=True,
+    collect_data:bool=False,
   ):
+    next(self.COUNT)
     self.frame = frame
     self.event = event
     self.arg = arg
@@ -62,6 +65,7 @@ class Event:
     # self._threadname = UNSET
     # self._thread = UNSET
     if collect_data: self.setup_data_collection(collect_data)
+    if write_flag: self.write_trace()
 
   @property
   def module(self):
@@ -120,6 +124,10 @@ class Event:
   def data(self):
     return self.DATA
 
+  @property
+  def count(self):
+    return self.COUNT
+
   def setup_data_collection(self,which_data):
     self.DATA.kind = which_data
     self.DATA.dataset.add(getattr(self,which_data))
@@ -132,14 +140,12 @@ class Event:
     return filepath
 
   def write_trace(self):
-    pfss = get_strs(self,self.COUNTER)
-    jp = jsonpkl.encode(pfss)
-    jp2 = jsonpkl.encode(pfss._asdict())
+    pfss = get_strs(self,self.COUNT)
+    jp = jsonpkl.encode(pfss._asdict())
     jsonpath = Path('_jsnpkl.json').resolve()
-    with open(jsonpath,'w') as f:
-      f.write(jp)
-    with open('_jp2.json','w') as f:
-      f.write(jp2)
+    with open(jsonpath,'a') as f:
+      f.write(jp+'\n')
+    return jsonpath
 
 PackedFrameStrings = namedtuple(
   'PackedFrameStrings',
@@ -150,7 +156,7 @@ def get_strs(event,counter=""):
   arg = event.arg
   fc = frame.f_code
   sb = f"\n{'=='*40}" # start banner
-  cs = f"{counter=}\n" # counter str
+  cs = f"{event.count=}\n" # counter str
   eas = f"{event=}\n{arg=}\n" # event & arg str
   ems = f"{event.module=}\n"
   fs = f"{frame=}\n"

@@ -9,6 +9,8 @@ alias ytdf="source /Users/alberthan/VSCodeProjects/vytd/src/youtube-dl/devscript
 export PYTHONSTARTUP=/Users/alberthan/.pythonvenvrc.py
 export PYTHONPATH=/Users/alberthan/VSCodeProjects/tester
 
+rm -f /Users/alberthan/VSCodeProjects/tester/_*
+
 source ${${(%):-%N}:h}/bin/activate
 
 git add .

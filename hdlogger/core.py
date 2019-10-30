@@ -107,23 +107,30 @@ def thcb_gen1(frame,event,arg):
     return evt.write_trace()
   return thcb_gen1
 
+counter3 = 0
 def thcb_gen2(frame,event,arg):
-  print(f"{arg=}")
-  if isinstance(arg,GeneratorType) or inspect.isgeneratorfunction(arg):
-    arg,arg2 = tee(arg)
-    evt = Event(frame,event,arg2,
-      write_flag=True,
-      collect_data='arg')
-    print(f"{evt.count=} {evt.arg}")
-  else:
-    evt = Event(frame,event,arg,
-      write_flag=True,
-      collect_data='arg')
-    print(f"{evt.count=} {evt.arg}")
-  print(f"{evt.count=} {evt.arg}")
+  global counter3
+  print(f"{counter3=}")
+  counter3 += 1
+  # if isinstance(arg,GeneratorType) or inspect.isgeneratorfunction(arg):
+  #   arg,arg2 = tee(arg)
+  #   evt = Event(frame,event,arg2,
+  #     write_flag=True,
+  #     collect_data='arg')
+  print('c1')
+  evt = Event(frame,event,arg,
+    write_flag=True,
+    collect_data='arg')
+  print('c2')
+  print(f"{evt.count=}, {arg=}, {evt.arg=}")
+  print('c3')
   if not filter_only(evt.module,['hdlogger','tester']): return
-  if event == 'kill':
+  print('c4')
+  if event == 'return':
     sys.settrace(None)
-    evt.write_data()
+  if event == 'kill':
+    print('c5')
+    sys.settrace(None)
+    print('c6')
     return
   return thcb_gen1

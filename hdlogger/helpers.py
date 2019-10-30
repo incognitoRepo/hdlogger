@@ -5,6 +5,7 @@ from pathlib import Path
 from collections import namedtuple, Counter
 from itertools import count, tee
 from types import SimpleNamespace, GeneratorType
+import stackprinter
 
 from typing import Dict,List,Union,Any
 from types import (
@@ -46,8 +47,13 @@ class Event:
     collect_data:bool=False,
   ):
     self.count = next(self.COUNT)
+    print(f"{self.count=}")
+    if self.count >= 10:
+      raise SystemExit
     self.frame = frame
     self.event = event
+    self.test_frame()
+    print(f"{self.event=}")
     self.arg = arg
     self.arg_type = type(arg)
     # self._code = UNSET
@@ -66,6 +72,10 @@ class Event:
     # self._thread = UNSET
     if collect_data: self.setup_data_collection(collect_data)
     if write_flag: self.write_trace()
+
+  def test_frame(self):
+    if 'rv' in self.frame.f_locals:
+      print(f"{list(self.frame.f_locals['rv'])}")
 
   @property
   def module(self):
@@ -139,7 +149,8 @@ class Event:
     pfss = get_strs(self,self.COUNT)
     jp = jsonpkl.encode(pfss)
     jsonpath = Path('_jsnpkl.json').resolve()
-    print(f"{jp=}")
+    if pfss['arg']:
+      print(f'{pfss["cnt"]=}: {list(pfss["arg"])=}')
     with open(jsonpath,'a') as f:
       f.write(jp+'\n')
     return jsonpath

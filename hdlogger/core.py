@@ -110,7 +110,7 @@ def thcb_gen1(frame,event,arg):
 counter3 = 0
 def thcb_gen2(frame,event,arg):
   global counter3
-  print(f"{counter3=}")
+  print(f"in tracefunc: {counter3=}, {event=}, {arg=}")
   counter3 += 1
   # if isinstance(arg,GeneratorType) or inspect.isgeneratorfunction(arg):
   #   arg,arg2 = tee(arg)
@@ -122,15 +122,14 @@ def thcb_gen2(frame,event,arg):
     write_flag=True,
     collect_data='arg')
   print('c2')
-  print(f"{evt.count=}, {arg=}, {evt.arg=}")
-  print('c3')
-  if not filter_only(evt.module,['hdlogger','tester']): return
+  if not filter_only(evt.module,['tester']): return
   print('c4')
   if event == 'return':
     sys.settrace(None)
+    return None
   if event == 'kill':
     print('c5')
     sys.settrace(None)
     print('c6')
     return
-  return thcb_gen1
+  return thcb_gen2

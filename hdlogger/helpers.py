@@ -47,13 +47,12 @@ class Event:
     collect_data:bool=False,
   ):
     self.count = next(self.COUNT)
-    print(f"{self.count=}")
+    print(f"  in Event: {self.count=}, {event=}, {arg=}")
     if self.count >= 10:
       raise SystemExit
     self.frame = frame
     self.event = event
-    self.test_frame()
-    print(f"{self.event=}")
+    self.test_frame(arg)
     self.arg = arg
     self.arg_type = type(arg)
     # self._code = UNSET
@@ -73,9 +72,14 @@ class Event:
     if collect_data: self.setup_data_collection(collect_data)
     if write_flag: self.write_trace()
 
-  def test_frame(self):
+  def test_frame(self,arg):
+    if not arg: arg = "null"
     if 'rv' in self.frame.f_locals:
-      print(f"{list(self.frame.f_locals['rv'])}")
+      fl = self.frame.f_locals['rv']
+      print(f"  {isinstance(arg,GeneratorType)=}, {list(arg)}")
+      print(f"  {isinstance(fl, GeneratorType)=}, {list(fl)=}")
+      print(f"  {list(arg)}")
+      print(f"  {list(self.frame.f_locals['rv'])}")
 
   @property
   def module(self):
@@ -150,7 +154,7 @@ class Event:
     jp = jsonpkl.encode(pfss)
     jsonpath = Path('_jsnpkl.json').resolve()
     if pfss['arg']:
-      print(f'{pfss["cnt"]=}: {list(pfss["arg"])=}')
+      print(f'{pfss["cnt"]=}: {list(pfss["arg"])=}\n==end')
     with open(jsonpath,'a') as f:
       f.write(jp+'\n')
     return jsonpath

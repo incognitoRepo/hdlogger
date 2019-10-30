@@ -125,5 +125,5 @@ def thcb_gen2(frame,event,arg):
   if event == 'kill':
     sys.settrace(None)
     evt.write_data()
-    return evt.write_trace()
+    return
   return thcb_gen1

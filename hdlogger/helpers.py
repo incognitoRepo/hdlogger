@@ -47,7 +47,10 @@ class Event:
     collect_data:bool=False,
   ):
     self.count = next(self.COUNT)
-    print(f"  in Event: {self.count=}, {event=}, {arg=}")
+    if arg:
+      print(f"  in Event: {self.count=}, {event=}, {arg=}, {list(arg)=}")
+    else:
+      print(f"  in Event: {self.count=}, {event=}, {arg=}")
     if self.count >= 10:
       raise SystemExit
     self.frame = frame
@@ -75,11 +78,45 @@ class Event:
   def test_frame(self,arg):
     if not arg: arg = "null"
     if 'rv' in self.frame.f_locals:
-      fl = self.frame.f_locals['rv']
+      cf = inspect.currentframe()
+      print(self.frame.f_locals.keys())
+      print(cf.f_locals['self'].frame.f_locals.keys())
+      print(list(self.frame.f_locals['rv']))
+      self.frame.f_locals['rv2'] = [333]
+      import ipdb; ipdb.set_trace()
+      print(self.frame.f_locals.keys())
+      print(list(self.frame.f_locals['rv2']))
+      fl = list(self.frame.f_locals['rv2'])
+      fl1,fl2,fl3 = (elm for elm in fl),(elm for elm in fl),(elm for elm in range(3))
+      self.frame.f_locals['rv'] = fl3
       print(f"  {isinstance(arg,GeneratorType)=}, {list(arg)}")
-      print(f"  {isinstance(fl, GeneratorType)=}, {list(fl)=}")
+      print(f"  {isinstance(fl2, GeneratorType)=}, {list(fl2)=}")
       print(f"  {list(arg)}")
-      print(f"  {list(self.frame.f_locals['rv'])}")
+      print(f"  {list(fl1)=}")
+      self.frame.f_locals['rv'] = [elm for elm in range(3)]
+      print(f"  {isinstance(self.frame.f_locals['rv'],GeneratorType)=}, {list(self.frame.f_locals['rv'])=}")
+
+  def test_frame2(self,arg):
+    if not arg: arg = "null"
+    print(self.frame.f_globals.keys())
+    if 'rv' in self.frame.f_globals:
+      cf = inspect.currentframe()
+      print(self.frame.f_globals.keys())
+      print(cf.f_globals['self'].frame.f_globals.keys())
+      print(list(self.frame.f_globals['rv']))
+      self.frame.f_globals['rv2'] = [333]
+      import ipdb; ipdb.set_trace()
+      print(self.frame.f_globals.keys())
+      print(list(self.frame.f_globals['rv2']))
+      fl = list(self.frame.f_globals['rv2'])
+      fl1,fl2,fl3 = (elm for elm in fl),(elm for elm in fl),(elm for elm in range(3))
+      self.frame.f_globals['rv'] = fl3
+      print(f"  {isinstance(arg,GeneratorType)=}, {list(arg)}")
+      print(f"  {isinstance(fl2, GeneratorType)=}, {list(fl2)=}")
+      print(f"  {list(arg)}")
+      print(f"  {list(fl1)=}")
+      self.frame.f_globals['rv'] = [elm for elm in range(3)]
+      print(f"  {isinstance(self.frame.f_globals['rv'],GeneratorType)=}, {list(self.frame.f_globals['rv'])=}")
 
   @property
   def module(self):

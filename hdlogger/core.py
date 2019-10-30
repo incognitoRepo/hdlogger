@@ -107,11 +107,49 @@ def thcb_gen1(frame,event,arg):
     return evt.write_trace()
   return thcb_gen1
 
+def local_call(frame,event,arg):
+  print(1)
+
+def local_line(frame,event,arg):
+  print(2)
+
+def local_ret(frame,event,arg):
+  print(3)
+
+def local_exc(frame,event,arg):
+  print(4)
+
+def local_op(frame,event,arg):
+  print(5)
+
 counter3 = 0
 def thcb_gen2(frame,event,arg):
   global counter3
   print(f"in tracefunc: {counter3=}, {event=}, {arg=}")
   counter3 += 1
+  if counter3 >= 10:
+    sys.settrace(None)
+    return
+  if event == 'call':
+    # global trace
+    print('call',f"{arg=}")
+    return thcb_gen2
+  elif event == 'line':
+    # local trace, arg=None, returns local trace func
+    print('line',f"{arg=}")
+    return local_line
+  elif event == 'return':
+    # local trace, returns ignored
+    print('return',f"{arg=}")
+    return local_ret
+  elif event == 'exception':
+    # local trace, arg=tuple(exception,value,tb),returns new local trace func
+    print('exception',f"{arg=}")
+    return local_exc
+  elif event == 'opcode':
+    # local trace, arg=None,returns new local trace func
+    print('opcode',f"{arg=}")
+    return local_op
   # if isinstance(arg,GeneratorType) or inspect.isgeneratorfunction(arg):
   #   arg,arg2 = tee(arg)
   #   evt = Event(frame,event,arg2,
@@ -120,13 +158,10 @@ def thcb_gen2(frame,event,arg):
   print('c1')
   evt = Event(frame,event,arg,
     write_flag=True,
-    collect_data='arg')
+    collect_data=False)
   print('c2')
   if not filter_only(evt.module,['tester']): return
   print('c4')
-  if event == 'return':
-    sys.settrace(None)
-    return None
   if event == 'kill':
     print('c5')
     sys.settrace(None)

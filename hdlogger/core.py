@@ -137,16 +137,16 @@ def local_op(frame,event,arg):
   rf1,rf2,rf3 = thcb_gen2,local_op,None
   return rf1
 
-counter3 = 0
-def thcb_gen2(frame,event,arg):
-  global counter3
+counter3a = 0
+def thcb_gen2a(frame,event,arg):
+  global counter3a
   src = getline(frame.f_code.co_filename,frame.f_lineno,frame.f_globals)
   srchld = highlight(src,Python3Lexer(),Terminal256Formatter(style=get_style_by_name('monokai')))
   this_func = "\x1b[2;3;96mthcb_gen2\x1b[0m"
-  print(f"in {this_func}: {counter3=}, {event=}, {arg=}")
+  print(f"in {this_func}: {counter3a=}, {event=}, {arg=}")
   print(f"            : {frame.f_lineno:<03} {srchld}",end="")
-  counter3 += 1
-  if counter3 >= 10:
+  counter3a += 1
+  if counter3a >= 10:
     sys.settrace(None)
     return
   if event == 'call':
@@ -188,3 +188,47 @@ def thcb_gen2(frame,event,arg):
     print('c6')
     return
   return thcb_gen2
+
+counter3 = 0
+def thcb_gen2(frame,event,arg):
+  global counter3
+  src = getline(frame.f_code.co_filename,frame.f_lineno,frame.f_globals)
+  srchld = highlight(src,Python3Lexer(),Terminal256Formatter(style=get_style_by_name('monokai')))
+  this_func = "\x1b[2;3;96mthcb_gen2\x1b[0m"
+  idt = " " * 12
+  print(f"\nin {this_func}: {counter3=}, {event=}, {arg=}")
+  print(f"{idt[:-3]}{frame.f_lineno:<03}: {srchld}",end="")
+  counter3 += 1
+  if counter3 >= 10:
+    sys.settrace(None)
+    return
+  if event == 'call':
+    # global trace
+    print(f"{idt[:-1]}\x1b[1;31mc\x1b[0m: {arg=}")
+    return thcb_gen2
+    return local_call
+  elif event == 'line':
+    # local trace, arg=None, returns local trace func
+    print(f"{idt[:-1]}\x1b[1;32ml\x1b[0m: {arg=}")
+    # print(local_line(frame,event,arg))
+    return local_line
+  elif event == 'return':
+    # local trace, returns ignored
+    print(f"{idt[:-1]}\x1b[1;33mr\x1b[0m: {arg=}")
+    return local_ret
+  elif event == 'exception':
+    # local trace, arg=tuple(exception,value,tb),returns new local trace func
+    print(f"{idt[:-1]}\x1b[1;34me\x1b[0m: {arg=}")
+    return local_exc
+  elif event == 'opcode':
+    # local trace, arg=None,returns new local trace func
+    print(f"{idt[:-1]}\x1b[1;35mo\x1b[0m: {arg=}")
+    return local_op
+  evt = Event(frame,event,arg,
+    write_flag=True,
+    collect_data=False)
+  print('c1 ',end="")
+  if not filter_only(evt.module,['tester']): return
+  print('c2 ')
+  # return thcb_gen2
+

@@ -47,10 +47,11 @@ class Event:
     collect_data:bool=False,
   ):
     self.count = next(self.COUNT)
+    this_func = "\x1b[2;3;96mEvent\x1b[0m"
     if arg:
-      print(f"  in Event: {self.count=}, {event=}, {arg=}, {list(arg)=}")
+      print(f"    in {this_func}: {self.count=}, {event=}, {arg=}, {list(arg)=}")
     else:
-      print(f"  in Event: {self.count=}, {event=}, {arg=}")
+      print(f"    in {this_func}: {self.count=}, {event=}, {arg=}")
     if self.count >= 10:
       raise SystemExit
     self.frame = frame

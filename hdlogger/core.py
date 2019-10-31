@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
 # vscode-fold=1
 import dis, sys, inspect
+from linecache import getline
 from ipdb import set_trace as st
 from itertools import tee
 from types import GeneratorType
 import inspect
+from pygments import highlight
+from pygments.lexers import Python3Lexer
+from pygments.formatters import Terminal256Formatter
+from pygments.styles import get_style_by_name
 from pprint import pprint
 from .helpers import (
   get_answer,
@@ -108,47 +113,62 @@ def thcb_gen1(frame,event,arg):
   return thcb_gen1
 
 def local_call(frame,event,arg):
-  print(1)
+  print("  \x1b[1;31mlocal_call\x1b[0m",f"{arg=}")
+  rf1,rf2,rf3 = thcb_gen2,local_call,None
+  return rf1
 
 def local_line(frame,event,arg):
-  print(2)
+  print("  \x1b[1;32mlocal_line\x1b[0m",f"{arg=}")
+  rf1,rf2,rf3 = thcb_gen2,local_line,None
+  return rf1
 
 def local_ret(frame,event,arg):
-  print(3)
+  print("  \x1b[1;33mlocal_ret\x1b[0m",f"{arg=}")
+  rf1,rf2,rf3 = thcb_gen2,local_ret,None
+  return rf1
 
 def local_exc(frame,event,arg):
-  print(4)
+  print("  \x1b[1;34mlocal_exc\x1b[0m",f"{arg=}")
+  rf1,rf2,rf3 = thcb_gen2,local_exc,None
+  return rf1
 
 def local_op(frame,event,arg):
-  print(5)
+  print("  \x1b[1;35mlocal_op\x1b[0m",f"{arg=}")
+  rf1,rf2,rf3 = thcb_gen2,local_op,None
+  return rf1
 
 counter3 = 0
 def thcb_gen2(frame,event,arg):
   global counter3
-  print(f"in tracefunc: {counter3=}, {event=}, {arg=}")
+  src = getline(frame.f_code.co_filename,frame.f_lineno,frame.f_globals)
+  srchld = highlight(src,Python3Lexer(),Terminal256Formatter(style=get_style_by_name('monokai')))
+  this_func = "\x1b[2;3;96mthcb_gen2\x1b[0m"
+  print(f"in {this_func}: {counter3=}, {event=}, {arg=}")
+  print(f"            : {frame.f_lineno:<03} {srchld}",end="")
   counter3 += 1
   if counter3 >= 10:
     sys.settrace(None)
     return
   if event == 'call':
     # global trace
-    print('call',f"{arg=}")
-    return thcb_gen2
+    print("  \x1b[1;31mc\x1b[0m",f"{arg=}")
+    # return local_call
   elif event == 'line':
     # local trace, arg=None, returns local trace func
-    print('line',f"{arg=}")
+    print("  \x1b[1;32ml\x1b[0m",f"{arg=}")
+    # print(local_line(frame,event,arg))
     return local_line
   elif event == 'return':
     # local trace, returns ignored
-    print('return',f"{arg=}")
+    print("  \x1b[1;33mr\x1b[0m",f"{arg=}")
     return local_ret
   elif event == 'exception':
     # local trace, arg=tuple(exception,value,tb),returns new local trace func
-    print('exception',f"{arg=}")
+    print("  \x1b[1;34me\x1b[0m",f"{arg=}")
     return local_exc
   elif event == 'opcode':
     # local trace, arg=None,returns new local trace func
-    print('opcode',f"{arg=}")
+    print("  \x1b[1;35mo\x1b[0m",f"{arg=}")
     return local_op
   # if isinstance(arg,GeneratorType) or inspect.isgeneratorfunction(arg):
   #   arg,arg2 = tee(arg)

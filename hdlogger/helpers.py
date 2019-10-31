@@ -67,7 +67,7 @@ class Event:
     # self._lineno = UNSET
     # self._locals = UNSET
     self._module = UNSET
-    # self._source = UNSET
+    self._source = UNSET
     self._stdlib = UNSET
     # self._threadidn = UNSET
     # self._threadname = UNSET
@@ -170,6 +170,17 @@ class Event:
       else:
         self._stdlib = False
     return self._stdlib
+
+  @property
+  def source(self):
+    if self._source is UNSET:
+      if self.filename.endswith(('.so', '.pyd')):
+        self._source = "??? NO SOURCE: not reading {} file".format(splitext(basename(self.filename))[1])
+      try:
+        self._source = getline(self.filename, self.lineno, self.frame.f_globals)
+      except Exception as exc:
+        self._source = "??? NO SOURCE: {!r}".format(exc)
+      return self._source
 
   @property
   def data(self):

@@ -5,7 +5,7 @@ from linecache import getline
 from ipdb import set_trace as st
 from itertools import tee
 from types import GeneratorType
-import inspect
+import inspect, ctypes
 from pygments import highlight
 from pygments.lexers import Python3Lexer
 from pygments.formatters import Terminal256Formatter
@@ -113,19 +113,55 @@ def thcb_gen1(frame,event,arg):
   return thcb_gen1
 
 def local_call(frame,event,arg):
-  print("  \x1b[1;31mlocal_call\x1b[0m",f"{arg=}")
+  evt = Event(frame,event,arg,
+    write_flag=True,
+    collect_data=False)
+  print("  \x1b[0;31mlocal_call\x1b[0m:",f"{arg=}")
   rf1,rf2,rf3 = thcb_gen2,local_call,None
   return rf1
 
 def local_line(frame,event,arg):
-  print("  \x1b[1;32mlocal_line\x1b[0m",f"{arg=}")
+  # Event here: arg=something
+  evt = Event(frame,event,arg,
+      write_flag=False,
+      collect_data=False)
+  print("  \x1b[0;32mlocal_line\x1b[0m:",f"{arg=}")
   rf1,rf2,rf3 = thcb_gen2,local_line,None
   return rf1
 
 def local_ret(frame,event,arg):
-  print("  \x1b[1;33mlocal_ret\x1b[0m",f"{arg=}")
+  # list(arg) works here if put first (aka b4 global)
+  # doesnt matter whats returned here, returning nothing works too
+  # print(list(arg)); print(list(frame.f_locals['rv']))
+  d = frame.f_locals
+  dks = d.keys()
+  type_val_pairs = []
+  for k in dks:
+    print(f"{' '*11}d: {k}={d[k]}({type(d[k])})")
+    if isinstance(d[k],GeneratorType):
+      arg = list(d['rv'])
+      d['rv'] = [elm for elm in arg]
+      frame.f_globals['rv'] = arg
+      frame.f_locals.update({
+          'rv': [elm for elm in arg],
+      })
+      ctypes.pythonapi.PyFrame_LocalsToFast(
+          ctypes.py_object(frame), ctypes.c_int(0))
+      print(f"{' '*5}    arg: {arg}")
+      # frame.f_locals['rv2'] = [elm for elm in rvl]
+      # del frame.f_locals['rv']
+      # frame.f_locals['rv'] = frame.f_locals['rv2']
+      # print(frame.f_locals['rv2'])
+      # print(list(frame.f_locals['rv']))
+      print(f"{' '*5} locals: {list(frame.f_locals['rv'])}")
+      print(f"{' '*5}globals: {frame.f_globals['rv']}")
+      # print(frame.f_locals['rv'])
+  # evt = Event(frame,event,[elm for elm in arg],
+  #     write_flag=True,
+  #     collect_data=False)
+  print("   \x1b[0;33mlocal_ret\x1b[0m:",f"{arg=}")
   rf1,rf2,rf3 = thcb_gen2,local_ret,None
-  return rf1
+  # return
 
 def local_exc(frame,event,arg):
   print("  \x1b[1;34mlocal_exc\x1b[0m",f"{arg=}")
@@ -195,40 +231,62 @@ def thcb_gen2(frame,event,arg):
   src = getline(frame.f_code.co_filename,frame.f_lineno,frame.f_globals)
   srchld = highlight(src,Python3Lexer(),Terminal256Formatter(style=get_style_by_name('monokai')))
   this_func = "\x1b[2;3;96mthcb_gen2\x1b[0m"
+  this_loco = "\x1b[2;3;97m   locals\x1b[0m"
   idt = " " * 12
   print(f"\nin {this_func}: {counter3=}, {event=}, {arg=}")
-  print(f"{idt[:-3]}{frame.f_lineno:<03}: {srchld}",end="")
+  print(f"   {this_loco}: {frame.f_locals.keys()}")
+  print(f"{idt[:-4]}{frame.f_lineno:>4}: {srchld}",end="")
   counter3 += 1
-  if counter3 >= 10:
+  # if counter3 >= 10:
+  #   sys.settrace(None)
+  #   return
+  module = frame.f_globals.get('__name__','')
+  if not filter_only(module,['hdlogger','tester']):
     sys.settrace(None)
     return
   if event == 'call':
     # global trace
     print(f"{idt[:-1]}\x1b[1;31mc\x1b[0m: {arg=}")
+    # return thcb_gen2 : local_line for every line event, except last
+    # return local_call: local_line for return event and line event b4 return event
+    # return None      : no local_line
+    # no return        : no local_line
+    # no return + return thcb_gen2 : l_l for every line event, except last
+    local_call(frame,event,arg)
     return thcb_gen2
-    return local_call
+  elif event == 'return':
+    return
+    # local trace, returns ignored
+    # doesn't matter what is returned here, but should return to stop global
+    # list(arg) works here, if put first (aka b4 local)
+    # print(list(arg))
+    print(f"{idt[:-1]}\x1b[1;33mr\x1b[0m: {arg=}")
+    local_ret(frame,event,arg)
+    return
   elif event == 'line':
     # local trace, arg=None, returns local trace func
+    # Event here: arg = None
     print(f"{idt[:-1]}\x1b[1;32ml\x1b[0m: {arg=}")
-    # print(local_line(frame,event,arg))
+    # local_line(frame,event,arg)
     return local_line
-  elif event == 'return':
-    # local trace, returns ignored
-    print(f"{idt[:-1]}\x1b[1;33mr\x1b[0m: {arg=}")
-    return local_ret
   elif event == 'exception':
     # local trace, arg=tuple(exception,value,tb),returns new local trace func
     print(f"{idt[:-1]}\x1b[1;34me\x1b[0m: {arg=}")
+    evt = Event(frame,event,arg,
+      write_flag=True,
+      collect_data=False)
     return local_exc
   elif event == 'opcode':
     # local trace, arg=None,returns new local trace func
     print(f"{idt[:-1]}\x1b[1;35mo\x1b[0m: {arg=}")
+    evt = Event(frame,event,arg,
+      write_flag=True,
+      collect_data=False)
     return local_op
   evt = Event(frame,event,arg,
     write_flag=True,
     collect_data=False)
   print('c1 ',end="")
-  if not filter_only(evt.module,['tester']): return
   print('c2 ')
   # return thcb_gen2
 

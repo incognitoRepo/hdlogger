@@ -6,6 +6,7 @@ from collections import namedtuple, Counter
 from itertools import count, tee
 from types import SimpleNamespace, GeneratorType
 import stackprinter
+from linecache import getline
 
 from typing import Dict,List,Union,Any
 from types import (
@@ -38,7 +39,7 @@ def get_answer():
 
 UNSET = object()
 class Event:
-  DATA = SimpleNamespace(dataset = set())
+  DATA = SimpleNamespace(kind="",dataset=set())
   COUNT = count()
   def __init__(
     self,
@@ -46,37 +47,45 @@ class Event:
     write_flag:bool=False,
     collect_data:bool=False,
   ):
-    self.count = next(self.COUNT)
-    this_func = "\x1b[2;3;96mEvent\x1b[0m"
-    if arg:
-      print(f"    in {this_func}: {self.count=}, {event=}, {arg=}, {list(arg)=}")
-    else:
-      print(f"    in {this_func}: {self.count=}, {event=}, {arg=}")
-    if self.count >= 10:
-      raise SystemExit
     self.frame = frame
+    self.count = next(self.COUNT)
+    self.module = self.frame.f_globals.get('__name__','')
+    self.filename = self.frame.f_code.co_filename
+    self.lineno = self.frame.f_lineno
+    src = getline(self.filename, self.lineno, self.frame.f_globals)
+    self.source = src
+    this_func = "\x1b[2;3;96mEvent\x1b[0m"
+
     self.event = event
     self.test_frame(arg)
     self.arg = arg
     self.arg_type = type(arg)
     # self._code = UNSET
-    self._filename = UNSET
     # self._fullsource = UNSET
     # self._function_object = UNSET
     # self._function = UNSET
     # self._globals = UNSET
     # self._lineno = UNSET
     # self._locals = UNSET
-    self._module = UNSET
-    self._source = UNSET
+
     self._stdlib = UNSET
     # self._threadidn = UNSET
     # self._threadname = UNSET
     # self._thread = UNSET
     if collect_data: self.setup_data_collection(collect_data)
     if write_flag: self.write_trace()
+    if arg:
+      print(f"    in {this_func}: {self.count=}, {self.module=}, {event=}, {arg=}", end="")
+      print(f", isinstance \x1b[1;34m{isinstance(arg,GeneratorType)}\x1b[0m")
+    else:
+      print(f"    in {this_func}: {self.count=}, {self.module=}, {event=}, {arg=}",end="")
+      print(f", isinstance \x1b[1;34m{isinstance(arg,GeneratorType)}\x1b[0m")
 
   def test_frame(self,arg):
+    if 'rv' in self.frame.f_locals:
+      pass
+
+  def test_frame1(self,arg):
     if not arg: arg = "null"
     if 'rv' in self.frame.f_locals:
       cf = inspect.currentframe()
@@ -120,42 +129,6 @@ class Event:
       print(f"  {isinstance(self.frame.f_globals['rv'],GeneratorType)=}, {list(self.frame.f_globals['rv'])=}")
 
   @property
-  def module(self):
-    if self._module is UNSET:
-      module = self.frame.f_globals.get('__name__','')
-      if module is None:
-        module = ''
-      self._module = module
-    return self._module
-
-  @module.setter
-  def module(self,module):
-    self._module = module
-    if self.DATA.kind == 'module':
-      self.DATA.dataset.add(self._module)
-
-  @property
-  def filename(self):
-    if self._filename is UNSET:
-      filename = self.frame.f_code.co_filename
-      if not filename:
-        filename = self.frame.f_globals.get('__file__')
-      if not filename:
-        filename = ''
-      elif filename.endswith(('.pyc', '.pyo')):
-        filename = filename[:-1]
-      elif filename.endswith(('.so', '.pyd')):
-        basename = CYTHON_SUFFIX_RE.sub('', filename)
-        for ext in ('.pyx', '.py'):
-          cyfilename = basename + ext
-          if exists(cyfilename):
-            filename = cyfilename
-            break
-
-      self._filename = filename
-    return self._filename
-
-  @property
   def stdlib(self):
     if self._stdlib is UNSET:
       module_parts = self.module.split('.')
@@ -171,17 +144,6 @@ class Event:
       else:
         self._stdlib = False
     return self._stdlib
-
-  @property
-  def source(self):
-    if self._source is UNSET:
-      if self.filename.endswith(('.so', '.pyd')):
-        self._source = "??? NO SOURCE: not reading {} file".format(splitext(basename(self.filename))[1])
-      try:
-        self._source = getline(self.filename, self.lineno, self.frame.f_globals)
-      except Exception as exc:
-        self._source = "??? NO SOURCE: {!r}".format(exc)
-      return self._source
 
   @property
   def data(self):
@@ -202,8 +164,8 @@ class Event:
     pfss = get_strs(self,self.COUNT)
     jp = jsonpkl.encode(pfss)
     jsonpath = Path('_jsnpkl.json').resolve()
-    if pfss['arg']:
-      print(f'{pfss["cnt"]=}: {list(pfss["arg"])=}\n==end')
+    # if pfss['arg']:
+      # print(f'      cnt({pfss["cnt"]}): {pfss["arg"]=}')
     with open(jsonpath,'a') as f:
       f.write(jp+'\n')
     return jsonpath

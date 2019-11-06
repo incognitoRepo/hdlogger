@@ -117,7 +117,7 @@ def local_call(frame,event,arg):
     write_flag=True,
     collect_data=False)
   print("  \x1b[0;31mlocal_call\x1b[0m:",f"{arg=}")
-  rf1,rf2,rf3 = thcb_gen2,local_call,None
+  rf1,rf2,rf3 = thcb_gen2b,local_call,None
   return rf1
 
 def local_line(frame,event,arg):
@@ -126,7 +126,7 @@ def local_line(frame,event,arg):
       write_flag=False,
       collect_data=False)
   print("  \x1b[0;32mlocal_line\x1b[0m:",f"{arg=}")
-  rf1,rf2,rf3 = thcb_gen2,local_line,None
+  rf1,rf2,rf3 = thcb_gen2b,local_line,None
   return rf1
 
 def local_ret(frame,event,arg):
@@ -139,38 +139,40 @@ def local_ret(frame,event,arg):
   for k in dks:
     print(f"{' '*11}d: {k}={d[k]}({type(d[k])})")
     if isinstance(d[k],GeneratorType):
-      arg = list(d['rv'])
-      d['rv'] = [elm for elm in arg]
-      frame.f_globals['rv'] = arg
-      frame.f_locals.update({
-          'rv': [elm for elm in arg],
-      })
-      ctypes.pythonapi.PyFrame_LocalsToFast(
-          ctypes.py_object(frame), ctypes.c_int(0))
-      print(f"{' '*5}    arg: {arg}")
-      # frame.f_locals['rv2'] = [elm for elm in rvl]
-      # del frame.f_locals['rv']
-      # frame.f_locals['rv'] = frame.f_locals['rv2']
-      # print(frame.f_locals['rv2'])
-      # print(list(frame.f_locals['rv']))
-      print(f"{' '*5} locals: {list(frame.f_locals['rv'])}")
-      print(f"{' '*5}globals: {frame.f_globals['rv']}")
-      # print(frame.f_locals['rv'])
-  # evt = Event(frame,event,[elm for elm in arg],
-  #     write_flag=True,
-  #     collect_data=False)
+      print(arg)
+      # [elm for elm in arg] cannot iterate over generatoir
+      # arg = list(d['rv'])
+  #     d['rv'] = [elm for elm in arg]
+  #     frame.f_globals['rv'] = arg
+  #     frame.f_locals.update({
+  #         'rv': [elm for elm in arg],
+  #     })
+  #     ctypes.pythonapi.PyFrame_LocalsToFast(
+  #         ctypes.py_object(frame), ctypes.c_int(0))
+  #     print(f"{' '*5}    arg: {arg}")
+  #     # frame.f_locals['rv2'] = [elm for elm in rvl]
+  #     # del frame.f_locals['rv']
+  #     # frame.f_locals['rv'] = frame.f_locals['rv2']
+  #     # print(frame.f_locals['rv2'])
+  #     # print(list(frame.f_locals['rv']))
+  #     print(f"{' '*5} locals: {list(frame.f_locals['rv'])}")
+  #     print(f"{' '*5}globals: {frame.f_globals['rv']}")
+  #     # print(frame.f_locals['rv'])
+  # # evt = Event(frame,event,[elm for elm in arg],
+  # #     write_flag=True,
+  # #     collect_data=False)
   print("   \x1b[0;33mlocal_ret\x1b[0m:",f"{arg=}")
-  rf1,rf2,rf3 = thcb_gen2,local_ret,None
+  # rf1,rf2,rf3 = thcb_gen2,local_ret,None
   # return
 
 def local_exc(frame,event,arg):
   print("  \x1b[1;34mlocal_exc\x1b[0m",f"{arg=}")
-  rf1,rf2,rf3 = thcb_gen2,local_exc,None
+  rf1,rf2,rf3 = thcb_gen2b,local_exc,None
   return rf1
 
 def local_op(frame,event,arg):
   print("  \x1b[1;35mlocal_op\x1b[0m",f"{arg=}")
-  rf1,rf2,rf3 = thcb_gen2,local_op,None
+  rf1,rf2,rf3 = thcb_gen2b,local_op,None
   return rf1
 
 counter3a = 0
@@ -255,11 +257,12 @@ def thcb_gen2(frame,event,arg):
     local_call(frame,event,arg)
     return thcb_gen2
   elif event == 'return':
-    return
     # local trace, returns ignored
+    # generator ultimately returns if return @ start
     # doesn't matter what is returned here, but should return to stop global
     # list(arg) works here, if put first (aka b4 local)
     # print(list(arg))
+    print(arg); return
     print(f"{idt[:-1]}\x1b[1;33mr\x1b[0m: {arg=}")
     local_ret(frame,event,arg)
     return
@@ -290,3 +293,42 @@ def thcb_gen2(frame,event,arg):
   print('c2 ')
   # return thcb_gen2
 
+def thcb_gen2b(frame,event,arg):
+  idt = " " * 12
+  module = frame.f_globals.get('__name__','')
+  if not filter_only(module,['tester']):
+    sys.settrace(None)
+    return
+  print()
+  if event == 'call':
+    print(f"{idt[:-1]}\x1b[1;31mc\x1b[0m: {arg=}")
+    local_call(frame,event,arg)
+    return thcb_gen2b
+  elif event == 'return':
+    """if i return first, the generator is preserved
+    but if i use the generator here in the tracefunc
+    it will never reach its intended usage"""
+    # return
+    print(f"{idt[:-1]}\x1b[1;33mr\x1b[0m: {arg=}") # just printing arg is fine
+    local_ret(frame,event,arg)
+    return
+  elif event == 'line':
+    print(f"{idt[:-1]}\x1b[1;32ml\x1b[0m: {arg=}")
+    return local_line
+  elif event == 'exception':
+    print(f"{idt[:-1]}\x1b[1;34me\x1b[0m: {arg=}")
+    evt = Event(frame,event,arg,
+      write_flag=True,
+      collect_data=False)
+    return local_exc
+  elif event == 'opcode':
+    print(f"{idt[:-1]}\x1b[1;35mo\x1b[0m: {arg=}")
+    evt = Event(frame,event,arg,
+      write_flag=True,
+      collect_data=False)
+    return local_op
+  evt = Event(frame,event,arg,
+    write_flag=True,
+    collect_data=False)
+  print('c1 ',end="")
+  print('c2 ')

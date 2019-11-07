@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # vscode-fold=1
-import dis, sys, inspect
+import dis, sys, inspect, trace
 from linecache import getline
 from ipdb import set_trace as st
 from itertools import tee
@@ -139,7 +139,8 @@ def local_ret(frame,event,arg):
   for k in dks:
     print(f"{' '*11}d: {k}={d[k]}({type(d[k])})")
     if isinstance(d[k],GeneratorType):
-      print(arg)
+      print(arg) # gen2b ok
+      print(list(arg)) # gen2c exhausts generator
       # [elm for elm in arg] cannot iterate over generatoir
       # arg = list(d['rv'])
   #     d['rv'] = [elm for elm in arg]
@@ -304,6 +305,47 @@ def thcb_gen2b(frame,event,arg):
     print(f"{idt[:-1]}\x1b[1;31mc\x1b[0m: {arg=}")
     local_call(frame,event,arg)
     return thcb_gen2b
+  elif event == 'return':
+    """if i return first, the generator is preserved
+    but if i use the generator here in the tracefunc
+    it will never reach its intended usage"""
+    # return
+    print(f"{idt[:-1]}\x1b[1;33mr\x1b[0m: {arg=}") # just printing arg is fine
+    local_ret(frame,event,arg,func=print)
+    return
+  elif event == 'line':
+    print(f"{idt[:-1]}\x1b[1;32ml\x1b[0m: {arg=}")
+    return local_line
+  elif event == 'exception':
+    print(f"{idt[:-1]}\x1b[1;34me\x1b[0m: {arg=}")
+    evt = Event(frame,event,arg,
+      write_flag=True,
+      collect_data=False)
+    return local_exc
+  elif event == 'opcode':
+    print(f"{idt[:-1]}\x1b[1;35mo\x1b[0m: {arg=}")
+    evt = Event(frame,event,arg,
+      write_flag=True,
+      collect_data=False)
+    return local_op
+  evt = Event(frame,event,arg,
+    write_flag=True,
+    collect_data=False)
+  print('c1 ',end="")
+  print('c2 ')
+
+def thcb_gen2c(frame,event,arg):
+  tracer = trace.Trace(count=False,trace=True)
+  idt = " " * 12
+  module = frame.f_globals.get('__name__','')
+  if not filter_only(module,['tester']):
+    sys.settrace(None)
+    return
+  print()
+  if event == 'call':
+    print(f"{idt[:-1]}\x1b[1;31mc\x1b[0m: {arg=}")
+    local_call(frame,event,arg)
+    return thcb_gen2c
   elif event == 'return':
     """if i return first, the generator is preserved
     but if i use the generator here in the tracefunc

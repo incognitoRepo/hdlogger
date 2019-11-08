@@ -112,28 +112,28 @@ def thcb_gen1(frame,event,arg):
     return evt.write_trace()
   return thcb_gen1
 
-def local_call(frame,event,arg):
+def local_call(frame,event,arg,func=thcb_gen2b):
   evt = Event(frame,event,arg,
     write_flag=True,
     collect_data=False)
   print("  \x1b[0;31mlocal_call\x1b[0m:",f"{arg=}")
-  rf1,rf2,rf3 = thcb_gen2b,local_call,None
+  rf1,rf2,rf3 = func,local_call,None
   return rf1
 
-def local_line(frame,event,arg):
+def local_line(frame,event,arg,func=thcb_gen2b):
   # Event here: arg=something
   evt = Event(frame,event,arg,
       write_flag=False,
       collect_data=False)
   print("  \x1b[0;32mlocal_line\x1b[0m:",f"{arg=}")
-  rf1,rf2,rf3 = thcb_gen2b,local_line,None
+  rf1,rf2,rf3 = func,local_line,None
   return rf1
 
-def local_ret(frame,event,arg):
+def local_ret(frame,event,arg,func=thcb_gen2b):
   # list(arg) works here if put first (aka b4 global)
   # doesnt matter whats returned here, returning nothing works too
   # print(list(arg)); print(list(frame.f_locals['rv']))
-  d = frame.f_locals
+  d = locals()
   dks = d.keys()
   type_val_pairs = []
   for k in dks:
@@ -142,38 +142,21 @@ def local_ret(frame,event,arg):
       print(arg) # gen2b ok
       print(list(arg)) # gen2c exhausts generator
       # [elm for elm in arg] cannot iterate over generatoir
-      # arg = list(d['rv'])
-  #     d['rv'] = [elm for elm in arg]
-  #     frame.f_globals['rv'] = arg
-  #     frame.f_locals.update({
-  #         'rv': [elm for elm in arg],
-  #     })
-  #     ctypes.pythonapi.PyFrame_LocalsToFast(
-  #         ctypes.py_object(frame), ctypes.c_int(0))
-  #     print(f"{' '*5}    arg: {arg}")
-  #     # frame.f_locals['rv2'] = [elm for elm in rvl]
-  #     # del frame.f_locals['rv']
-  #     # frame.f_locals['rv'] = frame.f_locals['rv2']
-  #     # print(frame.f_locals['rv2'])
-  #     # print(list(frame.f_locals['rv']))
-  #     print(f"{' '*5} locals: {list(frame.f_locals['rv'])}")
-  #     print(f"{' '*5}globals: {frame.f_globals['rv']}")
-  #     # print(frame.f_locals['rv'])
-  # # evt = Event(frame,event,[elm for elm in arg],
-  # #     write_flag=True,
-  # #     collect_data=False)
+      print(inspect.getgeneratorstate(arg))
+      print(inspect.getgeneratorlocals(arg))
+
   print("   \x1b[0;33mlocal_ret\x1b[0m:",f"{arg=}")
-  # rf1,rf2,rf3 = thcb_gen2,local_ret,None
+  # rf1,rf2,rf3 = func,local_ret,None
   # return
 
-def local_exc(frame,event,arg):
+def local_exc(frame,event,arg,func=thcb_gen2b):
   print("  \x1b[1;34mlocal_exc\x1b[0m",f"{arg=}")
-  rf1,rf2,rf3 = thcb_gen2b,local_exc,None
+  rf1,rf2,rf3 = func,local_exc,None
   return rf1
 
-def local_op(frame,event,arg):
+def local_op(frame,event,arg,func=thcb_gen2b):
   print("  \x1b[1;35mlocal_op\x1b[0m",f"{arg=}")
-  rf1,rf2,rf3 = thcb_gen2b,local_op,None
+  rf1,rf2,rf3 = func,local_op,None
   return rf1
 
 counter3a = 0
@@ -344,7 +327,7 @@ def thcb_gen2c(frame,event,arg):
   print()
   if event == 'call':
     print(f"{idt[:-1]}\x1b[1;31mc\x1b[0m: {arg=}")
-    local_call(frame,event,arg)
+    local_call(frame,event,arg,func=thcb_gen2c)
     return thcb_gen2c
   elif event == 'return':
     """if i return first, the generator is preserved
@@ -352,7 +335,7 @@ def thcb_gen2c(frame,event,arg):
     it will never reach its intended usage"""
     # return
     print(f"{idt[:-1]}\x1b[1;33mr\x1b[0m: {arg=}") # just printing arg is fine
-    local_ret(frame,event,arg)
+    local_ret(frame,event,arg,func=thcb_gen2c)
     return
   elif event == 'line':
     print(f"{idt[:-1]}\x1b[1;32ml\x1b[0m: {arg=}")

@@ -1,5 +1,5 @@
 # vscode-fold=1
-import dis, inspect
+import dis, inspect, trace
 import jsonpickle as jsonpkl
 from pathlib import Path
 from collections import namedtuple, Counter
@@ -243,3 +243,20 @@ class Tracer(object):
     return frame.f_trace or self._handle_trace
 
 # Tracer('trace.jsonl', append=False).enable()
+
+
+def trace_ex():
+  tracer = trace.Trace(
+    count=1,
+    trace=1,
+    countfuncs=0,
+    countcallers=0,
+    ignoremods=(),
+    ignoredirs=[sys.base_prefix,sys.base_exec_prefix],
+    infile=None,
+    outfile=None,
+    timing=False,
+  )
+  tracer.run('main()')
+  r = tracer.results()
+  r.write_results(show_missing=True,summary=True,coverdir="/tmp")

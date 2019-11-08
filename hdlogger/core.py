@@ -152,7 +152,7 @@ def thcb_gen2b(frame,event,arg):
   print('c1 ',end="")
   print('c2 ')
 
-def local_call(frame,event,arg,func=thcb_gen2b):
+def local_call(frame,event,arg,func):
   evt = Event(frame,event,arg,
     write_flag=True,
     collect_data=False)
@@ -160,16 +160,16 @@ def local_call(frame,event,arg,func=thcb_gen2b):
   rf1,rf2,rf3 = func,local_call,None
   return rf1
 
-def local_line(frame,event,arg,func=thcb_gen2b):
+def local_line(frame,event,arg):
   # Event here: arg=something
   evt = Event(frame,event,arg,
       write_flag=False,
       collect_data=False)
   print("  \x1b[0;32mlocal_line\x1b[0m:",f"{arg=}")
-  rf1,rf2,rf3 = func,local_line,None
+  rf1,rf2,rf3 = None,local_line,None
   return rf1
 
-def local_ret(frame,event,arg,func=thcb_gen2b):
+def local_ret(frame,event,arg):
   # list(arg) works here if put first (aka b4 global)
   # doesnt matter whats returned here, returning nothing works too
   # print(list(arg)); print(list(frame.f_locals['rv']))
@@ -189,15 +189,15 @@ def local_ret(frame,event,arg,func=thcb_gen2b):
   # rf1,rf2,rf3 = func,local_ret,None
   # return
 
-def local_exc(frame,event,arg,func=thcb_gen2b):
+def local_exc(frame,event,arg):
   print("  \x1b[1;34mlocal_exc\x1b[0m",f"{arg=}")
   rf1,rf2,rf3 = func,local_exc,None
-  return rf1
+  return rf3
 
-def local_op(frame,event,arg,func=thcb_gen2b):
+def local_op(frame,event,arg):
   print("  \x1b[1;35mlocal_op\x1b[0m",f"{arg=}")
   rf1,rf2,rf3 = func,local_op,None
-  return rf1
+  return rf3
 
 counter3a = 0
 def thcb_gen2a(frame,event,arg):
@@ -288,7 +288,7 @@ def thcb_gen2(frame,event,arg):
     # print(list(arg))
     print(arg); return
     print(f"{idt[:-1]}\x1b[1;33mr\x1b[0m: {arg=}")
-    local_ret(frame,event,arg,thcb_gen2)
+    local_ret(frame,event,arg)
     return
   elif event == 'line':
     # local trace, arg=None, returns local trace func
@@ -318,6 +318,47 @@ def thcb_gen2(frame,event,arg):
   # return thcb_gen2
 
 def thcb_gen2c(frame,event,arg):
+  tracer = trace.Trace(count=False,trace=True)
+  idt = " " * 12
+  module = frame.f_globals.get('__name__','')
+  if not filter_only(module,['tester']):
+    sys.settrace(None)
+    return
+  print()
+  if event == 'call':
+    print(f"{idt[:-1]}\x1b[1;31mc\x1b[0m: {arg=}")
+    local_call(frame,event,arg,func=thcb_gen2c)
+    return thcb_gen2c
+  elif event == 'return':
+    """if i return first, the generator is preserved
+    but if i use the generator here in the tracefunc
+    it will never reach its intended usage"""
+    # return
+    print(f"{idt[:-1]}\x1b[1;33mr\x1b[0m: {arg=}") # just printing arg is fine
+    local_ret(frame,event,arg,func=thcb_gen2c)
+    return
+  elif event == 'line':
+    print(f"{idt[:-1]}\x1b[1;32ml\x1b[0m: {arg=}")
+    return local_line
+  elif event == 'exception':
+    print(f"{idt[:-1]}\x1b[1;34me\x1b[0m: {arg=}")
+    evt = Event(frame,event,arg,
+      write_flag=True,
+      collect_data=False)
+    return local_exc
+  elif event == 'opcode':
+    print(f"{idt[:-1]}\x1b[1;35mo\x1b[0m: {arg=}")
+    evt = Event(frame,event,arg,
+      write_flag=True,
+      collect_data=False)
+    return local_op
+  evt = Event(frame,event,arg,
+    write_flag=True,
+    collect_data=False)
+  print('c1 ',end="")
+  print('c2 ')
+
+def thcb_gen2d(frame,event,arg):
   tracer = trace.Trace(count=False,trace=True)
   idt = " " * 12
   module = frame.f_globals.get('__name__','')

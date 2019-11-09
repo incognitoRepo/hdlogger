@@ -1,173 +1,146 @@
-class CoverageResults:
-  def __init__(self, counts=None, calledfuncs=None, infile=None,
-                 callers=None, outfile=None):
-    self.counts = counts
-    if self.counts is None:
-      self.counts = {}
-    self.counter = self.counts.copy() # map (filename, lineno) to count
-    self.calledfuncs = calledfuncs
-    if self.calledfuncs is None:
-      self.calledfuncs = {}
-    self.calledfuncs = self.calledfuncs.copy()
-    self.callers = callers
-    if self.callers is None:
-      self.callers = {}
-    self.callers = self.callers.copy()
-    self.infile = infile
-    self.outfile = outfile
-    if self.infile:
-      # Try to merge existing counts file.
-      try:
-        with open(self.infile, 'rb') as f:
-          counts, calledfuncs, callers = pickle.load(f)
-        self.update(self.__class__(counts, calledfuncs, callers))
-      except (OSError, EOFError, ValueError) as err:
-        print(("Skipping counts file %r: %s"
-                                      % (self.infile, err)), file=sys.stderr)
+def main():
+  import argparse
 
-  def is_ignored_filename(self, filename):
-    """Return True if the filename does not refer to a file
-    we want to have reported.
-    """
-    return filename.startswith('<') and filename.endswith('>')
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--version', action='version', version='trace 2.0')
 
-  def update(self, other):
-    """Merge in the data from another CoverageResults"""
-    counts = self.counts
-    calledfuncs = self.calledfuncs
-    callers = self.callers
-    other_counts = other.counts
-    other_calledfuncs = other.calledfuncs
-    other_callers = other.callers
+  grp = parser.add_argument_group('Main options',
+      'One of these (or --report) must be given')
 
-    for key in other_counts:
-      counts[key] = counts.get(key, 0) + other_counts[key]
+  grp.add_argument('-c', '--count', action='store_true',
+      help='Count the number of times each line is executed and write '
+                 'the counts to <module>.cover for each module executed, in '
+                 'the module\'s directory. See also --coverdir, --file, '
+                 '--no-report below.')
+  grp.add_argument('-t', '--trace', action='store_true',
+      help='Print each line to sys.stdout before it is executed')
+  grp.add_argument('-l', '--listfuncs', action='store_true',
+      help='Keep track of which functions are executed at least once '
+                 'and write the results to sys.stdout after the program exits. '
+                 'Cannot be specified alongside --trace or --count.')
+  grp.add_argument('-T', '--trackcalls', action='store_true',
+      help='Keep track of caller/called pairs and write the results to '
+                 'sys.stdout after the program exits.')
 
-    for key in other_calledfuncs:
-      calledfuncs[key] = 1
+  grp = parser.add_argument_group('Modifiers')
 
-    for key in other_callers:
-      callers[key] = 1
+  _grp = grp.add_mutually_exclusive_group()
+  _grp.add_argument('-r', '--report', action='store_true',
+      help='Generate a report from a counts file; does not execute any '
+                 'code. --file must specify the results file to read, which '
+                 'must have been created in a previous run with --count '
+                 '--file=FILE')
+  _grp.add_argument('-R', '--no-report', action='store_true',
+      help='Do not generate the coverage report files. '
+                 'Useful if you want to accumulate over several runs.')
 
-  def write_results(self, show_missing=True, summary=False, coverdir=None):
-    """
-    Write the coverage results.
+  grp.add_argument('-f', '--file',
+      help='File to accumulate counts over several runs')
+  grp.add_argument('-C', '--coverdir',
+      help='Directory where the report files go. The coverage report '
+                 'for <package>.<module> will be written to file '
+                 '<dir>/<package>/<module>.cover')
+  grp.add_argument('-m', '--missing', action='store_true',
+      help='Annotate executable lines that were not executed with '
+                 '">>>>>> "')
+  grp.add_argument('-s', '--summary', action='store_true',
+      help='Write a brief summary for each file to sys.stdout. '
+                 'Can only be used with --count or --report')
+  grp.add_argument('-g', '--timing', action='store_true',
+      help='Prefix each line with the time since the program started. '
+                 'Only used while tracing')
 
-    :param show_missing: Show lines that had no hits.
-    :param summary: Include coverage summary per module.
-    :param coverdir: If None, the results of each module are placed in its
-                         directory, otherwise it is included in the directory
-                         specified.
-    """
-    if self.calledfuncs:
-      print()
-      print("functions called:")
-      calls = self.calledfuncs
-      for filename, modulename, funcname in sorted(calls):
-        print(("filename: %s, modulename: %s, funcname: %s"
-                       % (filename, modulename, funcname)))
+  grp = parser.add_argument_group('Filters',
+      'Can be specified multiple times')
+  grp.add_argument('--ignore-module', action='append', default=[],
+      help='Ignore the given module(s) and its submodules '
+                 '(if it is a package). Accepts comma separated list of '
+                 'module names.')
+  grp.add_argument('--ignore-dir', action='append', default=[],
+      help='Ignore files in the given directory '
+                 '(multiple directories can be joined by os.pathsep).')
 
-    if self.callers:
-      print()
-      print("calling relationships:")
-      lastfile = lastcfile = ""
-      for ((pfile, pmod, pfunc), (cfile, cmod, cfunc)) \
-          in sorted(self.callers):
-        if pfile != lastfile:
-          print()
-          print("***", pfile, "***")
-          lastfile = pfile
-          lastcfile = ""
-        if cfile != pfile and lastcfile != cfile:
-          print("  -->", cfile)
-          lastcfile = cfile
-        print("    %s.%s -> %s.%s" % (pmod, pfunc, cmod, cfunc))
+  parser.add_argument('--module', action='store_true', default=False,
+            help='Trace a module. ')
+  parser.add_argument('progname', nargs='?',
+      help='file to run as main program')
+  parser.add_argument('arguments', nargs=argparse.REMAINDER,
+      help='arguments to the program')
 
-    # turn the counts data ("(filename, lineno) = count") into something
-    # accessible on a per-file basis
-    per_file = {}
-    for filename, lineno in self.counts:
-      lines_hit = per_file[filename] = per_file.get(filename, {})
-      lines_hit[lineno] = self.counts[(filename, lineno)]
+  opts = parser.parse_args()
 
-    # accumulate summary info, if needed
-    sums = {}
+  if opts.ignore_dir:
+    rel_path = 'lib', 'python{0.major}.{0.minor}'.format(sys.version_info)
+    _prefix = os.path.join(sys.base_prefix, *rel_path)
+    _exec_prefix = os.path.join(sys.base_exec_prefix, *rel_path)
 
-    for filename, count in per_file.items():
-      if self.is_ignored_filename(filename):
-        continue
+  def parse_ignore_dir(s):
+    s = os.path.expanduser(os.path.expandvars(s))
+    s = s.replace('$prefix', _prefix).replace('$exec_prefix', _exec_prefix)
+    return os.path.normpath(s)
 
-      if filename.endswith(".pyc"):
-        filename = filename[:-1]
+  opts.ignore_module = [mod.strip()
+                          for i in opts.ignore_module for mod in i.split(',')]
+  opts.ignore_dir = [parse_ignore_dir(s)
+                       for i in opts.ignore_dir for s in i.split(os.pathsep)]
 
-      if coverdir is None:
-        dir = os.path.dirname(os.path.abspath(filename))
-        modulename = _modname(filename)
-      else:
-        dir = coverdir
-        if not os.path.exists(dir):
-          os.makedirs(dir)
-        modulename = _fullmodname(filename)
+  if opts.report:
+    if not opts.file:
+      parser.error('-r/--report requires -f/--file')
+    results = CoverageResults(infile=opts.file, outfile=opts.file)
+    return results.write_results(opts.missing, opts.summary, opts.coverdir)
 
-      # If desired, get a list of the line numbers which represent
-      # executable content (returned as a dict for better lookup speed)
-      if show_missing:
-        lnotab = _find_executable_linenos(filename)
-      else:
-        lnotab = {}
-      source = linecache.getlines(filename)
-      coverpath = os.path.join(dir, modulename + ".cover")
-      with open(filename, 'rb') as fp:
-        encoding, _ = tokenize.detect_encoding(fp.readline)
-      n_hits, n_lines = self.write_results_file(coverpath, source,
-                                                      lnotab, count, encoding)
-      if summary and n_lines:
-        percent = int(100 * n_hits / n_lines)
-        sums[modulename] = n_lines, percent, modulename, filename
+  if not any([opts.trace, opts.count, opts.listfuncs, opts.trackcalls]):
+    parser.error('must specify one of --trace, --count, --report, '
+                     '--listfuncs, or --trackcalls')
 
+  if opts.listfuncs and (opts.count or opts.trace):
+    parser.error('cannot specify both --listfuncs and (--trace or --count)')
 
-    if summary and sums:
-      print("lines   cov%   module   (path)")
-      for m in sorted(sums):
-        n_lines, percent, modulename, filename = sums[m]
-        print("%5d   %3d%%   %s   (%s)" % sums[m])
+  if opts.summary and not opts.count:
+    parser.error('--summary can only be used with --count or --report')
 
-    if self.outfile:
-      # try and store counts and module info into self.outfile
-      try:
-        pickle.dump((self.counts, self.calledfuncs, self.callers),
-              open(self.outfile, 'wb'), 1)
-      except OSError as err:
-        print("Can't save counts files because %s" % err, file=sys.stderr)
+  if opts.progname is None:
+    parser.error('progname is missing: required with the main options')
 
-  def write_results_file(self, path, lines, lnotab, lines_hit, encoding=None):
-    """Return a coverage results file in path."""
-    # ``lnotab`` is a dict of executable lines, or a line number "table"
+  t = Trace(opts.count, opts.trace, countfuncs=opts.listfuncs,
+              countcallers=opts.trackcalls, ignoremods=opts.ignore_module,
+              ignoredirs=opts.ignore_dir, infile=opts.file,
+              outfile=opts.file, timing=opts.timing)
+  try:
+    if opts.module:
+      import runpy
+      module_name = opts.progname
+      mod_name, mod_spec, code = runpy._get_module_details(module_name)
+      sys.argv = [code.co_filename, *opts.arguments]
+      globs = {
+        '__name__': '__main__',
+        '__file__': code.co_filename,
+        '__package__': mod_spec.parent,
+        '__loader__': mod_spec.loader,
+        '__spec__': mod_spec,
+        '__cached__': None,
+      }
+    else:
+      sys.argv = [opts.progname, *opts.arguments]
+      sys.path[0] = os.path.dirname(opts.progname)
 
-    try:
-      outfile = open(path, "w", encoding=encoding)
-    except OSError as err:
-      print(("trace: Could not open %r for writing: %s "
-                                  "- skipping" % (path, err)), file=sys.stderr)
-      return 0, 0
+      with open(opts.progname) as fp:
+        code = compile(fp.read(), opts.progname, 'exec')
+      # try to emulate __main__ namespace as much as possible
+      globs = {
+        '__file__': opts.progname,
+        '__name__': '__main__',
+        '__package__': None,
+        '__cached__': None,
+      }
+    t.runctx(code, globs, globs)
+  except OSError as err:
+    sys.exit("Cannot run file %r because: %s" % (sys.argv[0], err))
+  except SystemExit:
+    pass
 
-    n_lines = 0
-    n_hits = 0
-    with outfile:
-      for lineno, line in enumerate(lines, 1):
-        # do the blank/comment match to try to mark more lines
-        # (help the reader find stuff that hasn't been covered)
-        if lineno in lines_hit:
-          outfile.write("%5d: " % lines_hit[lineno])
-          n_hits += 1
-          n_lines += 1
-        elif lineno in lnotab and not PRAGMA_NOCOVER in line:
-          # Highlight never-executed lines, unless the line contains
-          # #pragma: NO COVER
-          outfile.write(">>>>>> ")
-          n_lines += 1
-        else:
-          outfile.write("       ")
-        outfile.write(line.expandtabs(8))
+  results = t.results()
 
-    return n_hits, n_lines
+  if not opts.no_report:
+    results.write_results(opts.missing, opts.summary, opts.coverdir)

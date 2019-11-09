@@ -1,5 +1,6 @@
 # vscode-fold=1
-import dis, inspect, trace
+import dis, inspect, trace, os, threading, sys, linecache, tokenize
+from time import monotonic as _time
 import jsonpickle as jsonpkl
 from pathlib import Path
 from collections import namedtuple, Counter
@@ -7,6 +8,7 @@ from itertools import count, tee
 from types import SimpleNamespace, GeneratorType
 import stackprinter
 from linecache import getline
+from trace import _modname, _fullmodname, _find_executable_linenos
 
 from typing import Dict,List,Union,Any
 from types import (
@@ -18,6 +20,8 @@ from .constants import (
   CYTHON_SUFFIX_RE,
   STARTSWITH_PASS_MODULES,
 )
+
+PRAGMA_NOCOVER = "#pragma NO COVER"
 
 def filter(event_module):
   em = event_module
@@ -294,7 +298,7 @@ class _Ignore:
 
 
 class Tracer:
-  def __init__(self,ignoremods=(),ignoredirs=(),infile=None,outfile=None):
+  def __init__(self,ignoremods=(),ignoredirs=(),infile=None,outfile=None,timing=True):
     self.infile=infile
     self.outfile=outfile
     self.ignore = _Ignore(ignoremods,ignoredirs)
@@ -312,7 +316,7 @@ class Tracer:
   def run(self, cmd):
     import __main__
     dict = __main__.__dict__
-    assert globals().keys() == locals().keys() == __main__.__dict__.keys()
+    # assert len(globals().keys()) >= len(locals().keys()) == len(__main__.__dict__.keys()), f"{globals().keys()=}\n{locals().keys()=}\n{__main__.__dict__.keys()=}"
     self.runctx(cmd, dict, dict)
 
   def runctx(self, cmd, globals=None, locals=None):
@@ -321,19 +325,34 @@ class Tracer:
     threading.settrace(self.globaltrace)
     sys.settrace(self.globaltrace)
     try:
-      exec(cmd, gloals, locals)
+      exec(cmd, globals, locals)
     finally:
       sys.settrace(None)
       threading.settrace(None)
 
-  def runfunc(self, func, /, *args, **kws):
+  def runfunc(*args, **kw):
+    if len(args) >= 2:
+      self, func, *args = args
+    elif not args:
+      raise TypeError("descriptor 'runfunc' of 'Trace' object needs an argument")
+    elif 'func' in kw:
+      func = kw.pop('func')
+      self, *args = args
+      import warnings
+      warnings.warn("Passing 'func' as keyword argument is deprecated",
+                    DeprecationWarning, stacklevel=2)
+    else:
+      raise TypeError('runfunc expected at least 1 positional argument, '
+                      'got %d' % (len(args)-1))
+
     result = None
     sys.settrace(self.globaltrace)
     try:
-      result = func(*args, **kws)
+      result = func(*args, **kw)
     finally:
       sys.settrace(None)
     return result
+  runfunc.__text_signature__ = '($self, func, /, *args, **kw)'
 
   def globaltrace_lt(self, frame, why, arg):
     """Handler for call events.
@@ -341,6 +360,7 @@ class Tracer:
     If the code block being entered is to be ignored, returns `None',
     else returns self.localtrace
     """
+    # XXX (o for o in [1]) # test_sys_settraace traceWithgenexp
     if why == 'call':
       code = frame.f_code
       filename = frame.f_globals.get('__file__', None)
@@ -351,8 +371,7 @@ class Tracer:
         if modulename is not None:
           ignore_it = self.ignore.names(filename, modulename)
           if not ignore_it:
-            if self.trace:
-              print(f" --- modulename: {modulename}, funcname: {code.co_name}")
+            print(f" --- modulename: {modulename}, funcname: {code.co_name}")
             return self.localtrace
       else:
         return None
@@ -438,30 +457,6 @@ class CoverageResults:
                          directory, otherwise it is included in the directory
                          specified.
     """
-    if self.calledfuncs:
-      print()
-      print("functions called:")
-      calls = self.calledfuncs
-      for filename, modulename, funcname in sorted(calls):
-        print(("filename: %s, modulename: %s, funcname: %s"
-                       % (filename, modulename, funcname)))
-
-    if self.callers:
-      print()
-      print("calling relationships:")
-      lastfile = lastcfile = ""
-      for ((pfile, pmod, pfunc), (cfile, cmod, cfunc)) \
-          in sorted(self.callers):
-        if pfile != lastfile:
-          print()
-          print("***", pfile, "***")
-          lastfile = pfile
-          lastcfile = ""
-        if cfile != pfile and lastcfile != cfile:
-          print("  -->", cfile)
-          lastcfile = cfile
-        print("    %s.%s -> %s.%s" % (pmod, pfunc, cmod, cfunc))
-
     # turn the counts data ("(filename, lineno) = count") into something
     # accessible on a per-file basis
     per_file = {}
@@ -503,7 +498,6 @@ class CoverageResults:
       if summary and n_lines:
         percent = int(100 * n_hits / n_lines)
         sums[modulename] = n_lines, percent, modulename, filename
-
 
     if summary and sums:
       print("lines   cov%   module   (path)")

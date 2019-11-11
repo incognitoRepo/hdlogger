@@ -576,6 +576,8 @@ class Trace:
                                calledfuncs=self._calledfuncs,
                                callers=self._callers)
 
+traceTracer = type("traceTracer", (Trace,), {})
+
 def main():
   import argparse
 

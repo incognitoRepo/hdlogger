@@ -1,5 +1,5 @@
 #! /usr/bin/env python3
-
+# vscode-fold=1
 """
 The Python Debugger Pdb
 =======================
@@ -1725,3 +1725,97 @@ def main():
 if __name__ == '__main__':
   import pdb
   pdb.main()
+
+
+
+
+# NOTE: ============== test_pdb.py ===============
+import doctest
+import os
+import pdb
+import sys
+import types
+import unittest
+import subprocess
+import textwrap
+
+from contextlib import ExitStack
+from io import StringIO
+from test import support
+# This little helper class is essential for testing pdb under doctest.
+from test.test_doctest import _FakeInput
+from unittest.mock import patch
+
+class PdbTestInput(object):
+    """Context manager that makes testing Pdb in doctests easier."""
+
+    def __init__(self, input):
+        self.input = input
+
+    def __enter__(self):
+        self.real_stdin = sys.stdin
+        sys.stdin = _FakeInput(self.input)
+        self.orig_trace = sys.gettrace() if hasattr(sys, 'gettrace') else None
+
+    def __exit__(self, *exc):
+        sys.stdin = self.real_stdin
+        if self.orig_trace:
+            sys.settrace(self.orig_trace)
+
+def test_pdb_return_command_for_generator():
+    """Testing no unwindng stack on yield for generators
+       for "return" command
+
+    >>> def test_gen():
+    ...     yield 0
+    ...     return 1
+    ...     yield 2
+
+    >>> def test_function():
+    ...     Pdb(nosigint=True, readrc=False).set_trace()
+    ...     it = test_gen()
+    ...     try:
+    ...         if next(it) != 0:
+    ...             raise AssertionError
+    ...         next(it)
+    ...     except StopIteration as ex:
+    ...         if ex.value != 1:
+    ...             raise AssertionError
+    ...     print("finished")
+
+    >>> with PdbTestInput(['step',
+    ...                    'step',
+    ...                    'step',
+    ...                    'return',
+    ...                    'step',
+    ...                    'step',
+    ...                    'continue']):
+    ...     test_function()
+    > <doctest test.test_pdb.test_pdb_return_command_for_generator[1]>(3)test_function()
+    -> it = test_gen()
+    (Pdb) step
+    > <doctest test.test_pdb.test_pdb_return_command_for_generator[1]>(4)test_function()
+    -> try:
+    (Pdb) step
+    > <doctest test.test_pdb.test_pdb_return_command_for_generator[1]>(5)test_function()
+    -> if next(it) != 0:
+    (Pdb) step
+    --Call--
+    > <doctest test.test_pdb.test_pdb_return_command_for_generator[0]>(1)test_gen()
+    -> def test_gen():
+    (Pdb) return
+    StopIteration: 1
+    > <doctest test.test_pdb.test_pdb_return_command_for_generator[1]>(7)test_function()
+    -> next(it)
+    (Pdb) step
+    > <doctest test.test_pdb.test_pdb_return_command_for_generator[1]>(8)test_function()
+    -> except StopIteration as ex:
+    (Pdb) step
+    > <doctest test.test_pdb.test_pdb_return_command_for_generator[1]>(9)test_function()
+    -> if ex.value != 1:
+    (Pdb) continue
+    finished
+    """
+
+if __name__ == '__main__':
+    unittest.main()

@@ -3,18 +3,14 @@
 import fnmatch
 import sys
 import os
-from bdb import Bdb
-from pdb import Pdb
 from inspect import CO_GENERATOR, CO_COROUTINE, CO_ASYNC_GENERATOR
 
 __all__ = ["BdbQuit", "Bdb", "Breakpoint"]
 
 GENERATOR_AND_COROUTINE_FLAGS = CO_GENERATOR | CO_COROUTINE | CO_ASYNC_GENERATOR
 
-
 class BdbQuit(Exception):
   """Exception to give up completely."""
-
 
 class Bdb:
 
@@ -42,29 +38,6 @@ class Bdb:
     self._set_stopinfo(None, None)
 
   def trace_dispatch(self, frame, event, arg):
-    """Dispatch a trace function for debugged frames based on the event.
-
-    This function is installed as the trace function for debugged
-    frames. Its return value is the new trace function, which is
-    usually itself. The default implementation decides how to
-    dispatch a frame, depending on the type of event (passed in as a
-    string) that is about to be executed.
-
-    The event can be one of the following:
-      line: A new line of code is going to be executed.
-      call: A function is about to be called or another code block
-                  is entered.
-      return: A function or other code block is about to return.
-      exception: An exception has occurred.
-      c_call: A C function is about to be called.
-      c_return: A C function has returned.
-      c_exception: A C function has raised an exception.
-
-    For the Python events, specialized functions (see the dispatch_*()
-    methods) are called.  For the C events, no action is taken.
-
-    The arg parameter depends on the previous event.
-    """
     if self.quitting:
       return # None
     if event == 'line':
@@ -841,390 +814,331 @@ def effective(file, line, frame):
 
 # -------------------- testing --------------------
 
-class Restart(Exception):
-  """Causes a debugger to be restarted for the debugged python program."""
-  pass
+class Tdb(Bdb):
+    def user_call(self, frame, args):
+        name = frame.f_code.co_name
+        if not name: name = '???'
+        print('+++ call', name, args)
+    def user_line(self, frame):
+        import linecache
+        name = frame.f_code.co_name
+        if not name: name = '???'
+        fn = self.canonic(frame.f_code.co_filename)
+        line = linecache.getline(fn, frame.f_lineno, frame.f_globals)
+        print('+++', fn, frame.f_lineno, name, ':', line.strip())
+    def user_return(self, frame, retval):
+        print('+++ return', retval)
+    def user_exception(self, frame, exc_stuff):
+        print('+++ exception', exc_stuff)
+        self.set_continue()
 
-__all__ = ["run", "pm", "Pdb", "runeval", "runctx", "runcall", "set_trace",
-           "post_mortem", "help"]
-
-def find_function(funcname, filename):
-  cre = re.compile(r'def\s+%s\s*[(]' % re.escape(funcname))
-  try:
-    fp = open(filename)
-  except OSError:
-    return None
-  # consumer of this info expects the first line to be 1
-  with fp:
-    for lineno, line in enumerate(fp, start=1):
-      if cre.match(line):
-        return funcname, filename, lineno
-  return None
-
-def getsourcelines(obj):
-  lines, lineno = inspect.findsource(obj)
-  if inspect.isframe(obj) and obj.f_globals is obj.f_locals:
-    # must be a module frame: do not try to cut a block out of it
-    return lines, 1
-  elif inspect.ismodule(obj):
-    return lines, 1
-  return inspect.getblock(lines[lineno:]), lineno+1
-
-def lasti2lineno(code, lasti):
-  linestarts = list(dis.findlinestarts(code))
-  linestarts.reverse()
-  for i, lineno in linestarts:
-    if lasti >= i:
-      return lineno
-  return 0
-
-
-def _getval_except(self, arg, frame=None):
-  try:
-    if frame is None:
-      return eval(arg, self.curframe.f_globals, self.curframe_locals)
-    else:
-      return eval(arg, frame.f_globals, frame.f_locals)
-  except:
-    exc_info = sys.exc_info()[:2]
-    err = traceback.format_exception_only(*exc_info)[-1].strip()
-    return _rstr('** raised %s **' % err)
-
-class _rstr(str):
-  """String that doesn't quote its repr."""
-  def __repr__(self):
-    return self
-
-class Cdb(Bdb,Cmd):
-  _previous_sigint_handler = None
-
-  def __init__(self, completekey='tab', stdin=None, stdout=None, skip=None,
-                 nosigint=False, readrc=True):
-    bdb.Bdb.__init__(self, skip=skip)
-    cmd.Cmd.__init__(self, completekey, stdin, stdout)
-    # sys.audit("pdb.Pdb")
-    if stdout:
-      self.use_rawinput = 0
-    self.prompt = '(Cdb) '
-    self.aliases = {}
-    self.displaying = {}
-    self.mainpyfile = ''
-    self._wait_for_mainpyfile = False
-    self.tb_lineno = {}
-    # Try to load readline if it exists
-    try:
-      import readline
-      # remove some common file name delimiters
-      readline.set_completer_delims(' \t\n`@#$%^&*()=+[{]}\\|;:\'",<>?')
-    except ImportError:
-      pass
-    self.allow_kbdint = False
-    self.nosigint = nosigint
-
-    # Read $HOME/.pdbrc and ./.pdbrc
-    self.rcLines = []
-    if readrc:
-      if 'HOME' in os.environ:
-        envHome = os.environ['HOME']
-        try:
-          with open(os.path.join(envHome, ".pdbrc")) as rcFile:
-            self.rcLines.extend(rcFile)
-        except OSError:
-          pass
-      try:
-        with open(".pdbrc") as rcFile:
-          self.rcLines.extend(rcFile)
-      except OSError:
-        pass
-
-    self.commands = {} # associates a command list to breakpoint numbers
-    self.commands_doprompt = {} # for each bp num, tells if the prompt
-                  # must be disp. after execing the cmd list
-    self.commands_silent = {} # for each bp num, tells if the stack trace
-                                  # must be disp. after execing the cmd list
-    self.commands_defining = False # True while in the process of defining
-                                       # a command list
-    self.commands_bnum = None # The breakpoint number for which we are
-                                  # defining a list
-
-  def sigint_handler(self, signum, frame):
-    if self.allow_kbdint:
-      raise KeyboardInterrupt
-    self.message("\nProgram interrupted. (Use 'cont' to resume).")
-    self.set_step()
-    self.set_trace(frame)
-
-  def reset(self):
-    bdb.Bdb.reset(self)
-    self.forget()
-
-  def forget(self):
-    self.lineno = None
-    self.stack = []
-    self.curindex = 0
-    self.curframe = None
-    self.tb_lineno.clear()
-
-  def setup(self, f, tb):
-    self.forget()
-    self.stack, self.curindex = self.get_stack(f, tb)
-    while tb:
-      # when setting up post-mortem debugging with a traceback, save all
-      # the original line numbers to be displayed along the current line
-      # numbers (which can be different, e.g. due to finally clauses)
-      lineno = lasti2lineno(tb.tb_frame.f_code, tb.tb_lasti)
-      self.tb_lineno[tb.tb_frame] = lineno
-      tb = tb.tb_next
-    self.curframe = self.stack[self.curindex][0]
-    # The f_locals dictionary is updated from the actual frame
-    # locals whenever the .f_locals accessor is called, so we
-    # cache it here to ensure that modifications are not overwritten.
-    self.curframe_locals = self.curframe.f_locals
-    return self.execRcLines()
-
-  # Can be executed earlier than 'setup' if desired
-  def execRcLines(self):
-    if not self.rcLines:
-      return
-    # local copy because of recursion
-    rcLines = self.rcLines
-    rcLines.reverse()
-    # execute every line only once
-    self.rcLines = []
-    while rcLines:
-      line = rcLines.pop().strip()
-      if line and line[0] != '#':
-        if self.onecmd(line):
-          # if onecmd returns True, the command wants to exit
-          # from the interaction, save leftover rc lines
-          # to execute before next interaction
-          self.rcLines += reversed(rcLines)
-          return True
-
-  # Override Bdb methods
-
-  def user_call(self, frame, argument_list):
-    """This method is called when there is the remote possibility
-    that we ever need to stop in this function."""
-    if self._wait_for_mainpyfile:
-      return
-    if self.stop_here(frame):
-      self.message('--Call--')
-      self.interaction(frame, None)
-
-  def user_line(self, frame):
-    """This function is called when we stop or break at this line."""
-    if self._wait_for_mainpyfile:
-      if (self.mainpyfile != self.canonic(frame.f_code.co_filename)
-        or frame.f_lineno <= 0):
-        return
-      self._wait_for_mainpyfile = False
-    if self.bp_commands(frame):
-      self.interaction(frame, None)
-
-  def user_return(self, frame, return_value):
-    """This function is called when a return trap is set here."""
-    if self._wait_for_mainpyfile:
-      return
-    frame.f_locals['__return__'] = return_value
-    self.message('--Return--')
-    self.interaction(frame, None)
-
-  def user_exception(self, frame, exc_info):
-    """This function is called if an exception occurs,
-    but only if we are to stop at or just below this level."""
-    if self._wait_for_mainpyfile:
-      return
-    exc_type, exc_value, exc_traceback = exc_info
-    frame.f_locals['__exception__'] = exc_type, exc_value
-
-    # An 'Internal StopIteration' exception is an exception debug event
-    # issued by the interpreter when handling a subgenerator run with
-    # 'yield from' or a generator controlled by a for loop. No exception has
-    # actually occurred in this case. The debugger uses this debug event to
-    # stop when the debuggee is returning from such generators.
-    prefix = 'Internal ' if (not exc_traceback
-                  and exc_type is StopIteration) else ''
-    self.message('%s%s' % (prefix,
-      traceback.format_exception_only(exc_type, exc_value)[-1].strip()))
-    self.interaction(frame, exc_traceback)
-
-  def default(self, line):
-    if line[:1] == '!': line = line[1:]
-    locals = self.curframe_locals
-    globals = self.curframe.f_globals
-    try:
-      code = compile(line + '\n', '<stdin>', 'single')
-      save_stdout = sys.stdout
-      save_stdin = sys.stdin
-      save_displayhook = sys.displayhook
-      try:
-        sys.stdin = self.stdin
-        sys.stdout = self.stdout
-        sys.displayhook = self.displayhook
-        exec(code, globals, locals)
-      finally:
-        sys.stdout = save_stdout
-        sys.stdin = save_stdin
-        sys.displayhook = save_displayhook
-    except:
-      exc_info = sys.exc_info()[:2]
-      self.error(traceback.format_exception_only(*exc_info)[-1].strip())
-
-  # interface abstraction functions
-
-  def message(self, msg):
-    print(msg, file=self.stdout)
-
-  def error(self, msg):
-    print('***', msg, file=self.stdout)
-
-  # run helper functions
-
-  def lookupmodule(self, filename):
-    """Helper function for break/clear parsing -- may be overridden.
-
-    lookupmodule() translates (possibly incomplete) file or module name
-    into an absolute file name.
-    """
-    if os.path.isabs(filename) and  os.path.exists(filename):
-      return filename
-    f = os.path.join(sys.path[0], filename)
-    if  os.path.exists(f) and self.canonic(f) == self.mainpyfile:
-      return f
-    root, ext = os.path.splitext(filename)
-    if ext == '':
-      filename = filename + '.py'
-    if os.path.isabs(filename):
-      return filename
-    for dirname in sys.path:
-      while os.path.islink(dirname):
-        dirname = os.readlink(dirname)
-      fullname = os.path.join(dirname, filename)
-      if os.path.exists(fullname):
-        return fullname
-    return None
-
-  def _runmodule(self, module_name):
-    self._wait_for_mainpyfile = True
-    self._user_requested_quit = False
-    import runpy
-    mod_name, mod_spec, code = runpy._get_module_details(module_name)
-    self.mainpyfile = self.canonic(code.co_filename)
-    import __main__
-    __main__.__dict__.clear()
-    __main__.__dict__.update({
-      "__name__": "__main__",
-      "__file__": self.mainpyfile,
-      "__package__": mod_spec.parent,
-      "__loader__": mod_spec.loader,
-      "__spec__": mod_spec,
-      "__builtins__": __builtins__,
-    })
-    self.run(code)
-
-  def _runscript(self, filename):
-    # The script has to run in __main__ namespace (or imports from
-    # __main__ will break).
-    #
-    # So we clear up the __main__ and set several special variables
-    # (this gets rid of pdb's globals and cleans old variables on restarts).
-    import __main__
-    __main__.__dict__.clear()
-    __main__.__dict__.update({"__name__"    : "__main__",
-                                  "__file__"    : filename,
-                                  "__builtins__": __builtins__,
-                                 })
-
-    # When bdb sets tracing, a number of call and line events happens
-    # BEFORE debugger even reaches user's code (and the exact sequence of
-    # events depends on python version). So we take special measures to
-    # avoid stopping before we reach the main script (see user_line and
-    # user_call for details).
-    self._wait_for_mainpyfile = True
-    self.mainpyfile = self.canonic(filename)
-    self._user_requested_quit = False
-    with open(filename, "rb") as fp:
-      statement = "exec(compile(%r, %r, 'exec'))" % \
-            (fp.read(), self.mainpyfile)
-    self.run(statement)
-
-# Simplified interface
-
-def run(statement, globals=None, locals=None):
-  Pdb().run(statement, globals, locals)
-
-def runeval(expression, globals=None, locals=None):
-  return Pdb().runeval(expression, globals, locals)
-
-def runctx(statement, globals, locals):
-  # B/W compatibility
-  run(statement, globals, locals)
-
-def runcall(*args, **kwds):
-  return Pdb().runcall(*args, **kwds)
-
-def set_trace(*, header=None):
-  pdb = Pdb()
-  if header is not None:
-    pdb.message(header)
-  pdb.set_trace(sys._getframe().f_back)
-
-# Main program for testing
-
-TESTCMD = 'import x; x.main()'
-
-def test():
-  run(TESTCMD)
-
-def main():
-  run_as_module = False
-  # Replace pdb's dir with script's dir in front of module search path.
-  if not run_as_module:
-    sys.path[0] = os.path.dirname(mainpyfile)
-  cdb = Cdb()
-  while True:
-    try:
-      if run_as_module:
-        cdb._runmodule(mainpyfile)
-      else:
-        cdb._runscript(mainpyfile)
-      if cdb._user_requested_quit:
-        break
-    except Restart:
-      print("Restarting", mainpyfile, "with arguments:")
-      print("\t" + " ".join(args))
-    except SystemExit:
-      # In most cases SystemExit does not warrant a post-mortem session.
-      print("The program exited via sys.exit(). Exit status:", end=' ')
-      print(sys.exc_info()[1])
-    except SyntaxError:
-      traceback.print_exc()
-      sys.exit(1)
-    except:
-      traceback.print_exc()
-      print("Uncaught exception. Entering post mortem debugging")
-      print("Running 'cont' or 'step' will restart the program")
-      t = sys.exc_info()[2]
-      pdb.interaction(None, t)
-      print("Post mortem debugger finished. The " + mainpyfile +
-                  " will be restarted")
-
-if __name__ == '__main__':
-  main()
-
-
-"""OTHER TEST FUNCTIONS
 def foo(n):
-  print('foo(', n, ')')
-  x = bar(n*10)
-  print('bar returned', x)
+    print('foo(', n, ')')
+    x = bar(n*10)
+    print('bar returned', x)
 
 def bar(a):
-  print('bar(', a, ')')
-  return a/2
+    print('bar(', a, ')')
+    return a/2
 
 def test():
-  t = Tdb()
-  t.run('import bdb; bdb.foo(10)')
-  """
+    t = Tdb()
+    t.run('import bdb; bdb.foo(10)')
+
+
+# =============== NOTE: from test_bdb.py ===============
+
+class Tracer(Bdb):
+  """A tracer for testing the bdb module."""
+
+  def __init__(self, expect_set, skip=None, dry_run=False, test_case=None):
+    super().__init__(skip=skip)
+    self.expect_set = expect_set
+    self.dry_run = dry_run
+    self.header = ('Dry-run results for %s:' % test_case if
+                       test_case is not None else None)
+    self.init_test()
+
+  def init_test(self):
+    self.cur_except = None
+    self.expect_set_no = 0
+    self.breakpoint_hits = None
+    self.expected_list = list(islice(self.expect_set, 0, None, 2))
+    self.set_list = list(islice(self.expect_set, 1, None, 2))
+
+  def trace_dispatch(self, frame, event, arg):
+    # On an 'exception' event, call_exc_trace() in Python/ceval.c discards
+    # a BdbException raised by the Tracer instance, so we raise it on the
+    # next trace_dispatch() call that occurs unless the set_quit() or
+    # set_continue() method has been invoked on the 'exception' event.
+    if self.cur_except is not None:
+      raise self.cur_except
+
+    if event == 'exception':
+      try:
+        res = super().trace_dispatch(frame, event, arg)
+        return res
+      except BdbException as e:
+        self.cur_except = e
+        return self.trace_dispatch
+    else:
+      return super().trace_dispatch(frame, event, arg)
+
+  def user_call(self, frame, argument_list):
+    # Adopt the same behavior as pdb and, as a side effect, skip also the
+    # first 'call' event when the Tracer is started with Tracer.runcall()
+    # which may be possibly considered as a bug.
+    if not self.stop_here(frame):
+      return
+    self.process_event('call', frame, argument_list)
+    self.next_set_method()
+
+  def user_line(self, frame):
+    self.process_event('line', frame)
+
+    if self.dry_run and self.breakpoint_hits:
+      info = info_breakpoints().strip('\n')
+      # Indent each line.
+      for line in info.split('\n'):
+        print('  ' + line)
+    self.delete_temporaries()
+    self.breakpoint_hits = None
+
+    self.next_set_method()
+
+  def user_return(self, frame, return_value):
+    self.process_event('return', frame, return_value)
+    self.next_set_method()
+
+  def user_exception(self, frame, exc_info):
+    self.exc_info = exc_info
+    self.process_event('exception', frame)
+    self.next_set_method()
+
+  def do_clear(self, arg):
+    # The temporary breakpoints are deleted in user_line().
+    bp_list = [self.currentbp]
+    self.breakpoint_hits = (bp_list, bp_list)
+
+  def delete_temporaries(self):
+    if self.breakpoint_hits:
+      for n in self.breakpoint_hits[1]:
+        self.clear_bpbynumber(n)
+
+  def pop_next(self):
+    self.expect_set_no += 1
+    try:
+      self.expect = self.expected_list.pop(0)
+    except IndexError:
+      raise BdbNotExpectedError(
+        'expect_set list exhausted, cannot pop item %d' %
+        self.expect_set_no)
+    self.set_tuple = self.set_list.pop(0)
+
+  def process_event(self, event, frame, *args):
+    # Call get_stack() to enable walking the stack with set_up() and
+    # set_down().
+    tb = None
+    if event == 'exception':
+      tb = self.exc_info[2]
+    self.get_stack(frame, tb)
+
+    # A breakpoint has been hit and it is not a temporary.
+    if self.currentbp is not None and not self.breakpoint_hits:
+      bp_list = [self.currentbp]
+      self.breakpoint_hits = (bp_list, [])
+
+    # Pop next event.
+    self.event= event
+    self.pop_next()
+    if self.dry_run:
+      self.print_state(self.header)
+      return
+
+    # Validate the expected results.
+    if self.expect:
+      self.check_equal(self.expect[0], event, 'Wrong event type')
+      self.check_lno_name()
+
+    if event in ('call', 'return'):
+      self.check_expect_max_size(3)
+    elif len(self.expect) > 3:
+      if event == 'line':
+        bps, temporaries = self.expect[3]
+        bpnums = sorted(bps.keys())
+        if not self.breakpoint_hits:
+          self.raise_not_expected(
+            'No breakpoints hit at expect_set item %d' %
+            self.expect_set_no)
+        self.check_equal(bpnums, self.breakpoint_hits[0],
+          'Breakpoint numbers do not match')
+        self.check_equal([bps[n] for n in bpnums],
+          [self.get_bpbynumber(n).hits for
+            n in self.breakpoint_hits[0]],
+          'Wrong breakpoint hit count')
+        self.check_equal(sorted(temporaries), self.breakpoint_hits[1],
+          'Wrong temporary breakpoints')
+
+      elif event == 'exception':
+        if not isinstance(self.exc_info[1], self.expect[3]):
+          self.raise_not_expected(
+            "Wrong exception at expect_set item %d, got '%s'" %
+            (self.expect_set_no, self.exc_info))
+
+  def check_equal(self, expected, result, msg):
+    if expected == result:
+      return
+    self.raise_not_expected("%s at expect_set item %d, got '%s'" %
+                (msg, self.expect_set_no, result))
+
+  def check_lno_name(self):
+    """Check the line number and function co_name."""
+    s = len(self.expect)
+    if s > 1:
+      lineno = self.lno_abs2rel()
+      self.check_equal(self.expect[1], lineno, 'Wrong line number')
+    if s > 2:
+      self.check_equal(self.expect[2], self.frame.f_code.co_name,
+                        'Wrong function name')
+
+  def check_expect_max_size(self, size):
+    if len(self.expect) > size:
+      raise BdbSyntaxError('Invalid size of the %s expect tuple: %s' %
+                                 (self.event, self.expect))
+
+  def lno_abs2rel(self):
+    fname = self.canonic(self.frame.f_code.co_filename)
+    lineno = self.frame.f_lineno
+    return ((lineno - self.frame.f_code.co_firstlineno + 1)
+      if fname == self.canonic(__file__) else lineno)
+
+  def lno_rel2abs(self, fname, lineno):
+    return (self.frame.f_code.co_firstlineno + lineno - 1
+      if (lineno and self.canonic(fname) == self.canonic(__file__))
+      else lineno)
+
+  def get_state(self):
+    lineno = self.lno_abs2rel()
+    co_name = self.frame.f_code.co_name
+    state = "('%s', %d, '%s'" % (self.event, lineno, co_name)
+    if self.breakpoint_hits:
+      bps = '{'
+      for n in self.breakpoint_hits[0]:
+        if bps != '{':
+          bps += ', '
+        bps += '%s: %s' % (n, self.get_bpbynumber(n).hits)
+      bps += '}'
+      bps = '(' + bps + ', ' + str(self.breakpoint_hits[1]) + ')'
+      state += ', ' + bps
+    elif self.event == 'exception':
+      state += ', ' + self.exc_info[0].__name__
+    state += '), '
+    return state.ljust(32) + str(self.set_tuple) + ','
+
+  def print_state(self, header=None):
+    if header is not None and self.expect_set_no == 1:
+      print()
+      print(header)
+    print('%d: %s' % (self.expect_set_no, self.get_state()))
+
+  def raise_not_expected(self, msg):
+    msg += '\n'
+    msg += '  Expected: %s\n' % str(self.expect)
+    msg += '  Got:      ' + self.get_state()
+    raise BdbNotExpectedError(msg)
+
+  def next_set_method(self):
+    set_type = self.set_tuple[0]
+    args = self.set_tuple[1] if len(self.set_tuple) == 2 else None
+    set_method = getattr(self, 'set_' + set_type)
+
+    # The following set methods give back control to the tracer.
+    if set_type in ('step', 'continue', 'quit'):
+      set_method()
+      return
+    elif set_type in ('next', 'return'):
+      set_method(self.frame)
+      return
+    elif set_type == 'until':
+      lineno = None
+      if args:
+        lineno = self.lno_rel2abs(self.frame.f_code.co_filename,
+                                          args[0])
+      set_method(self.frame, lineno)
+      return
+
+    # The following set methods do not give back control to the tracer and
+    # next_set_method() is called recursively.
+    if (args and set_type in ('break', 'clear', 'ignore', 'enable',
+                  'disable')) or set_type in ('up', 'down'):
+      if set_type in ('break', 'clear'):
+        fname, lineno, *remain = args
+        lineno = self.lno_rel2abs(fname, lineno)
+        args = [fname, lineno]
+        args.extend(remain)
+        set_method(*args)
+      elif set_type in ('ignore', 'enable', 'disable'):
+        set_method(*args)
+      elif set_type in ('up', 'down'):
+        set_method()
+
+      # Process the next expect_set item.
+      # It is not expected that a test may reach the recursion limit.
+      self.event= None
+      self.pop_next()
+      if self.dry_run:
+        self.print_state()
+      else:
+        if self.expect:
+          self.check_lno_name()
+        self.check_expect_max_size(3)
+      self.next_set_method()
+    else:
+      raise BdbSyntaxError('"%s" is an invalid set_tuple' %
+                                 self.set_tuple)
+
+class TracerRun():
+  """Provide a context for running a Tracer instance with a test case."""
+
+  def __init__(self, test_case, skip=None):
+    self.test_case = test_case
+    self.dry_run = test_case.dry_run
+    self.tracer = Tracer(test_case.expect_set, skip=skip,
+                          dry_run=self.dry_run, test_case=test_case.id())
+    self._original_tracer = None
+
+  def __enter__(self):
+    # test_pdb does not reset Breakpoint class attributes on exit :-(
+    reset_Breakpoint()
+    self._original_tracer = sys.gettrace()
+    return self.tracer
+
+  def __exit__(self, type_=None, value=None, traceback=None):
+    reset_Breakpoint()
+    sys.settrace(self._original_tracer)
+
+    not_empty = ''
+    if self.tracer.set_list:
+      not_empty += 'All paired tuples have not been processed, '
+      not_empty += ('the last one was number %d' %
+                    self.tracer.expect_set_no)
+
+    # Make a BdbNotExpectedError a unittest failure.
+    if type_ is not None and issubclass(BdbNotExpectedError, type_):
+      if isinstance(value, BaseException) and value.args:
+        err_msg = value.args[0]
+        if not_empty:
+          err_msg += '\n' + not_empty
+        if self.dry_run:
+          print(err_msg)
+          return True
+        else:
+          self.test_case.fail(err_msg)
+      else:
+        assert False, 'BdbNotExpectedError with empty args'
+
+    if not_empty:
+      if self.dry_run:
+        print(not_empty)
+      else:
+        self.test_case.fail(not_empty)

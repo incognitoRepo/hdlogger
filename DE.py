@@ -1,146 +1,1230 @@
-def main():
-  import argparse
+"""Debugger basics"""
 
-  parser = argparse.ArgumentParser()
-  parser.add_argument('--version', action='version', version='trace 2.0')
+import fnmatch
+import sys
+import os
+from bdb import Bdb
+from pdb import Pdb
+from inspect import CO_GENERATOR, CO_COROUTINE, CO_ASYNC_GENERATOR
 
-  grp = parser.add_argument_group('Main options',
-      'One of these (or --report) must be given')
+__all__ = ["BdbQuit", "Bdb", "Breakpoint"]
 
-  grp.add_argument('-c', '--count', action='store_true',
-      help='Count the number of times each line is executed and write '
-                 'the counts to <module>.cover for each module executed, in '
-                 'the module\'s directory. See also --coverdir, --file, '
-                 '--no-report below.')
-  grp.add_argument('-t', '--trace', action='store_true',
-      help='Print each line to sys.stdout before it is executed')
-  grp.add_argument('-l', '--listfuncs', action='store_true',
-      help='Keep track of which functions are executed at least once '
-                 'and write the results to sys.stdout after the program exits. '
-                 'Cannot be specified alongside --trace or --count.')
-  grp.add_argument('-T', '--trackcalls', action='store_true',
-      help='Keep track of caller/called pairs and write the results to '
-                 'sys.stdout after the program exits.')
+GENERATOR_AND_COROUTINE_FLAGS = CO_GENERATOR | CO_COROUTINE | CO_ASYNC_GENERATOR
 
-  grp = parser.add_argument_group('Modifiers')
 
-  _grp = grp.add_mutually_exclusive_group()
-  _grp.add_argument('-r', '--report', action='store_true',
-      help='Generate a report from a counts file; does not execute any '
-                 'code. --file must specify the results file to read, which '
-                 'must have been created in a previous run with --count '
-                 '--file=FILE')
-  _grp.add_argument('-R', '--no-report', action='store_true',
-      help='Do not generate the coverage report files. '
-                 'Useful if you want to accumulate over several runs.')
+class BdbQuit(Exception):
+  """Exception to give up completely."""
 
-  grp.add_argument('-f', '--file',
-      help='File to accumulate counts over several runs')
-  grp.add_argument('-C', '--coverdir',
-      help='Directory where the report files go. The coverage report '
-                 'for <package>.<module> will be written to file '
-                 '<dir>/<package>/<module>.cover')
-  grp.add_argument('-m', '--missing', action='store_true',
-      help='Annotate executable lines that were not executed with '
-                 '">>>>>> "')
-  grp.add_argument('-s', '--summary', action='store_true',
-      help='Write a brief summary for each file to sys.stdout. '
-                 'Can only be used with --count or --report')
-  grp.add_argument('-g', '--timing', action='store_true',
-      help='Prefix each line with the time since the program started. '
-                 'Only used while tracing')
 
-  grp = parser.add_argument_group('Filters',
-      'Can be specified multiple times')
-  grp.add_argument('--ignore-module', action='append', default=[],
-      help='Ignore the given module(s) and its submodules '
-                 '(if it is a package). Accepts comma separated list of '
-                 'module names.')
-  grp.add_argument('--ignore-dir', action='append', default=[],
-      help='Ignore files in the given directory '
-                 '(multiple directories can be joined by os.pathsep).')
+class Bdb:
 
-  parser.add_argument('--module', action='store_true', default=False,
-            help='Trace a module. ')
-  parser.add_argument('progname', nargs='?',
-      help='file to run as main program')
-  parser.add_argument('arguments', nargs=argparse.REMAINDER,
-      help='arguments to the program')
+  def __init__(self, skip=None):
+    self.skip = set(skip) if skip else None
+    self.breaks = {}
+    self.fncache = {}
+    self.frame_returning = None
 
-  opts = parser.parse_args()
+  def canonic(self, filename):
+    if filename == "<" + filename[1:-1] + ">":
+      return filename
+    canonic = self.fncache.get(filename)
+    if not canonic:
+      canonic = os.path.abspath(filename)
+      canonic = os.path.normcase(canonic)
+      self.fncache[filename] = canonic
+    return canonic
 
-  if opts.ignore_dir:
-    rel_path = 'lib', 'python{0.major}.{0.minor}'.format(sys.version_info)
-    _prefix = os.path.join(sys.base_prefix, *rel_path)
-    _exec_prefix = os.path.join(sys.base_exec_prefix, *rel_path)
+  def reset(self):
+    """Set values of attributes as ready to start debugging."""
+    import linecache
+    linecache.checkcache()
+    self.botframe = None
+    self._set_stopinfo(None, None)
 
-  def parse_ignore_dir(s):
-    s = os.path.expanduser(os.path.expandvars(s))
-    s = s.replace('$prefix', _prefix).replace('$exec_prefix', _exec_prefix)
-    return os.path.normpath(s)
+  def trace_dispatch(self, frame, event, arg):
+    """Dispatch a trace function for debugged frames based on the event.
 
-  opts.ignore_module = [mod.strip()
-                          for i in opts.ignore_module for mod in i.split(',')]
-  opts.ignore_dir = [parse_ignore_dir(s)
-                       for i in opts.ignore_dir for s in i.split(os.pathsep)]
+    This function is installed as the trace function for debugged
+    frames. Its return value is the new trace function, which is
+    usually itself. The default implementation decides how to
+    dispatch a frame, depending on the type of event (passed in as a
+    string) that is about to be executed.
 
-  if opts.report:
-    if not opts.file:
-      parser.error('-r/--report requires -f/--file')
-    results = CoverageResults(infile=opts.file, outfile=opts.file)
-    return results.write_results(opts.missing, opts.summary, opts.coverdir)
+    The event can be one of the following:
+      line: A new line of code is going to be executed.
+      call: A function is about to be called or another code block
+                  is entered.
+      return: A function or other code block is about to return.
+      exception: An exception has occurred.
+      c_call: A C function is about to be called.
+      c_return: A C function has returned.
+      c_exception: A C function has raised an exception.
 
-  if not any([opts.trace, opts.count, opts.listfuncs, opts.trackcalls]):
-    parser.error('must specify one of --trace, --count, --report, '
-                     '--listfuncs, or --trackcalls')
+    For the Python events, specialized functions (see the dispatch_*()
+    methods) are called.  For the C events, no action is taken.
 
-  if opts.listfuncs and (opts.count or opts.trace):
-    parser.error('cannot specify both --listfuncs and (--trace or --count)')
+    The arg parameter depends on the previous event.
+    """
+    if self.quitting:
+      return # None
+    if event == 'line':
+      return self.dispatch_line(frame)
+    if event == 'call':
+      return self.dispatch_call(frame, arg)
+    if event == 'return':
+      return self.dispatch_return(frame, arg)
+    if event == 'exception':
+      return self.dispatch_exception(frame, arg)
+    if event == 'c_call':
+      return self.trace_dispatch
+    if event == 'c_exception':
+      return self.trace_dispatch
+    if event == 'c_return':
+      return self.trace_dispatch
+    print('bdb.Bdb.dispatch: unknown debugging event:', repr(event))
+    return self.trace_dispatch
 
-  if opts.summary and not opts.count:
-    parser.error('--summary can only be used with --count or --report')
+  def dispatch_line(self, frame):
+    """Invoke user function and return trace function for line event.
 
-  if opts.progname is None:
-    parser.error('progname is missing: required with the main options')
+    If the debugger stops on the current line, invoke
+    self.user_line(). Raise BdbQuit if self.quitting is set.
+    Return self.trace_dispatch to continue tracing in this scope.
+    """
+    if self.stop_here(frame) or self.break_here(frame):
+      self.user_line(frame)
+      if self.quitting: raise BdbQuit
+    return self.trace_dispatch
 
-  t = Trace(opts.count, opts.trace, countfuncs=opts.listfuncs,
-              countcallers=opts.trackcalls, ignoremods=opts.ignore_module,
-              ignoredirs=opts.ignore_dir, infile=opts.file,
-              outfile=opts.file, timing=opts.timing)
-  try:
-    if opts.module:
-      import runpy
-      module_name = opts.progname
-      mod_name, mod_spec, code = runpy._get_module_details(module_name)
-      sys.argv = [code.co_filename, *opts.arguments]
-      globs = {
-        '__name__': '__main__',
-        '__file__': code.co_filename,
-        '__package__': mod_spec.parent,
-        '__loader__': mod_spec.loader,
-        '__spec__': mod_spec,
-        '__cached__': None,
-      }
+  def dispatch_call(self, frame, arg):
+    """Invoke user function and return trace function for call event.
+
+    If the debugger stops on this function call, invoke
+    self.user_call(). Raise BbdQuit if self.quitting is set.
+    Return self.trace_dispatch to continue tracing in this scope.
+    """
+    # XXX 'arg' is no longer used
+    if self.botframe is None:
+      # First call of dispatch since reset()
+      self.botframe = frame.f_back # (CT) Note that this may also be None!
+      return self.trace_dispatch
+    if not (self.stop_here(frame) or self.break_anywhere(frame)):
+      # No need to trace this function
+      return # None
+    # Ignore call events in generator except when stepping.
+    if self.stopframe and frame.f_code.co_flags & GENERATOR_AND_COROUTINE_FLAGS:
+      return self.trace_dispatch
+    self.user_call(frame, arg)
+    if self.quitting: raise BdbQuit
+    return self.trace_dispatch
+
+  def dispatch_return(self, frame, arg):
+    """Invoke user function and return trace function for return event.
+
+    If the debugger stops on this function return, invoke
+    self.user_return(). Raise BdbQuit if self.quitting is set.
+    Return self.trace_dispatch to continue tracing in this scope.
+    """
+    if self.stop_here(frame) or frame == self.returnframe:
+      # Ignore return events in generator except when stepping.
+      if self.stopframe and frame.f_code.co_flags & GENERATOR_AND_COROUTINE_FLAGS:
+        return self.trace_dispatch
+      try:
+        self.frame_returning = frame
+        self.user_return(frame, arg)
+      finally:
+        self.frame_returning = None
+      if self.quitting: raise BdbQuit
+      # The user issued a 'next' or 'until' command.
+      if self.stopframe is frame and self.stoplineno != -1:
+        self._set_stopinfo(None, None)
+    return self.trace_dispatch
+
+  def dispatch_exception(self, frame, arg):
+    """Invoke user function and return trace function for exception event.
+
+    If the debugger stops on this exception, invoke
+    self.user_exception(). Raise BdbQuit if self.quitting is set.
+    Return self.trace_dispatch to continue tracing in this scope.
+    """
+    if self.stop_here(frame):
+      # When stepping with next/until/return in a generator frame, skip
+      # the internal StopIteration exception (with no traceback)
+      # triggered by a subiterator run with the 'yield from' statement.
+      if not (frame.f_code.co_flags & GENERATOR_AND_COROUTINE_FLAGS
+          and arg[0] is StopIteration and arg[2] is None):
+        self.user_exception(frame, arg)
+        if self.quitting: raise BdbQuit
+    # Stop at the StopIteration or GeneratorExit exception when the user
+    # has set stopframe in a generator by issuing a return command, or a
+    # next/until command at the last statement in the generator before the
+    # exception.
+    elif (self.stopframe and frame is not self.stopframe
+        and self.stopframe.f_code.co_flags & GENERATOR_AND_COROUTINE_FLAGS
+        and arg[0] in (StopIteration, GeneratorExit)):
+      self.user_exception(frame, arg)
+      if self.quitting: raise BdbQuit
+
+    return self.trace_dispatch
+
+  def is_skipped_module(self, module_name):
+    "Return True if module_name matches any skip pattern."
+    if module_name is None:  # some modules do not have names
+      return False
+    for pattern in self.skip:
+      if fnmatch.fnmatch(module_name, pattern):
+        return True
+    return False
+
+  def stop_here(self, frame):
+    "Return True if frame is below the starting frame in the stack."
+    # (CT) stopframe may now also be None, see dispatch_call.
+    # (CT) the former test for None is therefore removed from here.
+    if self.skip and \
+               self.is_skipped_module(frame.f_globals.get('__name__')):
+      return False
+    if frame is self.stopframe:
+      if self.stoplineno == -1:
+        return False
+      return frame.f_lineno >= self.stoplineno
+    if not self.stopframe:
+      return True
+    return False
+
+  def break_here(self, frame):
+    """Return True if there is an effective breakpoint for this line.
+
+    Check for line or function breakpoint and if in effect.
+    Delete temporary breakpoints if effective() says to.
+    """
+    filename = self.canonic(frame.f_code.co_filename)
+    if filename not in self.breaks:
+      return False
+    lineno = frame.f_lineno
+    if lineno not in self.breaks[filename]:
+      # The line itself has no breakpoint, but maybe the line is the
+      # first line of a function with breakpoint set by function name.
+      lineno = frame.f_code.co_firstlineno
+      if lineno not in self.breaks[filename]:
+        return False
+
+    # flag says ok to delete temp. bp
+    (bp, flag) = effective(filename, lineno, frame)
+    if bp:
+      self.currentbp = bp.number
+      if (flag and bp.temporary):
+        self.do_clear(str(bp.number))
+      return True
     else:
-      sys.argv = [opts.progname, *opts.arguments]
-      sys.path[0] = os.path.dirname(opts.progname)
+      return False
 
-      with open(opts.progname) as fp:
-        code = compile(fp.read(), opts.progname, 'exec')
-      # try to emulate __main__ namespace as much as possible
-      globs = {
-        '__file__': opts.progname,
-        '__name__': '__main__',
-        '__package__': None,
-        '__cached__': None,
-      }
-    t.runctx(code, globs, globs)
-  except OSError as err:
-    sys.exit("Cannot run file %r because: %s" % (sys.argv[0], err))
-  except SystemExit:
+  def do_clear(self, arg):
+    """Remove temporary breakpoint.
+
+    Must implement in derived classes or get NotImplementedError.
+    """
+    raise NotImplementedError("subclass of bdb must implement do_clear()")
+
+  def break_anywhere(self, frame):
+    """Return True if there is any breakpoint for frame's filename.
+    """
+    return self.canonic(frame.f_code.co_filename) in self.breaks
+
+  # Derived classes should override the user_* methods
+  # to gain control.
+
+  def user_call(self, frame, argument_list):
+    """Called if we might stop in a function."""
     pass
 
-  results = t.results()
+  def user_line(self, frame):
+    """Called when we stop or break at a line."""
+    pass
 
-  if not opts.no_report:
-    results.write_results(opts.missing, opts.summary, opts.coverdir)
+  def user_return(self, frame, return_value):
+    """Called when a return trap is set here."""
+    pass
+
+  def user_exception(self, frame, exc_info):
+    """Called when we stop on an exception."""
+    pass
+
+  def _set_stopinfo(self, stopframe, returnframe, stoplineno=0):
+    """Set the attributes for stopping.
+
+    If stoplineno is greater than or equal to 0, then stop at line
+    greater than or equal to the stopline.  If stoplineno is -1, then
+    don't stop at all.
+    """
+    self.stopframe = stopframe
+    self.returnframe = returnframe
+    self.quitting = False
+    # stoplineno >= 0 means: stop at line >= the stoplineno
+    # stoplineno -1 means: don't stop at all
+    self.stoplineno = stoplineno
+
+  # Derived classes and clients can call the following methods
+  # to affect the stepping state.
+
+  def set_until(self, frame, lineno=None):
+    """Stop when the line with the lineno greater than the current one is
+    reached or when returning from current frame."""
+    # the name "until" is borrowed from gdb
+    if lineno is None:
+      lineno = frame.f_lineno + 1
+    self._set_stopinfo(frame, frame, lineno)
+
+  def set_step(self):
+    """Stop after one line of code."""
+    # Issue #13183: pdb skips frames after hitting a breakpoint and running
+    # step commands.
+    # Restore the trace function in the caller (that may not have been set
+    # for performance reasons) when returning from the current frame.
+    if self.frame_returning:
+      caller_frame = self.frame_returning.f_back
+      if caller_frame and not caller_frame.f_trace:
+        caller_frame.f_trace = self.trace_dispatch
+    self._set_stopinfo(None, None)
+
+  def set_next(self, frame):
+    """Stop on the next line in or below the given frame."""
+    self._set_stopinfo(frame, None)
+
+  def set_return(self, frame):
+    """Stop when returning from the given frame."""
+    if frame.f_code.co_flags & GENERATOR_AND_COROUTINE_FLAGS:
+      self._set_stopinfo(frame, None, -1)
+    else:
+      self._set_stopinfo(frame.f_back, frame)
+
+  def set_trace(self, frame=None):
+    """Start debugging from frame.
+
+    If frame is not specified, debugging starts from caller's frame.
+    """
+    if frame is None:
+      frame = sys._getframe().f_back
+    self.reset()
+    while frame:
+      frame.f_trace = self.trace_dispatch
+      self.botframe = frame
+      frame = frame.f_back
+    self.set_step()
+    sys.settrace(self.trace_dispatch)
+
+  def set_continue(self):
+    """Stop only at breakpoints or when finished.
+
+    If there are no breakpoints, set the system trace function to None.
+    """
+    # Don't stop except at breakpoints or when finished
+    self._set_stopinfo(self.botframe, None, -1)
+    if not self.breaks:
+      # no breakpoints; run without debugger overhead
+      sys.settrace(None)
+      frame = sys._getframe().f_back
+      while frame and frame is not self.botframe:
+        del frame.f_trace
+        frame = frame.f_back
+
+  def set_quit(self):
+    """Set quitting attribute to True.
+
+    Raises BdbQuit exception in the next call to a dispatch_*() method.
+    """
+    self.stopframe = self.botframe
+    self.returnframe = None
+    self.quitting = True
+    sys.settrace(None)
+
+  # Derived classes and clients can call the following methods
+  # to manipulate breakpoints.  These methods return an
+  # error message if something went wrong, None if all is well.
+  # Set_break prints out the breakpoint line and file:lineno.
+  # Call self.get_*break*() to see the breakpoints or better
+  # for bp in Breakpoint.bpbynumber: if bp: bp.bpprint().
+
+  def set_break(self, filename, lineno, temporary=False, cond=None,
+                  funcname=None):
+    """Set a new breakpoint for filename:lineno.
+
+    If lineno doesn't exist for the filename, return an error message.
+    The filename should be in canonical form.
+    """
+    filename = self.canonic(filename)
+    import linecache # Import as late as possible
+    line = linecache.getline(filename, lineno)
+    if not line:
+      return 'Line %s:%d does not exist' % (filename, lineno)
+    list = self.breaks.setdefault(filename, [])
+    if lineno not in list:
+      list.append(lineno)
+    bp = Breakpoint(filename, lineno, temporary, cond, funcname)
+    return None
+
+  def _prune_breaks(self, filename, lineno):
+    """Prune breakpoints for filename:lineno.
+
+    A list of breakpoints is maintained in the Bdb instance and in
+    the Breakpoint class.  If a breakpoint in the Bdb instance no
+    longer exists in the Breakpoint class, then it's removed from the
+    Bdb instance.
+    """
+    if (filename, lineno) not in Breakpoint.bplist:
+      self.breaks[filename].remove(lineno)
+    if not self.breaks[filename]:
+      del self.breaks[filename]
+
+  def clear_break(self, filename, lineno):
+    """Delete breakpoints for filename:lineno.
+
+    If no breakpoints were set, return an error message.
+    """
+    filename = self.canonic(filename)
+    if filename not in self.breaks:
+      return 'There are no breakpoints in %s' % filename
+    if lineno not in self.breaks[filename]:
+      return 'There is no breakpoint at %s:%d' % (filename, lineno)
+    # If there's only one bp in the list for that file,line
+    # pair, then remove the breaks entry
+    for bp in Breakpoint.bplist[filename, lineno][:]:
+      bp.deleteMe()
+    self._prune_breaks(filename, lineno)
+    return None
+
+  def clear_bpbynumber(self, arg):
+    """Delete a breakpoint by its index in Breakpoint.bpbynumber.
+
+    If arg is invalid, return an error message.
+    """
+    try:
+      bp = self.get_bpbynumber(arg)
+    except ValueError as err:
+      return str(err)
+    bp.deleteMe()
+    self._prune_breaks(bp.file, bp.line)
+    return None
+
+  def clear_all_file_breaks(self, filename):
+    """Delete all breakpoints in filename.
+
+    If none were set, return an error message.
+    """
+    filename = self.canonic(filename)
+    if filename not in self.breaks:
+      return 'There are no breakpoints in %s' % filename
+    for line in self.breaks[filename]:
+      blist = Breakpoint.bplist[filename, line]
+      for bp in blist:
+        bp.deleteMe()
+    del self.breaks[filename]
+    return None
+
+  def clear_all_breaks(self):
+    """Delete all existing breakpoints.
+
+    If none were set, return an error message.
+    """
+    if not self.breaks:
+      return 'There are no breakpoints'
+    for bp in Breakpoint.bpbynumber:
+      if bp:
+        bp.deleteMe()
+    self.breaks = {}
+    return None
+
+  def get_bpbynumber(self, arg):
+    """Return a breakpoint by its index in Breakpoint.bybpnumber.
+
+    For invalid arg values or if the breakpoint doesn't exist,
+    raise a ValueError.
+    """
+    if not arg:
+      raise ValueError('Breakpoint number expected')
+    try:
+      number = int(arg)
+    except ValueError:
+      raise ValueError('Non-numeric breakpoint number %s' % arg) from None
+    try:
+      bp = Breakpoint.bpbynumber[number]
+    except IndexError:
+      raise ValueError('Breakpoint number %d out of range' % number) from None
+    if bp is None:
+      raise ValueError('Breakpoint %d already deleted' % number)
+    return bp
+
+  def get_break(self, filename, lineno):
+    """Return True if there is a breakpoint for filename:lineno."""
+    filename = self.canonic(filename)
+    return filename in self.breaks and \
+      lineno in self.breaks[filename]
+
+  def get_breaks(self, filename, lineno):
+    """Return all breakpoints for filename:lineno.
+
+    If no breakpoints are set, return an empty list.
+    """
+    filename = self.canonic(filename)
+    return filename in self.breaks and \
+      lineno in self.breaks[filename] and \
+      Breakpoint.bplist[filename, lineno] or []
+
+  def get_file_breaks(self, filename):
+    """Return all lines with breakpoints for filename.
+
+    If no breakpoints are set, return an empty list.
+    """
+    filename = self.canonic(filename)
+    if filename in self.breaks:
+      return self.breaks[filename]
+    else:
+      return []
+
+  def get_all_breaks(self):
+    """Return all breakpoints that are set."""
+    return self.breaks
+
+  # Derived classes and clients can call the following method
+  # to get a data structure representing a stack trace.
+
+  def get_stack(self, f, t):
+    """Return a list of (frame, lineno) in a stack trace and a size.
+
+    List starts with original calling frame, if there is one.
+    Size may be number of frames above or below f.
+    """
+    stack = []
+    if t and t.tb_frame is f:
+      t = t.tb_next
+    while f is not None:
+      stack.append((f, f.f_lineno))
+      if f is self.botframe:
+        break
+      f = f.f_back
+    stack.reverse()
+    i = max(0, len(stack) - 1)
+    while t is not None:
+      stack.append((t.tb_frame, t.tb_lineno))
+      t = t.tb_next
+    if f is None:
+      i = max(0, len(stack) - 1)
+    return stack, i
+
+  def format_stack_entry(self, frame_lineno, lprefix=': '):
+    """Return a string with information about a stack entry.
+
+    The stack entry frame_lineno is a (frame, lineno) tuple.  The
+    return string contains the canonical filename, the function name
+    or '<lambda>', the input arguments, the return value, and the
+    line of code (if it exists).
+
+    """
+    import linecache, reprlib
+    frame, lineno = frame_lineno
+    filename = self.canonic(frame.f_code.co_filename)
+    s = '%s(%r)' % (filename, lineno)
+    if frame.f_code.co_name:
+      s += frame.f_code.co_name
+    else:
+      s += "<lambda>"
+    if '__args__' in frame.f_locals:
+      args = frame.f_locals['__args__']
+    else:
+      args = None
+    if args:
+      s += reprlib.repr(args)
+    else:
+      s += '()'
+    if '__return__' in frame.f_locals:
+      rv = frame.f_locals['__return__']
+      s += '->'
+      s += reprlib.repr(rv)
+    line = linecache.getline(filename, lineno, frame.f_globals)
+    if line:
+      s += lprefix + line.strip()
+    return s
+
+  def print_stack_trace(self):
+    try:
+      for frame_lineno in self.stack:
+        self.print_stack_entry(frame_lineno)
+    except KeyboardInterrupt:
+      pass
+
+  # The following methods can be called by clients to use
+  # a debugger to debug a statement or an expression.
+  # Both can be given as a string, or a code object.
+
+  def run(self, cmd, globals=None, locals=None):
+    """Debug a statement executed via the exec() function.
+
+    globals defaults to __main__.dict; locals defaults to globals.
+    """
+    if globals is None:
+      import __main__
+      globals = __main__.__dict__
+    if locals is None:
+      locals = globals
+    self.reset()
+    if isinstance(cmd, str):
+      cmd = compile(cmd, "<string>", "exec")
+    sys.settrace(self.trace_dispatch)
+    try:
+      exec(cmd, globals, locals)
+    except BdbQuit:
+      pass
+    finally:
+      self.quitting = True
+      sys.settrace(None)
+
+  def runeval(self, expr, globals=None, locals=None):
+    """Debug an expression executed via the eval() function.
+
+    globals defaults to __main__.dict; locals defaults to globals.
+    """
+    if globals is None:
+      import __main__
+      globals = __main__.__dict__
+    if locals is None:
+      locals = globals
+    self.reset()
+    sys.settrace(self.trace_dispatch)
+    try:
+      return eval(expr, globals, locals)
+    except BdbQuit:
+      pass
+    finally:
+      self.quitting = True
+      sys.settrace(None)
+
+  def runctx(self, cmd, globals, locals):
+    """For backwards-compatibility.  Defers to run()."""
+    # B/W compatibility
+    self.run(cmd, globals, locals)
+
+  # This method is more useful to debug a single function call.
+
+  def runcall(*args, **kwds):
+    """Debug a single function call.
+
+    Return the result of the function call.
+    """
+    if len(args) >= 2:
+      self, func, *args = args
+    elif not args:
+      raise TypeError("descriptor 'runcall' of 'Bdb' object "
+              "needs an argument")
+    elif 'func' in kwds:
+      func = kwds.pop('func')
+      self, *args = args
+      import warnings
+      warnings.warn("Passing 'func' as keyword argument is deprecated",
+                          DeprecationWarning, stacklevel=2)
+    else:
+      raise TypeError('runcall expected at least 1 positional argument, '
+              'got %d' % (len(args)-1))
+
+    self.reset()
+    sys.settrace(self.trace_dispatch)
+    res = None
+    try:
+      res = func(*args, **kwds)
+    except BdbQuit:
+      pass
+    finally:
+      self.quitting = True
+      sys.settrace(None)
+    return res
+  runcall.__text_signature__ = '($self, func, /, *args, **kwds)'
+
+
+def set_trace():
+  """Start debugging with a Bdb instance from the caller's frame."""
+  Bdb().set_trace()
+
+
+class Breakpoint:
+  """Breakpoint class.
+
+  Implements temporary breakpoints, ignore counts, disabling and
+  (re)-enabling, and conditionals.
+
+  Breakpoints are indexed by number through bpbynumber and by
+  the (file, line) tuple using bplist.  The former points to a
+  single instance of class Breakpoint.  The latter points to a
+  list of such instances since there may be more than one
+  breakpoint per line.
+
+  When creating a breakpoint, its associated filename should be
+  in canonical form.  If funcname is defined, a breakpoint hit will be
+  counted when the first line of that function is executed.  A
+  conditional breakpoint always counts a hit.
+  """
+
+  # XXX Keeping state in the class is a mistake -- this means
+  # you cannot have more than one active Bdb instance.
+
+  next = 1        # Next bp to be assigned
+  bplist = {}     # indexed by (file, lineno) tuple
+  bpbynumber = [None] # Each entry is None or an instance of Bpt
+        # index 0 is unused, except for marking an
+        # effective break .... see effective()
+
+  def __init__(self, file, line, temporary=False, cond=None, funcname=None):
+    self.funcname = funcname
+    # Needed if funcname is not None.
+    self.func_first_executable_line = None
+    self.file = file    # This better be in canonical form!
+    self.line = line
+    self.temporary = temporary
+    self.cond = cond
+    self.enabled = True
+    self.ignore = 0
+    self.hits = 0
+    self.number = Breakpoint.next
+    Breakpoint.next += 1
+    # Build the two lists
+    self.bpbynumber.append(self)
+    if (file, line) in self.bplist:
+      self.bplist[file, line].append(self)
+    else:
+      self.bplist[file, line] = [self]
+
+  def deleteMe(self):
+    """Delete the breakpoint from the list associated to a file:line.
+
+    If it is the last breakpoint in that position, it also deletes
+    the entry for the file:line.
+    """
+
+    index = (self.file, self.line)
+    self.bpbynumber[self.number] = None   # No longer in list
+    self.bplist[index].remove(self)
+    if not self.bplist[index]:
+      # No more bp for this f:l combo
+      del self.bplist[index]
+
+  def enable(self):
+    """Mark the breakpoint as enabled."""
+    self.enabled = True
+
+  def disable(self):
+    """Mark the breakpoint as disabled."""
+    self.enabled = False
+
+  def bpprint(self, out=None):
+    """Print the output of bpformat().
+
+    The optional out argument directs where the output is sent
+    and defaults to standard output.
+    """
+    if out is None:
+      out = sys.stdout
+    print(self.bpformat(), file=out)
+
+  def bpformat(self):
+    """Return a string with information about the breakpoint.
+
+    The information includes the breakpoint number, temporary
+    status, file:line position, break condition, number of times to
+    ignore, and number of times hit.
+
+    """
+    if self.temporary:
+      disp = 'del  '
+    else:
+      disp = 'keep '
+    if self.enabled:
+      disp = disp + 'yes  '
+    else:
+      disp = disp + 'no   '
+    ret = '%-4dbreakpoint   %s at %s:%d' % (self.number, disp,
+                        self.file, self.line)
+    if self.cond:
+      ret += '\n\tstop only if %s' % (self.cond,)
+    if self.ignore:
+      ret += '\n\tignore next %d hits' % (self.ignore,)
+    if self.hits:
+      if self.hits > 1:
+        ss = 's'
+      else:
+        ss = ''
+      ret += '\n\tbreakpoint already hit %d time%s' % (self.hits, ss)
+    return ret
+
+  def __str__(self):
+    "Return a condensed description of the breakpoint."
+    return 'breakpoint %s at %s:%s' % (self.number, self.file, self.line)
+
+# -----------end of Breakpoint class----------
+
+
+def checkfuncname(b, frame):
+  """Return True if break should happen here.
+
+  Whether a break should happen depends on the way that b (the breakpoint)
+  was set.  If it was set via line number, check if b.line is the same as
+  the one in the frame.  If it was set via function name, check if this is
+  the right function and if it is on the first executable line.
+  """
+  if not b.funcname:
+    # Breakpoint was set via line number.
+    if b.line != frame.f_lineno:
+      # Breakpoint was set at a line with a def statement and the function
+      # defined is called: don't break.
+      return False
+    return True
+
+  # Breakpoint set via function name.
+  if frame.f_code.co_name != b.funcname:
+    # It's not a function call, but rather execution of def statement.
+    return False
+
+  # We are in the right frame.
+  if not b.func_first_executable_line:
+    # The function is entered for the 1st time.
+    b.func_first_executable_line = frame.f_lineno
+
+  if b.func_first_executable_line != frame.f_lineno:
+    # But we are not at the first line number: don't break.
+    return False
+  return True
+
+
+# Determines if there is an effective (active) breakpoint at this
+# line of code.  Returns breakpoint number or 0 if none
+def effective(file, line, frame):
+  """Determine which breakpoint for this file:line is to be acted upon.
+
+  Called only if we know there is a breakpoint at this location.  Return
+  the breakpoint that was triggered and a boolean that indicates if it is
+  ok to delete a temporary breakpoint.  Return (None, None) if there is no
+  matching breakpoint.
+  """
+  possibles = Breakpoint.bplist[file, line]
+  for b in possibles:
+    if not b.enabled:
+      continue
+    if not checkfuncname(b, frame):
+      continue
+    # Count every hit when bp is enabled
+    b.hits += 1
+    if not b.cond:
+      # If unconditional, and ignoring go on to next, else break
+      if b.ignore > 0:
+        b.ignore -= 1
+        continue
+      else:
+        # breakpoint and marker that it's ok to delete if temporary
+        return (b, True)
+    else:
+      # Conditional bp.
+      # Ignore count applies only to those bpt hits where the
+      # condition evaluates to true.
+      try:
+        val = eval(b.cond, frame.f_globals, frame.f_locals)
+        if val:
+          if b.ignore > 0:
+            b.ignore -= 1
+            # continue
+          else:
+            return (b, True)
+        # else:
+        #   continue
+      except:
+        # if eval fails, most conservative thing is to stop on
+        # breakpoint regardless of ignore count.  Don't delete
+        # temporary, as another hint to user.
+        return (b, False)
+  return (None, None)
+
+
+# -------------------- testing --------------------
+
+class Restart(Exception):
+  """Causes a debugger to be restarted for the debugged python program."""
+  pass
+
+__all__ = ["run", "pm", "Pdb", "runeval", "runctx", "runcall", "set_trace",
+           "post_mortem", "help"]
+
+def find_function(funcname, filename):
+  cre = re.compile(r'def\s+%s\s*[(]' % re.escape(funcname))
+  try:
+    fp = open(filename)
+  except OSError:
+    return None
+  # consumer of this info expects the first line to be 1
+  with fp:
+    for lineno, line in enumerate(fp, start=1):
+      if cre.match(line):
+        return funcname, filename, lineno
+  return None
+
+def getsourcelines(obj):
+  lines, lineno = inspect.findsource(obj)
+  if inspect.isframe(obj) and obj.f_globals is obj.f_locals:
+    # must be a module frame: do not try to cut a block out of it
+    return lines, 1
+  elif inspect.ismodule(obj):
+    return lines, 1
+  return inspect.getblock(lines[lineno:]), lineno+1
+
+def lasti2lineno(code, lasti):
+  linestarts = list(dis.findlinestarts(code))
+  linestarts.reverse()
+  for i, lineno in linestarts:
+    if lasti >= i:
+      return lineno
+  return 0
+
+
+def _getval_except(self, arg, frame=None):
+  try:
+    if frame is None:
+      return eval(arg, self.curframe.f_globals, self.curframe_locals)
+    else:
+      return eval(arg, frame.f_globals, frame.f_locals)
+  except:
+    exc_info = sys.exc_info()[:2]
+    err = traceback.format_exception_only(*exc_info)[-1].strip()
+    return _rstr('** raised %s **' % err)
+
+class _rstr(str):
+  """String that doesn't quote its repr."""
+  def __repr__(self):
+    return self
+
+class Cdb(Bdb,Cmd):
+  _previous_sigint_handler = None
+
+  def __init__(self, completekey='tab', stdin=None, stdout=None, skip=None,
+                 nosigint=False, readrc=True):
+    bdb.Bdb.__init__(self, skip=skip)
+    cmd.Cmd.__init__(self, completekey, stdin, stdout)
+    # sys.audit("pdb.Pdb")
+    if stdout:
+      self.use_rawinput = 0
+    self.prompt = '(Cdb) '
+    self.aliases = {}
+    self.displaying = {}
+    self.mainpyfile = ''
+    self._wait_for_mainpyfile = False
+    self.tb_lineno = {}
+    # Try to load readline if it exists
+    try:
+      import readline
+      # remove some common file name delimiters
+      readline.set_completer_delims(' \t\n`@#$%^&*()=+[{]}\\|;:\'",<>?')
+    except ImportError:
+      pass
+    self.allow_kbdint = False
+    self.nosigint = nosigint
+
+    # Read $HOME/.pdbrc and ./.pdbrc
+    self.rcLines = []
+    if readrc:
+      if 'HOME' in os.environ:
+        envHome = os.environ['HOME']
+        try:
+          with open(os.path.join(envHome, ".pdbrc")) as rcFile:
+            self.rcLines.extend(rcFile)
+        except OSError:
+          pass
+      try:
+        with open(".pdbrc") as rcFile:
+          self.rcLines.extend(rcFile)
+      except OSError:
+        pass
+
+    self.commands = {} # associates a command list to breakpoint numbers
+    self.commands_doprompt = {} # for each bp num, tells if the prompt
+                  # must be disp. after execing the cmd list
+    self.commands_silent = {} # for each bp num, tells if the stack trace
+                                  # must be disp. after execing the cmd list
+    self.commands_defining = False # True while in the process of defining
+                                       # a command list
+    self.commands_bnum = None # The breakpoint number for which we are
+                                  # defining a list
+
+  def sigint_handler(self, signum, frame):
+    if self.allow_kbdint:
+      raise KeyboardInterrupt
+    self.message("\nProgram interrupted. (Use 'cont' to resume).")
+    self.set_step()
+    self.set_trace(frame)
+
+  def reset(self):
+    bdb.Bdb.reset(self)
+    self.forget()
+
+  def forget(self):
+    self.lineno = None
+    self.stack = []
+    self.curindex = 0
+    self.curframe = None
+    self.tb_lineno.clear()
+
+  def setup(self, f, tb):
+    self.forget()
+    self.stack, self.curindex = self.get_stack(f, tb)
+    while tb:
+      # when setting up post-mortem debugging with a traceback, save all
+      # the original line numbers to be displayed along the current line
+      # numbers (which can be different, e.g. due to finally clauses)
+      lineno = lasti2lineno(tb.tb_frame.f_code, tb.tb_lasti)
+      self.tb_lineno[tb.tb_frame] = lineno
+      tb = tb.tb_next
+    self.curframe = self.stack[self.curindex][0]
+    # The f_locals dictionary is updated from the actual frame
+    # locals whenever the .f_locals accessor is called, so we
+    # cache it here to ensure that modifications are not overwritten.
+    self.curframe_locals = self.curframe.f_locals
+    return self.execRcLines()
+
+  # Can be executed earlier than 'setup' if desired
+  def execRcLines(self):
+    if not self.rcLines:
+      return
+    # local copy because of recursion
+    rcLines = self.rcLines
+    rcLines.reverse()
+    # execute every line only once
+    self.rcLines = []
+    while rcLines:
+      line = rcLines.pop().strip()
+      if line and line[0] != '#':
+        if self.onecmd(line):
+          # if onecmd returns True, the command wants to exit
+          # from the interaction, save leftover rc lines
+          # to execute before next interaction
+          self.rcLines += reversed(rcLines)
+          return True
+
+  # Override Bdb methods
+
+  def user_call(self, frame, argument_list):
+    """This method is called when there is the remote possibility
+    that we ever need to stop in this function."""
+    if self._wait_for_mainpyfile:
+      return
+    if self.stop_here(frame):
+      self.message('--Call--')
+      self.interaction(frame, None)
+
+  def user_line(self, frame):
+    """This function is called when we stop or break at this line."""
+    if self._wait_for_mainpyfile:
+      if (self.mainpyfile != self.canonic(frame.f_code.co_filename)
+        or frame.f_lineno <= 0):
+        return
+      self._wait_for_mainpyfile = False
+    if self.bp_commands(frame):
+      self.interaction(frame, None)
+
+  def user_return(self, frame, return_value):
+    """This function is called when a return trap is set here."""
+    if self._wait_for_mainpyfile:
+      return
+    frame.f_locals['__return__'] = return_value
+    self.message('--Return--')
+    self.interaction(frame, None)
+
+  def user_exception(self, frame, exc_info):
+    """This function is called if an exception occurs,
+    but only if we are to stop at or just below this level."""
+    if self._wait_for_mainpyfile:
+      return
+    exc_type, exc_value, exc_traceback = exc_info
+    frame.f_locals['__exception__'] = exc_type, exc_value
+
+    # An 'Internal StopIteration' exception is an exception debug event
+    # issued by the interpreter when handling a subgenerator run with
+    # 'yield from' or a generator controlled by a for loop. No exception has
+    # actually occurred in this case. The debugger uses this debug event to
+    # stop when the debuggee is returning from such generators.
+    prefix = 'Internal ' if (not exc_traceback
+                  and exc_type is StopIteration) else ''
+    self.message('%s%s' % (prefix,
+      traceback.format_exception_only(exc_type, exc_value)[-1].strip()))
+    self.interaction(frame, exc_traceback)
+
+  def default(self, line):
+    if line[:1] == '!': line = line[1:]
+    locals = self.curframe_locals
+    globals = self.curframe.f_globals
+    try:
+      code = compile(line + '\n', '<stdin>', 'single')
+      save_stdout = sys.stdout
+      save_stdin = sys.stdin
+      save_displayhook = sys.displayhook
+      try:
+        sys.stdin = self.stdin
+        sys.stdout = self.stdout
+        sys.displayhook = self.displayhook
+        exec(code, globals, locals)
+      finally:
+        sys.stdout = save_stdout
+        sys.stdin = save_stdin
+        sys.displayhook = save_displayhook
+    except:
+      exc_info = sys.exc_info()[:2]
+      self.error(traceback.format_exception_only(*exc_info)[-1].strip())
+
+  # interface abstraction functions
+
+  def message(self, msg):
+    print(msg, file=self.stdout)
+
+  def error(self, msg):
+    print('***', msg, file=self.stdout)
+
+  # run helper functions
+
+  def lookupmodule(self, filename):
+    """Helper function for break/clear parsing -- may be overridden.
+
+    lookupmodule() translates (possibly incomplete) file or module name
+    into an absolute file name.
+    """
+    if os.path.isabs(filename) and  os.path.exists(filename):
+      return filename
+    f = os.path.join(sys.path[0], filename)
+    if  os.path.exists(f) and self.canonic(f) == self.mainpyfile:
+      return f
+    root, ext = os.path.splitext(filename)
+    if ext == '':
+      filename = filename + '.py'
+    if os.path.isabs(filename):
+      return filename
+    for dirname in sys.path:
+      while os.path.islink(dirname):
+        dirname = os.readlink(dirname)
+      fullname = os.path.join(dirname, filename)
+      if os.path.exists(fullname):
+        return fullname
+    return None
+
+  def _runmodule(self, module_name):
+    self._wait_for_mainpyfile = True
+    self._user_requested_quit = False
+    import runpy
+    mod_name, mod_spec, code = runpy._get_module_details(module_name)
+    self.mainpyfile = self.canonic(code.co_filename)
+    import __main__
+    __main__.__dict__.clear()
+    __main__.__dict__.update({
+      "__name__": "__main__",
+      "__file__": self.mainpyfile,
+      "__package__": mod_spec.parent,
+      "__loader__": mod_spec.loader,
+      "__spec__": mod_spec,
+      "__builtins__": __builtins__,
+    })
+    self.run(code)
+
+  def _runscript(self, filename):
+    # The script has to run in __main__ namespace (or imports from
+    # __main__ will break).
+    #
+    # So we clear up the __main__ and set several special variables
+    # (this gets rid of pdb's globals and cleans old variables on restarts).
+    import __main__
+    __main__.__dict__.clear()
+    __main__.__dict__.update({"__name__"    : "__main__",
+                                  "__file__"    : filename,
+                                  "__builtins__": __builtins__,
+                                 })
+
+    # When bdb sets tracing, a number of call and line events happens
+    # BEFORE debugger even reaches user's code (and the exact sequence of
+    # events depends on python version). So we take special measures to
+    # avoid stopping before we reach the main script (see user_line and
+    # user_call for details).
+    self._wait_for_mainpyfile = True
+    self.mainpyfile = self.canonic(filename)
+    self._user_requested_quit = False
+    with open(filename, "rb") as fp:
+      statement = "exec(compile(%r, %r, 'exec'))" % \
+            (fp.read(), self.mainpyfile)
+    self.run(statement)
+
+# Simplified interface
+
+def run(statement, globals=None, locals=None):
+  Pdb().run(statement, globals, locals)
+
+def runeval(expression, globals=None, locals=None):
+  return Pdb().runeval(expression, globals, locals)
+
+def runctx(statement, globals, locals):
+  # B/W compatibility
+  run(statement, globals, locals)
+
+def runcall(*args, **kwds):
+  return Pdb().runcall(*args, **kwds)
+
+def set_trace(*, header=None):
+  pdb = Pdb()
+  if header is not None:
+    pdb.message(header)
+  pdb.set_trace(sys._getframe().f_back)
+
+# Main program for testing
+
+TESTCMD = 'import x; x.main()'
+
+def test():
+  run(TESTCMD)
+
+def main():
+  run_as_module = False
+  # Replace pdb's dir with script's dir in front of module search path.
+  if not run_as_module:
+    sys.path[0] = os.path.dirname(mainpyfile)
+  cdb = Cdb()
+  while True:
+    try:
+      if run_as_module:
+        cdb._runmodule(mainpyfile)
+      else:
+        cdb._runscript(mainpyfile)
+      if cdb._user_requested_quit:
+        break
+    except Restart:
+      print("Restarting", mainpyfile, "with arguments:")
+      print("\t" + " ".join(args))
+    except SystemExit:
+      # In most cases SystemExit does not warrant a post-mortem session.
+      print("The program exited via sys.exit(). Exit status:", end=' ')
+      print(sys.exc_info()[1])
+    except SyntaxError:
+      traceback.print_exc()
+      sys.exit(1)
+    except:
+      traceback.print_exc()
+      print("Uncaught exception. Entering post mortem debugging")
+      print("Running 'cont' or 'step' will restart the program")
+      t = sys.exc_info()[2]
+      pdb.interaction(None, t)
+      print("Post mortem debugger finished. The " + mainpyfile +
+                  " will be restarted")
+
+if __name__ == '__main__':
+  main()
+
+
+"""OTHER TEST FUNCTIONS
+def foo(n):
+  print('foo(', n, ')')
+  x = bar(n*10)
+  print('bar returned', x)
+
+def bar(a):
+  print('bar(', a, ')')
+  return a/2
+
+def test():
+  t = Tdb()
+  t.run('import bdb; bdb.foo(10)')
+  """

@@ -1727,9 +1727,9 @@ if __name__ == '__main__':
   pdb.main()
 
 
-
-
 # NOTE: ============== test_pdb.py ===============
+
+
 import doctest
 import os
 import pdb
@@ -1761,6 +1761,8 @@ class PdbTestInput(object):
         sys.stdin = self.real_stdin
         if self.orig_trace:
             sys.settrace(self.orig_trace)
+
+
 
 def test_pdb_return_command_for_generator():
     """Testing no unwindng stack on yield for generators

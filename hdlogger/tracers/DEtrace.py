@@ -358,23 +358,6 @@ class Trace:
   def __init__(self, count=1, trace=1, countfuncs=0, countcallers=0,
                  ignoremods=(), ignoredirs=(), infile=None, outfile=None,
                  timing=False):
-    """
-    @param count true iff it should count number of times each
-                     line is executed
-    @param trace true iff it should print out each line that is
-                     being counted
-    @param countfuncs true iff it should just output a list of
-                     (filename, modulename, funcname,) for functions
-                     that were called at least once;  This overrides
-                     `count' and `trace'
-    @param ignoremods a list of the names of modules to ignore
-    @param ignoredirs a list of the names of directories to ignore
-                     all of the (recursive) contents of
-    @param infile file from which to read stored counts to be
-                     added into the results
-    @param outfile file in which to write the results
-    @param timing true iff timing information be displayed
-    """
     self.infile = infile
     self.outfile = outfile
     self.ignore = _Ignore(ignoremods, ignoredirs)

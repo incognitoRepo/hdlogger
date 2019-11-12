@@ -10,6 +10,6 @@ from .core import (
   StopTracer,
   get_tracer_kill_pack,
 )
-from .helpers import (
-  Tracer
+from .tracers import (
+  traceTracer
 )

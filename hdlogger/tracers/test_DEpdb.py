@@ -2,7 +2,7 @@
 
 import doctest
 import os
-import pdb
+# import pdb
 import sys
 import types
 import unittest
@@ -16,6 +16,7 @@ from test import support
 from test.test_doctest import _FakeInput
 from unittest.mock import patch
 
+import DEpdb as pdb
 
 class PdbTestInput(object):
   """Context manager that makes testing Pdb in doctests easier."""
@@ -38,7 +39,7 @@ def test_pdb_displayhook():
   """This tests the custom displayhook for pdb.
 
   >>> def test_function(foo, bar):
-  ...     import pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
   ...     pass
 
   >>> with PdbTestInput([
@@ -48,7 +49,7 @@ def test_pdb_displayhook():
   ...     'continue',
   ... ]):
   ...     test_function(1, None)
-  > <doctest test.test_pdb.test_pdb_displayhook[0]>(3)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_displayhook[0]>(3)test_function()
   -> pass
   (Pdb) foo
   1
@@ -84,7 +85,7 @@ def test_pdb_basic_commands():
   ...     pass
 
   >>> def test_function():
-  ...     import pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
   ...     ret = test_function_2('baz')
   ...     test_function3(kwonly=True)
   ...     test_function4(1, 2, 3)
@@ -115,11 +116,11 @@ def test_pdb_basic_commands():
   ...     'continue',
   ... ]):
   ...    test_function()
-  > <doctest test.test_pdb.test_pdb_basic_commands[3]>(3)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_basic_commands[3]>(3)test_function()
   -> ret = test_function_2('baz')
   (Pdb) step
   --Call--
-  > <doctest test.test_pdb.test_pdb_basic_commands[0]>(1)test_function_2()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_basic_commands[0]>(1)test_function_2()
   -> def test_function_2(foo, bar='default'):
   (Pdb) args
   foo = 'baz'
@@ -138,27 +139,27 @@ def test_pdb_basic_commands():
   [EOF]
   (Pdb) bt
   ...
-      <doctest test.test_pdb.test_pdb_basic_commands[4]>(25)<module>()
+      <doctest hdlogger.tracers.test_DEpdb.test_pdb_basic_commands[4]>(25)<module>()
   -> test_function()
-      <doctest test.test_pdb.test_pdb_basic_commands[3]>(3)test_function()
+      <doctest hdlogger.tracers.test_DEpdb.test_pdb_basic_commands[3]>(3)test_function()
   -> ret = test_function_2('baz')
-  > <doctest test.test_pdb.test_pdb_basic_commands[0]>(1)test_function_2()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_basic_commands[0]>(1)test_function_2()
   -> def test_function_2(foo, bar='default'):
   (Pdb) up
-  > <doctest test.test_pdb.test_pdb_basic_commands[3]>(3)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_basic_commands[3]>(3)test_function()
   -> ret = test_function_2('baz')
   (Pdb) down
-  > <doctest test.test_pdb.test_pdb_basic_commands[0]>(1)test_function_2()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_basic_commands[0]>(1)test_function_2()
   -> def test_function_2(foo, bar='default'):
   (Pdb) next
-  > <doctest test.test_pdb.test_pdb_basic_commands[0]>(2)test_function_2()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_basic_commands[0]>(2)test_function_2()
   -> print(foo)
   (Pdb) next
   baz
-  > <doctest test.test_pdb.test_pdb_basic_commands[0]>(3)test_function_2()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_basic_commands[0]>(3)test_function_2()
   -> for i in range(5):
   (Pdb) step
-  > <doctest test.test_pdb.test_pdb_basic_commands[0]>(4)test_function_2()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_basic_commands[0]>(4)test_function_2()
   -> print(i)
   (Pdb) until
   0
@@ -166,43 +167,43 @@ def test_pdb_basic_commands():
   2
   3
   4
-  > <doctest test.test_pdb.test_pdb_basic_commands[0]>(5)test_function_2()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_basic_commands[0]>(5)test_function_2()
   -> print(bar)
   (Pdb) next
   default
-  > <doctest test.test_pdb.test_pdb_basic_commands[0]>(6)test_function_2()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_basic_commands[0]>(6)test_function_2()
   -> for i in range(10):
   (Pdb) jump 8
-  > <doctest test.test_pdb.test_pdb_basic_commands[0]>(8)test_function_2()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_basic_commands[0]>(8)test_function_2()
   -> print('after for')
   (Pdb) return
   after for
   ...
   --Return--
-  > <doctest test.test_pdb.test_pdb_basic_commands[0]>(10)test_function_2()->'BAZ'
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_basic_commands[0]>(10)test_function_2()->'BAZ'
   -> return foo.upper()
   (Pdb) retval
   'BAZ'
   (Pdb) next
-  > <doctest test.test_pdb.test_pdb_basic_commands[3]>(4)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_basic_commands[3]>(4)test_function()
   -> test_function3(kwonly=True)
   (Pdb) step
   --Call--
-  > <doctest test.test_pdb.test_pdb_basic_commands[1]>(1)test_function3()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_basic_commands[1]>(1)test_function3()
   -> def test_function3(arg=None, *, kwonly=None):
   (Pdb) args
   arg = None
   kwonly = True
   (Pdb) return
   --Return--
-  > <doctest test.test_pdb.test_pdb_basic_commands[1]>(2)test_function3()->None
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_basic_commands[1]>(2)test_function3()->None
   -> pass
   (Pdb) next
-  > <doctest test.test_pdb.test_pdb_basic_commands[3]>(5)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_basic_commands[3]>(5)test_function()
   -> test_function4(1, 2, 3)
   (Pdb) step
   --Call--
-  > <doctest test.test_pdb.test_pdb_basic_commands[2]>(1)test_function4()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_basic_commands[2]>(1)test_function4()
   -> def test_function4(a, b, c, /):
   (Pdb) args
   a = 1
@@ -217,7 +218,7 @@ def test_pdb_breakpoint_commands():
   """Test basic commands related to breakpoints.
 
   >>> def test_function():
-  ...     import pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
   ...     print(1)
   ...     print(2)
   ...     print(3)
@@ -261,41 +262,41 @@ def test_pdb_breakpoint_commands():
   ...     'continue',
   ... ]):
   ...    test_function()
-  > <doctest test.test_pdb.test_pdb_breakpoint_commands[0]>(3)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_breakpoint_commands[0]>(3)test_function()
   -> print(1)
   (Pdb) break 3
-  Breakpoint 1 at <doctest test.test_pdb.test_pdb_breakpoint_commands[0]>:3
+  Breakpoint 1 at <doctest hdlogger.tracers.test_DEpdb.test_pdb_breakpoint_commands[0]>:3
   (Pdb) disable 1
-  Disabled breakpoint 1 at <doctest test.test_pdb.test_pdb_breakpoint_commands[0]>:3
+  Disabled breakpoint 1 at <doctest hdlogger.tracers.test_DEpdb.test_pdb_breakpoint_commands[0]>:3
   (Pdb) ignore 1 10
   Will ignore next 10 crossings of breakpoint 1.
   (Pdb) condition 1 1 < 2
   New condition set for breakpoint 1.
   (Pdb) break 4
-  Breakpoint 2 at <doctest test.test_pdb.test_pdb_breakpoint_commands[0]>:4
+  Breakpoint 2 at <doctest hdlogger.tracers.test_DEpdb.test_pdb_breakpoint_commands[0]>:4
   (Pdb) break 4
-  Breakpoint 3 at <doctest test.test_pdb.test_pdb_breakpoint_commands[0]>:4
+  Breakpoint 3 at <doctest hdlogger.tracers.test_DEpdb.test_pdb_breakpoint_commands[0]>:4
   (Pdb) break
   Num Type         Disp Enb   Where
-  1   breakpoint   keep no    at <doctest test.test_pdb.test_pdb_breakpoint_commands[0]>:3
+  1   breakpoint   keep no    at <doctest hdlogger.tracers.test_DEpdb.test_pdb_breakpoint_commands[0]>:3
       stop only if 1 < 2
       ignore next 10 hits
-  2   breakpoint   keep yes   at <doctest test.test_pdb.test_pdb_breakpoint_commands[0]>:4
-  3   breakpoint   keep yes   at <doctest test.test_pdb.test_pdb_breakpoint_commands[0]>:4
+  2   breakpoint   keep yes   at <doctest hdlogger.tracers.test_DEpdb.test_pdb_breakpoint_commands[0]>:4
+  3   breakpoint   keep yes   at <doctest hdlogger.tracers.test_DEpdb.test_pdb_breakpoint_commands[0]>:4
   (Pdb) clear 3
-  Deleted breakpoint 3 at <doctest test.test_pdb.test_pdb_breakpoint_commands[0]>:4
+  Deleted breakpoint 3 at <doctest hdlogger.tracers.test_DEpdb.test_pdb_breakpoint_commands[0]>:4
   (Pdb) break
   Num Type         Disp Enb   Where
-  1   breakpoint   keep no    at <doctest test.test_pdb.test_pdb_breakpoint_commands[0]>:3
+  1   breakpoint   keep no    at <doctest hdlogger.tracers.test_DEpdb.test_pdb_breakpoint_commands[0]>:3
       stop only if 1 < 2
       ignore next 10 hits
-  2   breakpoint   keep yes   at <doctest test.test_pdb.test_pdb_breakpoint_commands[0]>:4
+  2   breakpoint   keep yes   at <doctest hdlogger.tracers.test_DEpdb.test_pdb_breakpoint_commands[0]>:4
   (Pdb) condition 1
   Breakpoint 1 is now unconditional.
   (Pdb) enable 1
-  Enabled breakpoint 1 at <doctest test.test_pdb.test_pdb_breakpoint_commands[0]>:3
+  Enabled breakpoint 1 at <doctest hdlogger.tracers.test_DEpdb.test_pdb_breakpoint_commands[0]>:3
   (Pdb) clear 1
-  Deleted breakpoint 1 at <doctest test.test_pdb.test_pdb_breakpoint_commands[0]>:3
+  Deleted breakpoint 1 at <doctest hdlogger.tracers.test_DEpdb.test_pdb_breakpoint_commands[0]>:3
   (Pdb) commands 2
   (com) p "42"
   (com) print("42", 7*6)
@@ -304,17 +305,17 @@ def test_pdb_breakpoint_commands():
   1
   '42'
   42 42
-  > <doctest test.test_pdb.test_pdb_breakpoint_commands[0]>(4)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_breakpoint_commands[0]>(4)test_function()
   -> print(2)
   (Pdb) clear
   Clear all breaks? y
-  Deleted breakpoint 2 at <doctest test.test_pdb.test_pdb_breakpoint_commands[0]>:4
+  Deleted breakpoint 2 at <doctest hdlogger.tracers.test_DEpdb.test_pdb_breakpoint_commands[0]>:4
   (Pdb) tbreak 5
-  Breakpoint 4 at <doctest test.test_pdb.test_pdb_breakpoint_commands[0]>:5
+  Breakpoint 4 at <doctest hdlogger.tracers.test_DEpdb.test_pdb_breakpoint_commands[0]>:5
   (Pdb) continue
   2
-  Deleted breakpoint 4 at <doctest test.test_pdb.test_pdb_breakpoint_commands[0]>:5
-  > <doctest test.test_pdb.test_pdb_breakpoint_commands[0]>(5)test_function()
+  Deleted breakpoint 4 at <doctest hdlogger.tracers.test_DEpdb.test_pdb_breakpoint_commands[0]>:5
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_breakpoint_commands[0]>(5)test_function()
   -> print(3)
   (Pdb) break
   (Pdb) continue
@@ -333,8 +334,8 @@ def test_list_commands():
   """Test the list and source commands of pdb.
 
   >>> def test_function_2(foo):
-  ...     import test.test_pdb
-  ...     test.test_pdb.do_nothing()
+  ...     import hdlogger.tracers.test_DEpdb
+  ...     hdlogger.tracers.test_DEpdb.do_nothing()
   ...     'some...'
   ...     'more...'
   ...     'code...'
@@ -349,7 +350,7 @@ def test_list_commands():
   ...     return foo
 
   >>> def test_function():
-  ...     import pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
   ...     ret = test_function_2('baz')
 
   >>> with PdbTestInput([  # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
@@ -368,21 +369,21 @@ def test_list_commands():
   ...     'continue',
   ... ]):
   ...    test_function()
-  > <doctest test.test_pdb.test_list_commands[1]>(3)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_list_commands[1]>(3)test_function()
   -> ret = test_function_2('baz')
   (Pdb) list
       1         def test_function():
-      2             import pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
+      2             import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
       3  ->         ret = test_function_2('baz')
   [EOF]
   (Pdb) step
   --Call--
-  > <doctest test.test_pdb.test_list_commands[0]>(1)test_function_2()
+  > <doctest hdlogger.tracers.test_DEpdb.test_list_commands[0]>(1)test_function_2()
   -> def test_function_2(foo):
   (Pdb) list
       1  ->     def test_function_2(foo):
-      2             import test.test_pdb
-      3             test.test_pdb.do_nothing()
+      2             import hdlogger.tracers.test_DEpdb
+      3             hdlogger.tracers.test_DEpdb.do_nothing()
       4             'some...'
       5             'more...'
       6             'code...'
@@ -399,16 +400,16 @@ def test_list_commands():
   [EOF]
   (Pdb) list 1,3
       1  ->     def test_function_2(foo):
-      2             import test.test_pdb
-      3             test.test_pdb.do_nothing()
+      2             import hdlogger.tracers.test_DEpdb
+      3             hdlogger.tracers.test_DEpdb.do_nothing()
   (Pdb) list x
   *** ...
   (Pdb) next
-  > <doctest test.test_pdb.test_list_commands[0]>(2)test_function_2()
-  -> import test.test_pdb
+  > <doctest hdlogger.tracers.test_DEpdb.test_list_commands[0]>(2)test_function_2()
+  -> import hdlogger.tracers.test_DEpdb
   (Pdb) next
-  > <doctest test.test_pdb.test_list_commands[0]>(3)test_function_2()
-  -> test.test_pdb.do_nothing()
+  > <doctest hdlogger.tracers.test_DEpdb.test_list_commands[0]>(3)test_function_2()
+  -> hdlogger.tracers.test_DEpdb.do_nothing()
   (Pdb) step
   --Call--
   > ...test_pdb.py(...)do_nothing()
@@ -435,7 +436,7 @@ def test_post_mortem():
   ...         print('Exception!')
 
   >>> def test_function():
-  ...     import pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
   ...     test_function_2()
   ...     print('Not reached.')
 
@@ -451,29 +452,29 @@ def test_post_mortem():
   ...        test_function()
   ...    except ZeroDivisionError:
   ...        print('Correctly reraised.')
-  > <doctest test.test_pdb.test_post_mortem[1]>(3)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_post_mortem[1]>(3)test_function()
   -> test_function_2()
   (Pdb) next
   Exception!
   ZeroDivisionError: division by zero
-  > <doctest test.test_pdb.test_post_mortem[1]>(3)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_post_mortem[1]>(3)test_function()
   -> test_function_2()
   (Pdb) bt
   ...
-      <doctest test.test_pdb.test_post_mortem[2]>(10)<module>()
+      <doctest hdlogger.tracers.test_DEpdb.test_post_mortem[2]>(10)<module>()
   -> test_function()
-  > <doctest test.test_pdb.test_post_mortem[1]>(3)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_post_mortem[1]>(3)test_function()
   -> test_function_2()
-      <doctest test.test_pdb.test_post_mortem[0]>(3)test_function_2()
+      <doctest hdlogger.tracers.test_DEpdb.test_post_mortem[0]>(3)test_function_2()
   -> 1/0
   (Pdb) list
       1         def test_function():
-      2             import pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
+      2             import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
       3  ->         test_function_2()
       4             print('Not reached.')
   [EOF]
   (Pdb) down
-  > <doctest test.test_pdb.test_post_mortem[0]>(3)test_function_2()
+  > <doctest hdlogger.tracers.test_DEpdb.test_post_mortem[0]>(3)test_function_2()
   -> 1/0
   (Pdb) list
       1         def test_function_2():
@@ -492,7 +493,7 @@ def test_pdb_skip_modules():
 
   >>> def skip_module():
   ...     import string
-  ...     import pdb; pdb.Pdb(skip=['stri*'], nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(skip=['stri*'], nosigint=True, readrc=False).set_trace()
   ...     string.capwords('FOO')
 
   >>> with PdbTestInput([
@@ -500,11 +501,11 @@ def test_pdb_skip_modules():
   ...     'continue',
   ... ]):
   ...     skip_module()
-  > <doctest test.test_pdb.test_pdb_skip_modules[0]>(4)skip_module()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_skip_modules[0]>(4)skip_module()
   -> string.capwords('FOO')
   (Pdb) step
   --Return--
-  > <doctest test.test_pdb.test_pdb_skip_modules[0]>(4)skip_module()->None
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_skip_modules[0]>(4)skip_module()->None
   -> string.capwords('FOO')
   (Pdb) continue
   """
@@ -521,7 +522,7 @@ def test_pdb_skip_modules_with_callback():
   >>> def skip_module():
   ...     def callback():
   ...         return None
-  ...     import pdb; pdb.Pdb(skip=['module_to_skip*'], nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(skip=['module_to_skip*'], nosigint=True, readrc=False).set_trace()
   ...     mod.foo_pony(callback)
 
   >>> with PdbTestInput([
@@ -534,25 +535,25 @@ def test_pdb_skip_modules_with_callback():
   ... ]):
   ...     skip_module()
   ...     pass  # provides something to "step" to
-  > <doctest test.test_pdb.test_pdb_skip_modules_with_callback[0]>(5)skip_module()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_skip_modules_with_callback[0]>(5)skip_module()
   -> mod.foo_pony(callback)
   (Pdb) step
   --Call--
-  > <doctest test.test_pdb.test_pdb_skip_modules_with_callback[0]>(2)callback()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_skip_modules_with_callback[0]>(2)callback()
   -> def callback():
   (Pdb) step
-  > <doctest test.test_pdb.test_pdb_skip_modules_with_callback[0]>(3)callback()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_skip_modules_with_callback[0]>(3)callback()
   -> return None
   (Pdb) step
   --Return--
-  > <doctest test.test_pdb.test_pdb_skip_modules_with_callback[0]>(3)callback()->None
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_skip_modules_with_callback[0]>(3)callback()->None
   -> return None
   (Pdb) step
   --Return--
-  > <doctest test.test_pdb.test_pdb_skip_modules_with_callback[0]>(5)skip_module()->None
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_skip_modules_with_callback[0]>(5)skip_module()->None
   -> mod.foo_pony(callback)
   (Pdb) step
-  > <doctest test.test_pdb.test_pdb_skip_modules_with_callback[1]>(10)<module>()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_skip_modules_with_callback[1]>(10)<module>()
   -> pass  # provides something to "step" to
   (Pdb) continue
   """
@@ -562,7 +563,7 @@ def test_pdb_continue_in_bottomframe():
   """Test that "continue" and "next" work properly in bottom frame (issue #5294).
 
   >>> def test_function():
-  ...     import pdb, sys; inst = pdb.Pdb(nosigint=True, readrc=False)
+  ...     import DEpdb as pdb, sys; inst = pdb.Pdb(nosigint=True, readrc=False)
   ...     inst.set_trace()
   ...     inst.botframe = sys._getframe()  # hackery to get the right botframe
   ...     print(1)
@@ -579,21 +580,21 @@ def test_pdb_continue_in_bottomframe():
   ...     'continue',
   ... ]):
   ...    test_function()
-  > <doctest test.test_pdb.test_pdb_continue_in_bottomframe[0]>(4)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_continue_in_bottomframe[0]>(4)test_function()
   -> inst.botframe = sys._getframe()  # hackery to get the right botframe
   (Pdb) next
-  > <doctest test.test_pdb.test_pdb_continue_in_bottomframe[0]>(5)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_continue_in_bottomframe[0]>(5)test_function()
   -> print(1)
   (Pdb) break 7
-  Breakpoint ... at <doctest test.test_pdb.test_pdb_continue_in_bottomframe[0]>:7
+  Breakpoint ... at <doctest hdlogger.tracers.test_DEpdb.test_pdb_continue_in_bottomframe[0]>:7
   (Pdb) continue
   1
   2
-  > <doctest test.test_pdb.test_pdb_continue_in_bottomframe[0]>(7)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_continue_in_bottomframe[0]>(7)test_function()
   -> print(3)
   (Pdb) next
   3
-  > <doctest test.test_pdb.test_pdb_continue_in_bottomframe[0]>(8)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_continue_in_bottomframe[0]>(8)test_function()
   -> print(4)
   (Pdb) continue
   4
@@ -651,7 +652,7 @@ def test_next_until_return_at_return_event():
   ...     x = 2
 
   >>> def test_function():
-  ...     import pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
   ...     test_function_2()
   ...     test_function_2()
   ...     test_function_2()
@@ -671,39 +672,39 @@ def test_next_until_return_at_return_event():
   ...                    'return',
   ...                    'continue']):
   ...     test_function()
-  > <doctest test.test_pdb.test_next_until_return_at_return_event[1]>(3)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_next_until_return_at_return_event[1]>(3)test_function()
   -> test_function_2()
   (Pdb) break test_function_2
-  Breakpoint 1 at <doctest test.test_pdb.test_next_until_return_at_return_event[0]>:1
+  Breakpoint 1 at <doctest hdlogger.tracers.test_DEpdb.test_next_until_return_at_return_event[0]>:1
   (Pdb) continue
-  > <doctest test.test_pdb.test_next_until_return_at_return_event[0]>(2)test_function_2()
+  > <doctest hdlogger.tracers.test_DEpdb.test_next_until_return_at_return_event[0]>(2)test_function_2()
   -> x = 1
   (Pdb) return
   --Return--
-  > <doctest test.test_pdb.test_next_until_return_at_return_event[0]>(3)test_function_2()->None
+  > <doctest hdlogger.tracers.test_DEpdb.test_next_until_return_at_return_event[0]>(3)test_function_2()->None
   -> x = 2
   (Pdb) next
-  > <doctest test.test_pdb.test_next_until_return_at_return_event[1]>(4)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_next_until_return_at_return_event[1]>(4)test_function()
   -> test_function_2()
   (Pdb) continue
-  > <doctest test.test_pdb.test_next_until_return_at_return_event[0]>(2)test_function_2()
+  > <doctest hdlogger.tracers.test_DEpdb.test_next_until_return_at_return_event[0]>(2)test_function_2()
   -> x = 1
   (Pdb) return
   --Return--
-  > <doctest test.test_pdb.test_next_until_return_at_return_event[0]>(3)test_function_2()->None
+  > <doctest hdlogger.tracers.test_DEpdb.test_next_until_return_at_return_event[0]>(3)test_function_2()->None
   -> x = 2
   (Pdb) until
-  > <doctest test.test_pdb.test_next_until_return_at_return_event[1]>(5)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_next_until_return_at_return_event[1]>(5)test_function()
   -> test_function_2()
   (Pdb) continue
-  > <doctest test.test_pdb.test_next_until_return_at_return_event[0]>(2)test_function_2()
+  > <doctest hdlogger.tracers.test_DEpdb.test_next_until_return_at_return_event[0]>(2)test_function_2()
   -> x = 1
   (Pdb) return
   --Return--
-  > <doctest test.test_pdb.test_next_until_return_at_return_event[0]>(3)test_function_2()->None
+  > <doctest hdlogger.tracers.test_DEpdb.test_next_until_return_at_return_event[0]>(3)test_function_2()->None
   -> x = 2
   (Pdb) return
-  > <doctest test.test_pdb.test_next_until_return_at_return_event[1]>(6)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_next_until_return_at_return_event[1]>(6)test_function()
   -> end = 1
   (Pdb) continue
   """
@@ -717,7 +718,7 @@ def test_pdb_next_command_for_generator():
   ...     yield 2
 
   >>> def test_function():
-  ...     import pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
   ...     it = test_gen()
   ...     try:
   ...         if next(it) != 0:
@@ -737,31 +738,31 @@ def test_pdb_next_command_for_generator():
   ...                    'step',
   ...                    'continue']):
   ...     test_function()
-  > <doctest test.test_pdb.test_pdb_next_command_for_generator[1]>(3)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_for_generator[1]>(3)test_function()
   -> it = test_gen()
   (Pdb) step
-  > <doctest test.test_pdb.test_pdb_next_command_for_generator[1]>(4)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_for_generator[1]>(4)test_function()
   -> try:
   (Pdb) step
-  > <doctest test.test_pdb.test_pdb_next_command_for_generator[1]>(5)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_for_generator[1]>(5)test_function()
   -> if next(it) != 0:
   (Pdb) step
   --Call--
-  > <doctest test.test_pdb.test_pdb_next_command_for_generator[0]>(1)test_gen()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_for_generator[0]>(1)test_gen()
   -> def test_gen():
   (Pdb) next
-  > <doctest test.test_pdb.test_pdb_next_command_for_generator[0]>(2)test_gen()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_for_generator[0]>(2)test_gen()
   -> yield 0
   (Pdb) next
-  > <doctest test.test_pdb.test_pdb_next_command_for_generator[0]>(3)test_gen()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_for_generator[0]>(3)test_gen()
   -> return 1
   (Pdb) step
   --Return--
-  > <doctest test.test_pdb.test_pdb_next_command_for_generator[0]>(3)test_gen()->1
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_for_generator[0]>(3)test_gen()->1
   -> return 1
   (Pdb) step
   StopIteration: 1
-  > <doctest test.test_pdb.test_pdb_next_command_for_generator[1]>(7)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_for_generator[1]>(7)test_function()
   -> next(it)
   (Pdb) continue
   finished
@@ -778,7 +779,7 @@ def test_pdb_next_command_for_coroutine():
   ...     await asyncio.sleep(0)
 
   >>> async def test_main():
-  ...     import pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
   ...     await test_coro()
 
   >>> def test_function():
@@ -796,28 +797,28 @@ def test_pdb_next_command_for_coroutine():
   ...                    'step',
   ...                    'continue']):
   ...     test_function()
-  > <doctest test.test_pdb.test_pdb_next_command_for_coroutine[2]>(3)test_main()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_for_coroutine[2]>(3)test_main()
   -> await test_coro()
   (Pdb) step
   --Call--
-  > <doctest test.test_pdb.test_pdb_next_command_for_coroutine[1]>(1)test_coro()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_for_coroutine[1]>(1)test_coro()
   -> async def test_coro():
   (Pdb) step
-  > <doctest test.test_pdb.test_pdb_next_command_for_coroutine[1]>(2)test_coro()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_for_coroutine[1]>(2)test_coro()
   -> await asyncio.sleep(0)
   (Pdb) next
-  > <doctest test.test_pdb.test_pdb_next_command_for_coroutine[1]>(3)test_coro()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_for_coroutine[1]>(3)test_coro()
   -> await asyncio.sleep(0)
   (Pdb) next
-  > <doctest test.test_pdb.test_pdb_next_command_for_coroutine[1]>(4)test_coro()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_for_coroutine[1]>(4)test_coro()
   -> await asyncio.sleep(0)
   (Pdb) next
   Internal StopIteration
-  > <doctest test.test_pdb.test_pdb_next_command_for_coroutine[2]>(3)test_main()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_for_coroutine[2]>(3)test_main()
   -> await test_coro()
   (Pdb) step
   --Return--
-  > <doctest test.test_pdb.test_pdb_next_command_for_coroutine[2]>(3)test_main()->None
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_for_coroutine[2]>(3)test_main()->None
   -> await test_coro()
   (Pdb) continue
   finished
@@ -838,7 +839,7 @@ def test_pdb_next_command_for_asyncgen():
   ...         print(x)
 
   >>> async def test_main():
-  ...     import pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
   ...     await test_coro()
 
   >>> def test_function():
@@ -856,28 +857,28 @@ def test_pdb_next_command_for_asyncgen():
   ...                    'next',
   ...                    'continue']):
   ...     test_function()
-  > <doctest test.test_pdb.test_pdb_next_command_for_asyncgen[3]>(3)test_main()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_for_asyncgen[3]>(3)test_main()
   -> await test_coro()
   (Pdb) step
   --Call--
-  > <doctest test.test_pdb.test_pdb_next_command_for_asyncgen[2]>(1)test_coro()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_for_asyncgen[2]>(1)test_coro()
   -> async def test_coro():
   (Pdb) step
-  > <doctest test.test_pdb.test_pdb_next_command_for_asyncgen[2]>(2)test_coro()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_for_asyncgen[2]>(2)test_coro()
   -> async for x in agen():
   (Pdb) next
-  > <doctest test.test_pdb.test_pdb_next_command_for_asyncgen[2]>(3)test_coro()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_for_asyncgen[2]>(3)test_coro()
   -> print(x)
   (Pdb) next
   1
-  > <doctest test.test_pdb.test_pdb_next_command_for_asyncgen[2]>(2)test_coro()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_for_asyncgen[2]>(2)test_coro()
   -> async for x in agen():
   (Pdb) step
   --Call--
-  > <doctest test.test_pdb.test_pdb_next_command_for_asyncgen[1]>(2)agen()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_for_asyncgen[1]>(2)agen()
   -> yield 1
   (Pdb) next
-  > <doctest test.test_pdb.test_pdb_next_command_for_asyncgen[1]>(3)agen()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_for_asyncgen[1]>(3)agen()
   -> await asyncio.sleep(0)
   (Pdb) continue
   2
@@ -894,7 +895,7 @@ def test_pdb_return_command_for_generator():
   ...     yield 2
 
   >>> def test_function():
-  ...     import pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
   ...     it = test_gen()
   ...     try:
   ...         if next(it) != 0:
@@ -913,27 +914,27 @@ def test_pdb_return_command_for_generator():
   ...                    'step',
   ...                    'continue']):
   ...     test_function()
-  > <doctest test.test_pdb.test_pdb_return_command_for_generator[1]>(3)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_return_command_for_generator[1]>(3)test_function()
   -> it = test_gen()
   (Pdb) step
-  > <doctest test.test_pdb.test_pdb_return_command_for_generator[1]>(4)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_return_command_for_generator[1]>(4)test_function()
   -> try:
   (Pdb) step
-  > <doctest test.test_pdb.test_pdb_return_command_for_generator[1]>(5)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_return_command_for_generator[1]>(5)test_function()
   -> if next(it) != 0:
   (Pdb) step
   --Call--
-  > <doctest test.test_pdb.test_pdb_return_command_for_generator[0]>(1)test_gen()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_return_command_for_generator[0]>(1)test_gen()
   -> def test_gen():
   (Pdb) return
   StopIteration: 1
-  > <doctest test.test_pdb.test_pdb_return_command_for_generator[1]>(7)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_return_command_for_generator[1]>(7)test_function()
   -> next(it)
   (Pdb) step
-  > <doctest test.test_pdb.test_pdb_return_command_for_generator[1]>(8)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_return_command_for_generator[1]>(8)test_function()
   -> except StopIteration as ex:
   (Pdb) step
-  > <doctest test.test_pdb.test_pdb_return_command_for_generator[1]>(9)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_return_command_for_generator[1]>(9)test_function()
   -> if ex.value != 1:
   (Pdb) continue
   finished
@@ -950,7 +951,7 @@ def test_pdb_return_command_for_coroutine():
   ...     await asyncio.sleep(0)
 
   >>> async def test_main():
-  ...     import pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
   ...     await test_coro()
 
   >>> def test_function():
@@ -965,17 +966,17 @@ def test_pdb_return_command_for_coroutine():
   ...                    'next',
   ...                    'continue']):
   ...     test_function()
-  > <doctest test.test_pdb.test_pdb_return_command_for_coroutine[2]>(3)test_main()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_return_command_for_coroutine[2]>(3)test_main()
   -> await test_coro()
   (Pdb) step
   --Call--
-  > <doctest test.test_pdb.test_pdb_return_command_for_coroutine[1]>(1)test_coro()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_return_command_for_coroutine[1]>(1)test_coro()
   -> async def test_coro():
   (Pdb) step
-  > <doctest test.test_pdb.test_pdb_return_command_for_coroutine[1]>(2)test_coro()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_return_command_for_coroutine[1]>(2)test_coro()
   -> await asyncio.sleep(0)
   (Pdb) next
-  > <doctest test.test_pdb.test_pdb_return_command_for_coroutine[1]>(3)test_coro()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_return_command_for_coroutine[1]>(3)test_coro()
   -> await asyncio.sleep(0)
   (Pdb) continue
   finished
@@ -991,7 +992,7 @@ def test_pdb_until_command_for_generator():
   ...     yield 2
 
   >>> def test_function():
-  ...     import pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
   ...     for i in test_gen():
   ...         print(i)
   ...     print("finished")
@@ -1002,23 +1003,23 @@ def test_pdb_until_command_for_generator():
   ...                    'step',
   ...                    'continue']):
   ...     test_function()
-  > <doctest test.test_pdb.test_pdb_until_command_for_generator[1]>(3)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_until_command_for_generator[1]>(3)test_function()
   -> for i in test_gen():
   (Pdb) step
   --Call--
-  > <doctest test.test_pdb.test_pdb_until_command_for_generator[0]>(1)test_gen()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_until_command_for_generator[0]>(1)test_gen()
   -> def test_gen():
   (Pdb) until 4
   0
   1
-  > <doctest test.test_pdb.test_pdb_until_command_for_generator[0]>(4)test_gen()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_until_command_for_generator[0]>(4)test_gen()
   -> yield 2
   (Pdb) step
   --Return--
-  > <doctest test.test_pdb.test_pdb_until_command_for_generator[0]>(4)test_gen()->2
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_until_command_for_generator[0]>(4)test_gen()->2
   -> yield 2
   (Pdb) step
-  > <doctest test.test_pdb.test_pdb_until_command_for_generator[1]>(4)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_until_command_for_generator[1]>(4)test_function()
   -> print(i)
   (Pdb) continue
   2
@@ -1041,7 +1042,7 @@ def test_pdb_until_command_for_coroutine():
   ...     print(3)
 
   >>> async def test_main():
-  ...     import pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
   ...     await test_coro()
 
   >>> def test_function():
@@ -1055,17 +1056,17 @@ def test_pdb_until_command_for_coroutine():
   ...                    'until 8',
   ...                    'continue']):
   ...     test_function()
-  > <doctest test.test_pdb.test_pdb_until_command_for_coroutine[2]>(3)test_main()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_until_command_for_coroutine[2]>(3)test_main()
   -> await test_coro()
   (Pdb) step
   --Call--
-  > <doctest test.test_pdb.test_pdb_until_command_for_coroutine[1]>(1)test_coro()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_until_command_for_coroutine[1]>(1)test_coro()
   -> async def test_coro():
   (Pdb) until 8
   0
   1
   2
-  > <doctest test.test_pdb.test_pdb_until_command_for_coroutine[1]>(8)test_coro()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_until_command_for_coroutine[1]>(8)test_coro()
   -> print(3)
   (Pdb) continue
   3
@@ -1080,7 +1081,7 @@ def test_pdb_next_command_in_generator_for_loop():
   ...     return 1
 
   >>> def test_function():
-  ...     import pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
   ...     for i in test_gen():
   ...         print('value', i)
   ...     x = 123
@@ -1092,23 +1093,23 @@ def test_pdb_next_command_in_generator_for_loop():
   ...                    'next',
   ...                    'continue']):
   ...     test_function()
-  > <doctest test.test_pdb.test_pdb_next_command_in_generator_for_loop[1]>(3)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_in_generator_for_loop[1]>(3)test_function()
   -> for i in test_gen():
   (Pdb) break test_gen
-  Breakpoint 6 at <doctest test.test_pdb.test_pdb_next_command_in_generator_for_loop[0]>:1
+  Breakpoint 6 at <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_in_generator_for_loop[0]>:1
   (Pdb) continue
-  > <doctest test.test_pdb.test_pdb_next_command_in_generator_for_loop[0]>(2)test_gen()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_in_generator_for_loop[0]>(2)test_gen()
   -> yield 0
   (Pdb) next
   value 0
-  > <doctest test.test_pdb.test_pdb_next_command_in_generator_for_loop[0]>(3)test_gen()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_in_generator_for_loop[0]>(3)test_gen()
   -> return 1
   (Pdb) next
   Internal StopIteration: 1
-  > <doctest test.test_pdb.test_pdb_next_command_in_generator_for_loop[1]>(3)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_in_generator_for_loop[1]>(3)test_function()
   -> for i in test_gen():
   (Pdb) next
-  > <doctest test.test_pdb.test_pdb_next_command_in_generator_for_loop[1]>(5)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_in_generator_for_loop[1]>(5)test_function()
   -> x = 123
   (Pdb) continue
   """
@@ -1125,7 +1126,7 @@ def test_pdb_next_command_subiterator():
   ...     return x
 
   >>> def test_function():
-  ...     import pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
   ...     for i in test_gen():
   ...         print('value', i)
   ...     x = 123
@@ -1137,25 +1138,25 @@ def test_pdb_next_command_subiterator():
   ...                    'next',
   ...                    'continue']):
   ...     test_function()
-  > <doctest test.test_pdb.test_pdb_next_command_subiterator[2]>(3)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_subiterator[2]>(3)test_function()
   -> for i in test_gen():
   (Pdb) step
   --Call--
-  > <doctest test.test_pdb.test_pdb_next_command_subiterator[1]>(1)test_gen()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_subiterator[1]>(1)test_gen()
   -> def test_gen():
   (Pdb) step
-  > <doctest test.test_pdb.test_pdb_next_command_subiterator[1]>(2)test_gen()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_subiterator[1]>(2)test_gen()
   -> x = yield from test_subgenerator()
   (Pdb) next
   value 0
-  > <doctest test.test_pdb.test_pdb_next_command_subiterator[1]>(3)test_gen()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_subiterator[1]>(3)test_gen()
   -> return x
   (Pdb) next
   Internal StopIteration: 1
-  > <doctest test.test_pdb.test_pdb_next_command_subiterator[2]>(3)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_subiterator[2]>(3)test_function()
   -> for i in test_gen():
   (Pdb) next
-  > <doctest test.test_pdb.test_pdb_next_command_subiterator[2]>(5)test_function()
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_next_command_subiterator[2]>(5)test_function()
   -> x = 123
   (Pdb) continue
   """
@@ -1174,11 +1175,17 @@ def test_pdb_issue_20766():
   >>> with PdbTestInput(['continue',
   ...                    'continue']):
   ...     test_function()
-  > <doctest test.test_pdb.test_pdb_issue_20766[0]>(6)test_function()
+  > 0
+  .pdbrc.py started
+  .pdbrc.py finished
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_issue_20766[0]>(6)test_function()
   -> print('pdb %d: %s' % (i, sess._previous_sigint_handler))
   (Pdb) continue
   pdb 1: <built-in function default_int_handler>
-  > <doctest test.test_pdb.test_pdb_issue_20766[0]>(5)test_function()
+  0
+  .pdbrc.py started
+  .pdbrc.py finished
+  > <doctest hdlogger.tracers.test_DEpdb.test_pdb_issue_20766[0]>(5)test_function()
   -> sess.set_trace(sys._getframe())
   (Pdb) continue
   pdb 2: <built-in function default_int_handler>
@@ -1313,7 +1320,7 @@ class PdbTestCase(unittest.TestCase):
     with open(support.TESTFN, 'wb') as f:
       f.write(textwrap.dedent("""
         import threading
-        import pdb
+        import DEpdb as pdb
 
         def start_pdb():
           pdb.Pdb(readrc=False).set_trace()
@@ -1347,7 +1354,7 @@ class PdbTestCase(unittest.TestCase):
 
   def test_readrc_kwarg(self):
     script = textwrap.dedent("""
-      import pdb; pdb.Pdb(readrc=False).set_trace()
+      import DEpdb as pdb; pdb.Pdb(readrc=False).set_trace()
 
       print('hello')
     """)
@@ -1534,7 +1541,6 @@ class PdbTestCase(unittest.TestCase):
       'c',
     ])
     stdout, _ = self.run_pdb_script('', commands + '\n')
-
     self.assertEqual(stdout.splitlines()[1:], [
       '(Pdb) *** SyntaxError: unexpected EOF while parsing',
 
@@ -1543,6 +1549,7 @@ class PdbTestCase(unittest.TestCase):
       'LEAVING RECURSIVE DEBUGGER',
 
       '(Pdb) ENTERING RECURSIVE DEBUGGER',
+
       '> <string>(1)<module>()',
       "((Pdb)) *** NameError: name 'doesnotexist' is not defined",
       'LEAVING RECURSIVE DEBUGGER',

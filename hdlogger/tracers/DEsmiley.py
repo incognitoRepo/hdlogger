@@ -79,6 +79,7 @@ class Tracer(object):
         LOG.debug('ignoring packages under %s based on %s',
                           to_ignore, m.__name__)
         self._ignore_dirs.add(to_ignore)
+    self._ignore_dirs.add(self._canonical_parent(__file__))
 
     # If we are not supposed to include the stdlib, we need to
     # look at where some standard modules are located. That's the
@@ -161,6 +162,9 @@ class Tracer(object):
     # FIXME: Need to add the ability to explicitly not ignore some
     # things in the stdlib to trace into dependencies.
     # LOG.debug('_should_ignore_file(%s)', filename)
+    with open('smiley.log','a') as f:
+      # f.write(filename)
+      f.write('\n'.join(self._ignore_dirs))
     if not filename:
       return True
     if filename.endswith('>'):

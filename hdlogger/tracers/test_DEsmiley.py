@@ -4,11 +4,11 @@ import os
 import site
 
 import coverage
-import mock
+from unittest import mock
 import testtools
 
-from smiley import tracer
-
+# from smiley import tracer
+import DEsmiley as tracer
 
 LOG = logging.getLogger(__name__)
 

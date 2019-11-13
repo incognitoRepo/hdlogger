@@ -68,7 +68,6 @@ class TracerTest(testtools.TestCase):
 
   def test_include_smiley(self):
     t = tracer.Tracer(None, include_packages=['DEsmiley'])
-    with open('72.log','w') as f: f.write(f"{tracer.__file__=}")
     self.assertFalse(t._should_ignore_file(tracer.__file__))
 
   def test_ignore_site_packages(self):
@@ -79,6 +78,5 @@ class TracerTest(testtools.TestCase):
     )
 
   def test_include_site_packages(self):
-    t = tracer.Tracer(None, include_site_packages=True)
-    with open('82.log','w') as f: f.write(f"{mock.__file__=}")
+    t = tracer.Tracer(None, include_stdlib=True)
     self.assertFalse(t._should_ignore_file(mock.__file__))

@@ -7,9 +7,9 @@ path=(
 alias ytdev="source /Users/alberthan/VSCodeProjects/vytd/src/youtube-dl/devscripts/ytdev.zsh"
 alias ytdf="source /Users/alberthan/VSCodeProjects/vytd/src/youtube-dl/devscripts/ytdf.zsh"
 export PYTHONSTARTUP=/Users/alberthan/.pythonvenvrc.py
-export PYTHONPATH=/Users/alberthan/VSCodeProjects/tester
+export PYTHONPATH=/Users/alberthan/VSCodeProjects/hdlogger
 
-rm -f /Users/alberthan/VSCodeProjects/tester/_*
+rm -f /Users/alberthan/VSCodeProjects/hdlogger/_*
 
 source ${${(%):-%N}:h}/bin/activate
 

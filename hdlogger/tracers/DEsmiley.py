@@ -22,6 +22,8 @@ import smiley
 from smiley.stats import stats_to_blob
 from smiley import uuidstack
 
+from prettyprinter import pformat
+
 LOG = logging.getLogger(__name__)
 
 
@@ -162,8 +164,8 @@ class Tracer(object):
     # FIXME: Need to add the ability to explicitly not ignore some
     # things in the stdlib to trace into dependencies.
     # LOG.debug('_should_ignore_file(%s)', filename)
-    with open('smiley.log','a') as f:
-      # f.write(filename)
+    with open('smiley.log','w') as f:
+      s = f"{filename=}\n{pformat(self._ignore_dirs)=}"
       f.write('\n'.join(self._ignore_dirs))
     if not filename:
       return True

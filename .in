@@ -1,13 +1,10 @@
 INFILE_DIR=${(%):-%N}
-export VIRTUAL_ENV=$PWD
-export VIRTUAL_ENV_DISABLE_PROMPT=1
 path=(
   $path
   )
 alias ytdev="source /Users/alberthan/VSCodeProjects/vytd/src/youtube-dl/devscripts/ytdev.zsh"
 alias ytdf="source /Users/alberthan/VSCodeProjects/vytd/src/youtube-dl/devscripts/ytdf.zsh"
 export PYTHONSTARTUP=/Users/alberthan/.pythonvenvrc.py
-export PYTHONPATH=/Users/alberthan/VSCodeProjects/hdlogger
 
 rm -f /Users/alberthan/VSCodeProjects/hdlogger/_*
 

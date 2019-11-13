@@ -165,8 +165,8 @@ class Tracer(object):
     # things in the stdlib to trace into dependencies.
     # LOG.debug('_should_ignore_file(%s)', filename)
     with open('smiley.log','w') as f:
-      s = f"{filename=}\n{pformat(self._ignore_dirs)=}"
-      f.write('\n'.join(self._ignore_dirs))
+      s = f"{filename=}\n{pformat(self._ignore_dirs)=}\n{pformat(self._include_packages)=}"
+      f.write(s)
     if not filename:
       return True
     if filename.endswith('>'):

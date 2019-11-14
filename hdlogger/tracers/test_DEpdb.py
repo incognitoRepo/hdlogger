@@ -16,7 +16,7 @@ from test import support
 from test.test_doctest import _FakeInput
 from unittest.mock import patch
 
-import DEpdb as pdb
+from hdlogger.tracers import DEpdb as pdb
 
 class PdbTestInput(object):
   """Context manager that makes testing Pdb in doctests easier."""

@@ -8,7 +8,7 @@ from unittest import mock
 import testtools
 
 # from smiley import tracer
-import DEsmiley as tracer
+from hdlogger.tracers import DEsmiley as tracer
 from prettyprinter import pformat
 LOG = logging.getLogger(__name__)
 

@@ -4,4 +4,4 @@ def multiply(a, b):
     result = a * b
     return result
 
-print dis.dis(multiply)
+print(dis.dis(multiply))

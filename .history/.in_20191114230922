@@ -14,6 +14,5 @@ source ${${(%):-%N}:h}/bin/activate
 git add .
 git commit -m "startup $(date)"
 pip install --upgrade stackprinter prettyprinter pyperclip pip pytest jsonpickle ipdb autopep8
-ln -s /Users/alberthan/.dotfiles/python/pytest.ini .
 pytest ${${(%):-%N}:h}/tests/
 

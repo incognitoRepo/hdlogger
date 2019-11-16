@@ -1,0 +1,924 @@
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/_pytest/config/__init__.py, line 216, in _prepareconfig
+    197  def _prepareconfig(args=None, plugins=None):
+ (...)
+    212                      pluginmanager.consider_pluginarg(plugin)
+    213                  else:
+    214                      pluginmanager.register(plugin)
+    215          try:
+--> 216            return pluginmanager.hook.pytest_cmdline_parse(
+    217                pluginmanager=pluginmanager, args=args
+    ..................................................
+     args = ['--doctest-modules', '--showlocals', '--debug', '--noconfte
+             st', '-v', '-c', '/Users/alberthan/.dotfiles/python/pytest.i
+             ni', ]
+     plugins = None
+     pluginmanager.consider_pluginarg = <method 'PytestPluginManager.consider_pluginarg' of <_pytest
+                                         .config.PytestPluginManager object at 0x10e6b51c0> __init__.
+                                         py:508>
+     pluginmanager.register = <method 'PytestPluginManager.register' of <_pytest.config.Py
+                               testPluginManager object at 0x10e6b51c0> __init__.py:329>
+     pluginmanager.hook.pytest_cmdline_parse = <_HookCaller 'pytest_cmdline_parse'>
+     pluginmanager = <_pytest.config.PytestPluginManager object at 0x10e6b51c0>
+    ..................................................
+
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/pluggy/hooks.py, line 287, in __call__
+    272  def __call__(self, *args, **kwargs):
+ (...)
+    283                  "can not be found in this hook call".format(tuple(notincall)),
+    284                  stacklevel=2,
+    285              )
+    286      from ipdb import set_trace as st; st()
+--> 287      return self._hookexec(self, self.get_hookimpls(), kwargs)
+    ..................................................
+     self = <_HookCaller 'pytest_cmdline_parse'>
+     args = ()
+     kwargs = {'pluginmanager': <_pytest.config.PytestPluginManager object
+                at 0x10e6b51c0>,
+               'args': ['--doctest-modules', '--showlocals', '--debug', '-
+               -noconftest', '-v', '-c', '/Users/alberthan/.dotfiles/python
+               /pytest.ini', ]}
+     notincall = {}
+     st = <function 'set_trace' __main__.py:62>
+     self._hookexec = <method 'PluginManager._hookexec' of <_pytest.config.PytestP
+                       luginManager object at 0x10e6b51c0> manager.py:89>
+     self.get_hookimpls = <method '_HookCaller.get_hookimpls' of <_HookCaller 'pytest_
+                           cmdline_parse'> hooks.py:238>
+    ..................................................
+
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/pluggy/manager.py, line 92, in _hookexec
+    89   def _hookexec(self, hook, methods, kwargs):
+    90       # called from all hookcaller instances.
+    91       # enable_tracing will set its own wrapping function at self._inner_hookexec
+--> 92       return self._inner_hookexec(hook, methods, kwargs)
+    ..................................................
+     self = <_pytest.config.PytestPluginManager object at 0x10e6b51c0>
+     hook = <_HookCaller 'pytest_cmdline_parse'>
+     methods = [<HookImpl plugin_name='pytestconfig', plugin=<_pytest.confi
+                g.Config object at 0x10e770a90>>, <HookImpl plugin_name='hel
+                pconfig', plugin=<module '_pytest.helpconfig' from '/Users/a
+                lberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages
+                /_pytest/helpconfig.py'>>, ]
+     kwargs = {'pluginmanager': <_pytest.config.PytestPluginManager object
+                at 0x10e6b51c0>,
+               'args': ['--doctest-modules', '--showlocals', '--debug', '-
+               -noconftest', '-v', '-c', '/Users/alberthan/.dotfiles/python
+               /pytest.ini', ]}
+     self._inner_hookexec = <function 'PluginManager.__init__.<locals>.<lambda>' manager
+                             .py:83>
+    ..................................................
+
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/pluggy/manager.py, line 83, in <lambda>
+    79           DeprecationWarning,
+    80           stacklevel=2,
+    81       )
+    82   self._implprefix = implprefix
+--> 83   self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+    84       methods,
+    ..................................................
+     hook = <_HookCaller 'pytest_cmdline_parse'>
+     methods = [<HookImpl plugin_name='pytestconfig', plugin=<_pytest.confi
+                g.Config object at 0x10e770a90>>, <HookImpl plugin_name='hel
+                pconfig', plugin=<module '_pytest.helpconfig' from '/Users/a
+                lberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages
+                /_pytest/helpconfig.py'>>, ]
+     kwargs = {'pluginmanager': <_pytest.config.PytestPluginManager object
+                at 0x10e6b51c0>,
+               'args': ['--doctest-modules', '--showlocals', '--debug', '-
+               -noconftest', '-v', '-c', '/Users/alberthan/.dotfiles/python
+               /pytest.ini', ]}
+     hook.multicall = <function '_multicall' callers.py:157>
+    ..................................................
+
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/pluggy/callers.py, line 187, in _multicall
+    157  def _multicall(hook_impls, caller_kwargs, firstresult=False):
+ (...)
+    183                          teardowns.append(gen)
+    184                      except StopIteration:
+    185                          _raise_wrapfail(gen, "did not yield")
+    186                  else:
+--> 187                      res = hook_impl.function(*args)
+    188                      if res is not None:
+    ..................................................
+     hook_impls = [<HookImpl plugin_name='pytestconfig', plugin=<_pytest.confi
+                   g.Config object at 0x10e770a90>>, <HookImpl plugin_name='hel
+                   pconfig', plugin=<module '_pytest.helpconfig' from '/Users/a
+                   lberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages
+                   /_pytest/helpconfig.py'>>, ]
+     caller_kwargs = {'pluginmanager': <_pytest.config.PytestPluginManager object
+                       at 0x10e6b51c0>,
+                      'args': ['--doctest-modules', '--showlocals', '--debug', '-
+                      -noconftest', '-v', '-c', '/Users/alberthan/.dotfiles/python
+                      /pytest.ini', ]}
+     firstresult = True
+     gen = <generator object pytest_cmdline_parse at 0x10f93d430>
+     hook_impl.function = <method 'Config.pytest_cmdline_parse' of <_pytest.config.Con
+                           fig object at 0x10e770a90> __init__.py:736>
+     args = [<_pytest.config.PytestPluginManager object at 0x10e6b51c0>,
+              ['--doctest-modules', '--showlocals', '--debug', '--noconft
+             est', '-v', '-c', '/Users/alberthan/.dotfiles/python/pytest.
+             ini', ], ]
+    ..................................................
+
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/_pytest/helpconfig.py, line 89, in pytest_cmdline_parse
+    86   @pytest.hookimpl(hookwrapper=True)
+    87   def pytest_cmdline_parse():
+    88       outcome = yield
+--> 89       config = outcome.get_result()
+    90       if config.option.debug:
+    ..................................................
+     pytest.hookimpl = <pluggy.hooks.HookimplMarker object at 0x10dab7f10>
+     outcome = <pluggy.callers._Result object at 0x10fd99100>
+     outcome.get_result = <method '_Result.get_result' of <pluggy.callers._Result obje
+                           ct at 0x10fd99100> callers.py:68>
+    ..................................................
+
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/pluggy/callers.py, line 80, in get_result
+    68   def get_result(self):
+ (...)
+    76           return self._result
+    77       else:
+    78           ex = self._excinfo
+    79           if _py3:
+--> 80               raise ex[1].with_traceback(ex[2])
+    81           _reraise(*ex)  # noqa
+    ..................................................
+     self = <pluggy.callers._Result object at 0x10fd99100>
+     self._result = None
+     ex = (<class 'OSError'>, OSError(22, 'Invalid argument'), <traceb
+           ack object at 0x10ff8eb80>, )
+     self._excinfo = (<class 'OSError'>, OSError(22, 'Invalid argument'), <traceb
+                      ack object at 0x10ff8eb80>, )
+     _py3 = True
+    ..................................................
+
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/pluggy/callers.py, line 187, in _multicall
+    157  def _multicall(hook_impls, caller_kwargs, firstresult=False):
+ (...)
+    183                          teardowns.append(gen)
+    184                      except StopIteration:
+    185                          _raise_wrapfail(gen, "did not yield")
+    186                  else:
+--> 187                      res = hook_impl.function(*args)
+    188                      if res is not None:
+    ..................................................
+     hook_impls = [<HookImpl plugin_name='pytestconfig', plugin=<_pytest.confi
+                   g.Config object at 0x10e770a90>>, <HookImpl plugin_name='hel
+                   pconfig', plugin=<module '_pytest.helpconfig' from '/Users/a
+                   lberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages
+                   /_pytest/helpconfig.py'>>, ]
+     caller_kwargs = {'pluginmanager': <_pytest.config.PytestPluginManager object
+                       at 0x10e6b51c0>,
+                      'args': ['--doctest-modules', '--showlocals', '--debug', '-
+                      -noconftest', '-v', '-c', '/Users/alberthan/.dotfiles/python
+                      /pytest.ini', ]}
+     firstresult = True
+     gen = <generator object pytest_cmdline_parse at 0x10f93d430>
+     hook_impl.function = <method 'Config.pytest_cmdline_parse' of <_pytest.config.Con
+                           fig object at 0x10e770a90> __init__.py:736>
+     args = [<_pytest.config.PytestPluginManager object at 0x10e6b51c0>,
+              ['--doctest-modules', '--showlocals', '--debug', '--noconft
+             est', '-v', '-c', '/Users/alberthan/.dotfiles/python/pytest.
+             ini', ], ]
+    ..................................................
+
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/_pytest/config/__init__.py, line 738, in pytest_cmdline_parse
+    736  def pytest_cmdline_parse(self, pluginmanager, args):
+    737      try:
+--> 738          self.parse(args)
+    739      except UsageError:
+    ..................................................
+     self = <_pytest.config.Config object at 0x10e770a90>
+     pluginmanager = <_pytest.config.PytestPluginManager object at 0x10e6b51c0>
+     args = ['--doctest-modules', '--showlocals', '--debug', '--noconfte
+             st', '-v', '-c', '/Users/alberthan/.dotfiles/python/pytest.i
+             ni', ]
+     self.parse = <method 'Config.parse' of <_pytest.config.Config object at 0
+                   x10e770a90> __init__.py:936>
+     UsageError = <class '_pytest.config.exceptions.UsageError'>
+    ..................................................
+
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/_pytest/config/__init__.py, line 945, in parse
+    936  def parse(self, args, addopts=True):
+ (...)
+    941      assert self.invocation_params.args == args
+    942      self.hook.pytest_addhooks.call_historic(
+    943          kwargs=dict(pluginmanager=self.pluginmanager)
+    944      )
+--> 945      self._preparse(args, addopts=addopts)
+    946      # XXX deprecated hook:
+    ..................................................
+     self = <_pytest.config.Config object at 0x10e770a90>
+     args = ['--doctest-modules', '--showlocals', '--debug', '--noconfte
+             st', '-v', '-c', '/Users/alberthan/.dotfiles/python/pytest.i
+             ni', ]
+     addopts = True
+     self.invocation_params.args = ['--doctest-modules', '--showlocals', '--debug', '--noconfte
+                                    st', '-v', '-c', '/Users/alberthan/.dotfiles/python/pytest.i
+                                    ni', ]
+     self.hook.pytest_addhooks.call_historic = <method '_HookCaller.call_historic' of <_HookCaller 'pytest_
+                                                addhooks'> hooks.py:289>
+     self.pluginmanager = <_pytest.config.PytestPluginManager object at 0x10e6b51c0>
+     self._preparse = <method 'Config._preparse' of <_pytest.config.Config object 
+                       at 0x10e770a90> __init__.py:872>
+    ..................................................
+
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/_pytest/config/__init__.py, line 901, in _preparse
+    872  def _preparse(self, args, addopts=True):
+ (...)
+    897      if self.known_args_namespace.confcutdir is None and self.inifile:
+    898          confcutdir = py.path.local(self.inifile).dirname
+    899          self.known_args_namespace.confcutdir = confcutdir
+    900      try:
+--> 901          self.hook.pytest_load_initial_conftests(
+    902              early_config=self, args=args, parser=self._parser
+    ..................................................
+     self = <_pytest.config.Config object at 0x10e770a90>
+     args = ['--doctest-modules', '--showlocals', '--debug', '--noconfte
+             st', '-v', '-c', '/Users/alberthan/.dotfiles/python/pytest.i
+             ni', ]
+     addopts = True
+     self.known_args_namespace.confcutdir = '/Users/alberthan/.dotfiles/python'
+     self.inifile = '/Users/alberthan/.dotfiles/python/pytest.ini'
+     confcutdir = '/Users/alberthan/.dotfiles/python'
+     py.path.local = <class 'py._path.local.LocalPath'>
+     self.hook.pytest_load_initial_conftests = <_HookCaller 'pytest_load_initial_conftests'>
+     self._parser = <_pytest.config.argparsing.Parser object at 0x10e770b20>
+    ..................................................
+
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/pluggy/hooks.py, line 287, in __call__
+    272  def __call__(self, *args, **kwargs):
+ (...)
+    283                  "can not be found in this hook call".format(tuple(notincall)),
+    284                  stacklevel=2,
+    285              )
+    286      from ipdb import set_trace as st; st()
+--> 287      return self._hookexec(self, self.get_hookimpls(), kwargs)
+    ..................................................
+     self = <_HookCaller 'pytest_load_initial_conftests'>
+     args = ()
+     kwargs = {'early_config': <_pytest.config.Config object at 0x10e770a9
+               0>,
+               'args': ['--doctest-modules', '--showlocals', '--debug', '-
+               -noconftest', '-v', '-c', '/Users/alberthan/.dotfiles/python
+               /pytest.ini', ],
+               'parser': <_pytest.config.argparsing.Parser object at 0x10e
+               770b20>}
+     notincall = {}
+     st = <function 'set_trace' __main__.py:62>
+     self._hookexec = <method 'PluginManager._hookexec' of <_pytest.config.PytestP
+                       luginManager object at 0x10e6b51c0> manager.py:89>
+     self.get_hookimpls = <method '_HookCaller.get_hookimpls' of <_HookCaller 'pytest_
+                           load_initial_conftests'> hooks.py:238>
+    ..................................................
+
+File /Library/Frameworks/Python.framework/Versions/3.8/lib/python3.8/bdb.py, line 92, in trace_dispatch
+    61   def trace_dispatch(self, frame, event, arg):
+ (...)
+    88           return self.dispatch_line(frame)
+    89       if event == 'call':
+    90           return self.dispatch_call(frame, arg)
+    91       if event == 'return':
+--> 92           return self.dispatch_return(frame, arg)
+    93       if event == 'exception':
+    ..................................................
+     self = <IPython.terminal.debugger.TerminalPdb object at 0x10fdbe5b0
+             >
+     frame = <frame at 0x10fe895b0, file '/Users/alberthan/VSCodeProjects
+              /hdlogger/lib/python3.8/site-packages/pluggy/hooks.py', line
+               287, code __call__>
+     event = 'return'
+     arg = []
+     self.dispatch_line = <method 'Bdb.dispatch_line' of <IPython.terminal.debugger.Te
+                           rminalPdb object at 0x10fdbe5b0> bdb.py:104>
+     self.dispatch_call = <method 'Bdb.dispatch_call' of <IPython.terminal.debugger.Te
+                           rminalPdb object at 0x10fdbe5b0> bdb.py:116>
+     self.dispatch_return = <method 'Bdb.dispatch_return' of <IPython.terminal.debugger.
+                             TerminalPdb object at 0x10fdbe5b0> bdb.py:138>
+    ..................................................
+
+File /Library/Frameworks/Python.framework/Versions/3.8/lib/python3.8/bdb.py, line 151, in dispatch_return
+    138  def dispatch_return(self, frame, arg):
+ (...)
+    147          if self.stopframe and frame.f_code.co_flags & GENERATOR_AND_COROUTINE_FLAGS:
+    148              return self.trace_dispatch
+    149          try:
+    150              self.frame_returning = frame
+--> 151              self.user_return(frame, arg)
+    152          finally:
+    ..................................................
+     self = <IPython.terminal.debugger.TerminalPdb object at 0x10fdbe5b0
+             >
+     frame = <frame at 0x10fe895b0, file '/Users/alberthan/VSCodeProjects
+              /hdlogger/lib/python3.8/site-packages/pluggy/hooks.py', line
+               287, code __call__>
+     arg = []
+     self.stopframe = <frame at 0x10fe895b0, file '/Users/alberthan/VSCodeProjects
+                       /hdlogger/lib/python3.8/site-packages/pluggy/hooks.py', line
+                        287, code __call__>
+     frame.f_code.co_flags = 79
+     GENERATOR_AND_COROUTINE_FLAGS = 672
+     self.trace_dispatch = <method 'Bdb.trace_dispatch' of <IPython.terminal.debugger.T
+                            erminalPdb object at 0x10fdbe5b0> bdb.py:61>
+     self.frame_returning = None
+     self.user_return = <method 'Pdb.user_return' of <IPython.terminal.debugger.Term
+                         inalPdb object at 0x10fdbe5b0> pdb.py:288>
+    ..................................................
+
+File /Library/Frameworks/Python.framework/Versions/3.8/lib/python3.8/pdb.py, line 294, in user_return
+    288  def user_return(self, frame, return_value):
+ (...)
+    290      if self._wait_for_mainpyfile:
+    291          return
+    292      frame.f_locals['__return__'] = return_value
+    293      self.message('--Return--')
+--> 294      self.interaction(frame, None)
+    ..................................................
+     self = <IPython.terminal.debugger.TerminalPdb object at 0x10fdbe5b0
+             >
+     frame = <frame at 0x10fe895b0, file '/Users/alberthan/VSCodeProjects
+              /hdlogger/lib/python3.8/site-packages/pluggy/hooks.py', line
+               287, code __call__>
+     return_value = []
+     self._wait_for_mainpyfile = False
+     frame.f_locals = {'self': <_HookCaller 'pytest_load_initial_conftests'>,
+                       'args': (),
+                       'kwargs': {'early_config': <_pytest.config.Config object at
+                        0x10e770a90>,
+                                  'args': [...],
+                                  'parser': <_pytest.config.argparsing.Parser obje
+                       ct at 0x10e770b20>},
+                       'notincall': {},
+                       'st': <function 'set_trace' __main__.py:62>,
+                       '__return__': []}
+     self.message = <method 'Pdb.message' of <IPython.terminal.debugger.Terminal
+                     Pdb object at 0x10fdbe5b0> pdb.py:453>
+     self.interaction = <method 'Pdb.interaction' of <IPython.terminal.debugger.Term
+                         inalPdb object at 0x10fdbe5b0> debugger.py:292>
+    ..................................................
+
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/IPython/core/debugger.py, line 294, in interaction
+    292  def interaction(self, frame, traceback):
+    293      try:
+--> 294          OldPdb.interaction(self, frame, traceback)
+    295      except KeyboardInterrupt:
+    ..................................................
+     self = <IPython.terminal.debugger.TerminalPdb object at 0x10fdbe5b0
+             >
+     frame = <frame at 0x10fe895b0, file '/Users/alberthan/VSCodeProjects
+              /hdlogger/lib/python3.8/site-packages/pluggy/hooks.py', line
+               287, code __call__>
+     traceback = None
+     OldPdb.interaction = <function 'Pdb.interaction' pdb.py:342>
+    ..................................................
+
+File /Library/Frameworks/Python.framework/Versions/3.8/lib/python3.8/pdb.py, line 353, in interaction
+    342  def interaction(self, frame, traceback):
+ (...)
+    349          # a command like "continue")
+    350          self.forget()
+    351          return
+    352      self.print_stack_entry(self.stack[self.curindex])
+--> 353      self._cmdloop()
+    354      self.forget()
+    ..................................................
+     self = <IPython.terminal.debugger.TerminalPdb object at 0x10fdbe5b0
+             >
+     frame = <frame at 0x10fe895b0, file '/Users/alberthan/VSCodeProjects
+              /hdlogger/lib/python3.8/site-packages/pluggy/hooks.py', line
+               287, code __call__>
+     traceback = None
+     self.forget = <method 'Pdb.forget' of <IPython.terminal.debugger.TerminalP
+                    db object at 0x10fdbe5b0> pdb.py:200>
+     self.print_stack_entry = <method 'Pdb.print_stack_entry' of <IPython.terminal.debugge
+                               r.TerminalPdb object at 0x10fdbe5b0> debugger.py:340>
+     self.stack = [(<frame at 0x10d947640, file '/Users/alberthan/VSCodeProjec
+                   ts/hdlogger/bin/pytest', line 8, code <module>>, 8, ), (<fra
+                   me at 0x7fadf3433060, file '/Users/alberthan/VSCodeProjects/
+                   hdlogger/lib/python3.8/site-packages/_pytest/config/__init__
+                   .py', line 71, code main>, 71, ), (<frame at 0x7fadf354cbd0,
+                    file '/Users/alberthan/VSCodeProjects/hdlogger/lib/python3.
+                   8/site-packages/_pytest/config/__init__.py', line 216, code 
+                   _prepareconfig>, 216, ), (<frame at 0x10e7f9780, file '/User
+                   s/alberthan/VSCodePr...
+     self.curindex = 10
+     self._cmdloop = <method 'Pdb._cmdloop' of <IPython.terminal.debugger.Termina
+                      lPdb object at 0x10fdbe5b0> pdb.py:316>
+    ..................................................
+
+File /Library/Frameworks/Python.framework/Versions/3.8/lib/python3.8/pdb.py, line 322, in _cmdloop
+    316  def _cmdloop(self):
+ (...)
+    318          try:
+    319              # keyboard interrupts allow for an easy way to cancel
+    320              # the current command, so allow them during interactive input
+    321              self.allow_kbdint = True
+--> 322              self.cmdloop()
+    323              self.allow_kbdint = False
+    ..................................................
+     self = <IPython.terminal.debugger.TerminalPdb object at 0x10fdbe5b0
+             >
+     self.allow_kbdint = True
+     self.cmdloop = <method 'TerminalPdb.cmdloop' of <IPython.terminal.debugger.
+                     TerminalPdb object at 0x10fdbe5b0> debugger.py:66>
+    ..................................................
+
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/IPython/terminal/debugger.py, line 91, in cmdloop
+    66   def cmdloop(self, intro=None):
+ (...)
+    87               else:
+    88                   self._ptcomp.ipy_completer.namespace = self.curframe_locals
+    89                   self._ptcomp.ipy_completer.global_namespace = self.curframe.f_globals
+    90                   try:
+--> 91                       line = self.pt_app.prompt() # reset_current_buffer=True)
+    92                   except EOFError:
+    ..................................................
+     self = <IPython.terminal.debugger.TerminalPdb object at 0x10fdbe5b0
+             >
+     intro = None
+     self._ptcomp.ipy_completer.namespace = {'self': <_HookCaller 'pytest_load_initial_conftests'>,
+                                             'args': (),
+                                             'kwargs': {'early_config': <_pytest.config.Config object at
+                                              0x10e770a90>,
+                                                        'args': [...],
+                                                        'parser': <_pytest.config.argparsing.Parser obje
+                                             ct at 0x10e770b20>},
+                                             'notincall': {},
+                                             'st': <function 'set_trace' __main__.py:62>,
+                                             '__return__': []}
+     self.curframe_locals = {'self': <_HookCaller 'pytest_load_initial_conftests'>,
+                             'args': (),
+                             'kwargs': {'early_config': <_pytest.config.Config object at
+                              0x10e770a90>,
+                                        'args': [...],
+                                        'parser': <_pytest.config.argparsing.Parser obje
+                             ct at 0x10e770b20>},
+                             'notincall': {},
+                             'st': <function 'set_trace' __main__.py:62>,
+                             '__return__': []}
+     self._ptcomp.ipy_completer.global_namespace = {'__name__': 'pluggy.hooks',
+                                                    '__doc__': '\nInternal hook annotation, representation and 
+                                                    calling machinery.\n',
+                                                    '__package__': 'pluggy',
+                                                    '__loader__': <_frozen_importlib_external.SourceFileLoader 
+                                                    object at 0x10ddf6f40>,
+                                                    '__spec__': ModuleSpec(name='pluggy.hooks', loader=<_frozen
+                                                    _importlib_external.SourceFileLoader object at 0x10ddf6f40>,
+                                                     origin='/Users/alberthan/VSCodeProjects/hdlogger/lib/python
+                                                    3.8/site-packages/pluggy/hooks.py'),
+                                                    '__file__': '/Users/alberthan/VSCodeProjects/hdlogger/lib/p
+                                                    y...
+     self.curframe.f_globals = {'__name__': 'pluggy.hooks',
+                                '__doc__': '\nInternal hook annotation, representation and 
+                                calling machinery.\n',
+                                '__package__': 'pluggy',
+                                '__loader__': <_frozen_importlib_external.SourceFileLoader 
+                                object at 0x10ddf6f40>,
+                                '__spec__': ModuleSpec(name='pluggy.hooks', loader=<_frozen
+                                _importlib_external.SourceFileLoader object at 0x10ddf6f40>,
+                                 origin='/Users/alberthan/VSCodeProjects/hdlogger/lib/python
+                                3.8/site-packages/pluggy/hooks.py'),
+                                '__file__': '/Users/alberthan/VSCodeProjects/hdlogger/lib/p
+                                y...
+     self.pt_app.prompt = <method 'PromptSession.prompt' of <prompt_toolkit.shortcuts.
+                           prompt.PromptSession object at 0x10fe7d910> prompt.py:714>
+    ..................................................
+
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/prompt_toolkit/shortcuts/prompt.py, line 797, in prompt
+    714  def prompt(
+    715          self,
+    716          # When any of these arguments are passed, this value is overwritten
+    717          # in this PromptSession.
+    718          message=None,  # `message` should go first, because people call it
+    719                         # as positional argument.
+    720          editing_mode=None, refresh_interval=None, vi_mode=None, lexer=None,
+    721          completer=None, complete_in_thread=None, is_password=None,
+    722          key_bindings=None, bottom_toolbar=None, style=None,
+    723          color_depth=None, include_default_pygments_style=None,
+    724          style_transformation=None, swap_light_and_dark_colors=None,
+    725          rprompt=None, multiline=None, prompt_continuation=None,
+    726          wrap_lines=None, enable_history_search=None,
+    727          search_ignore_case=None, complete_while_typing=None,
+    728          validate_while_typing=None, complete_style=None, auto_suggest=None,
+    729          validator=None, clipboard=None, mouse_support=None,
+    730          input_processors=None, reserve_space_for_menu=None,
+    731          enable_system_prompt=None, enable_suspend=None,
+    732          enable_open_in_editor=None, tempfile_suffix=None, inputhook=None,
+    733  
+    734          # Following arguments are specific to the current `prompt()` call.
+    735          async_=False, default='', accept_default=False, pre_run=None):
+ (...)
+    793  
+    794      if async_:
+    795          return ensure_future(run_async())
+    796      else:
+--> 797          return run_sync()
+    ..................................................
+     self = <prompt_toolkit.shortcuts.prompt.PromptSession object at 0x1
+             0fe7d910>
+     message = None
+     editing_mode = None
+     refresh_interval = None
+     vi_mode = None
+     lexer = None
+     completer = None
+     complete_in_thread = None
+     is_password = None
+     key_bindings = None
+     bottom_toolbar = None
+     style = None
+     color_depth = None
+     include_default_pygments_style = None
+     style_transformation = None
+     swap_light_and_dark_colors = None
+     rprompt = None
+     multiline = None
+     prompt_continuation = None
+     wrap_lines = None
+     enable_history_search = None
+     search_ignore_case = None
+     complete_while_typing = None
+     validate_while_typing = None
+     complete_style = None
+     auto_suggest = None
+     validator = None
+     clipboard = None
+     mouse_support = None
+     input_processors = None
+     reserve_space_for_menu = None
+     enable_system_prompt = None
+     enable_suspend = None
+     enable_open_in_editor = None
+     tempfile_suffix = None
+     inputhook = None
+     async_ = False
+     default = ''
+     accept_default = False
+     pre_run = None
+     run_async = <function 'PromptSession.prompt.<locals>.run_async' prompt.p
+                  y:788>
+     run_sync = <function 'PromptSession.prompt.<locals>.run_sync' prompt.py
+                 :783>
+    ..................................................
+
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/prompt_toolkit/shortcuts/prompt.py, line 786, in run_sync
+    783  def run_sync():
+    784      with self._auto_refresh_context():
+    785          self.default_buffer.reset(Document(default))
+--> 786          return self.app.run(inputhook=self.inputhook, pre_run=pre_run2)
+    ..................................................
+     self._auto_refresh_context = <method 'PromptSession._auto_refresh_context' of <prompt_too
+                                   lkit.shortcuts.prompt.PromptSession object at 0x10fe7d910> c
+                                   ontextlib.py:238>
+     self.default_buffer.reset = <method 'Buffer.reset' of <Buffer(name='DEFAULT_BUFFER', tex
+                                  t='') at 4561971136> buffer.py:279>
+     Document = <class 'prompt_toolkit.document.Document'>
+     default = ''
+     self.app.run = <method 'Application.run' of <prompt_toolkit.application.app
+                     lication.Application object at 0x10febb160> application.py:6
+                     96>
+     self.inputhook = <method 'TerminalInteractiveShell.inputhook' of <IPython.ter
+                       minal.interactiveshell.TerminalInteractiveShell object at 0x
+                       10f84fb20> interactiveshell.py:511>
+     pre_run2 = <function 'PromptSession.prompt.<locals>.pre_run2' prompt.py
+                 :771>
+    ..................................................
+
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/prompt_toolkit/application/application.py, line 736, in run
+    696  def run(self, pre_run=None, set_exception_handler=True, inputhook=None):
+ (...)
+    732          # Run with patched exception handler.
+    733          previous_exc_handler = loop.get_exception_handler()
+    734          loop.set_exception_handler(handle_exception)
+    735          try:
+--> 736              return run()
+    737          finally:
+    ..................................................
+     run = <function 'Application.run.<locals>.run' application.py:707>
+     self = <prompt_toolkit.application.application.Application object a
+             t 0x10febb160>
+     pre_run = <function 'PromptSession.prompt.<locals>.pre_run2' prompt.py
+                :771>
+     set_exception_handler = True
+     inputhook = <method 'TerminalInteractiveShell.inputhook' of <IPython.ter
+                  minal.interactiveshell.TerminalInteractiveShell object at 0x
+                  10f84fb20> interactiveshell.py:511>
+     previous_exc_handler = None
+     loop.get_exception_handler = <method 'EventLoop.get_exception_handler' of <prompt_toolkit
+                                   .eventloop.posix.PosixEventLoop object at 0x10fa664f0> base.
+                                   py:119>
+     loop.set_exception_handler = <method 'EventLoop.set_exception_handler' of <prompt_toolkit
+                                   .eventloop.posix.PosixEventLoop object at 0x10fa664f0> base.
+                                   py:112>
+     handle_exception = <function 'Application.run.<locals>.handle_exception' applic
+                         ation.py:712>
+    ..................................................
+
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/prompt_toolkit/application/application.py, line 710, in run
+    707  def run():
+    708      f = self.run_async(pre_run=pre_run)
+    709      run_until_complete(f, inputhook=inputhook)
+--> 710      return f.result()
+    ..................................................
+     f = <prompt_toolkit.eventloop.future.Future object at 0x10ff0831
+          0>
+     self.run_async = <method 'Application.run_async' of <prompt_toolkit.applicati
+                       on.application.Application object at 0x10febb160> applicatio
+                       n.py:534>
+     pre_run = <function 'PromptSession.prompt.<locals>.pre_run2' prompt.py
+                :771>
+     inputhook = <method 'TerminalInteractiveShell.inputhook' of <IPython.ter
+                  minal.interactiveshell.TerminalInteractiveShell object at 0x
+                  10f84fb20> interactiveshell.py:511>
+     f.result = <method 'Future.result' of <prompt_toolkit.eventloop.future.
+                 Future object at 0x10ff08310> future.py:144>
+    ..................................................
+
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/prompt_toolkit/eventloop/future.py, line 151, in result
+    144  def result(self):
+ (...)
+    147          raise InvalidStateError
+    148  
+    149      self._retrieved_result = True
+    150      if self._exception:
+--> 151          raise self._exception
+    152      else:
+    ..................................................
+     self = <prompt_toolkit.eventloop.future.Future object at 0x10ff0831
+             0>
+     InvalidStateError = <class 'prompt_toolkit.eventloop.future.InvalidStateError'>
+     self._retrieved_result = True
+     self._exception = OSError(22, 'Invalid argument')
+    ..................................................
+
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/prompt_toolkit/eventloop/coroutine.py, line 92, in step_next
+    84   def step_next(f=None):
+ (...)
+    88               new_f = coroutine.send(None)
+    89           else:
+    90               exc = f.exception()
+    91               if exc:
+--> 92                   new_f = coroutine.throw(exc)
+    93               else:
+    ..................................................
+     step_next = <function '_run_coroutine.<locals>.step_next' coroutine.py:8
+                  4>
+     f = <prompt_toolkit.eventloop.future.Future object at 0x10ff0864
+          0>
+     exc = OSError(22, 'Invalid argument')
+     f.exception = <method 'Future.exception' of <prompt_toolkit.eventloop.futu
+                    re.Future object at 0x10ff08640> future.py:155>
+    ..................................................
+
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/prompt_toolkit/application/application.py, line 685, in _run_async2
+    680  def _run_async2():
+    681      self._is_running = True
+    682      with set_app(self):
+    683          try:
+    684              f = From(_run_async())
+--> 685              result = yield f
+    686          finally:
+    ..................................................
+     self._is_running = False
+     self = <prompt_toolkit.application.application.Application object a
+             t 0x10febb160>
+     f = <prompt_toolkit.eventloop.future.Future object at 0x10ff0864
+          0>
+     _run_async = <function 'Application.run_async.<locals>._run_async' applic
+                   ation.py:556>
+    ..................................................
+
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/prompt_toolkit/eventloop/coroutine.py, line 88, in step_next
+    84   def step_next(f=None):
+    85       " Execute next step of the coroutine."
+    86       try:
+    87           if f is None:
+--> 88               new_f = coroutine.send(None)
+    89           else:
+    ..................................................
+     step_next = <function '_run_coroutine.<locals>.step_next' coroutine.py:8
+                  4>
+     f = None
+    ..................................................
+
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/prompt_toolkit/application/application.py, line 625, in _run_async
+    556  def _run_async():
+ (...)
+    621                  f.set_exception(EOFError)
+    622  
+    623      # Enter raw mode.
+    624      with self.input.raw_mode():
+--> 625          with self.input.attach(read_from_input):
+    626              # Draw UI.
+    ..................................................
+     f.set_exception = <method 'Future.set_exception' of <prompt_toolkit.eventloop.
+                        future.Future object at 0x10ff7a9a0> future.py:105>
+     self.input.raw_mode = <method 'Vt100Input.raw_mode' of <prompt_toolkit.input.vt100
+                            .Vt100Input object at 0x10fe7d820> vt100.py:122>
+     self.input.attach = <method 'Vt100Input.attach' of <prompt_toolkit.input.vt100.V
+                          t100Input object at 0x10fe7d820> vt100.py:76>
+     read_from_input = <function 'Application.run_async.<locals>._run_async.<locals
+                        >.read_from_input' application.py:576>
+    ..................................................
+
+File /Library/Frameworks/Python.framework/Versions/3.8/lib/python3.8/contextlib.py, line 113, in __enter__
+    108  def __enter__(self):
+    109      # do not keep args and kwds alive unnecessarily
+    110      # they are only needed for recreation, which is not possible anymore
+    111      del self.args, self.kwds, self.func
+    112      try:
+--> 113          return next(self.gen)
+    114      except StopIteration:
+    ..................................................
+     self = <contextlib._GeneratorContextManager object at 0x10ff7a550>
+     self.args = # AttributeError
+          self = <contextlib._GeneratorContextManager object at 0x10ff
+           7a550>
+     self.kwds = # AttributeError
+          self = <contextlib._GeneratorContextManager object at 0x10ff
+           7a550>
+     self.func = # AttributeError
+          self = <contextlib._GeneratorContextManager object at 0x10ff
+           7a550>
+     self.gen = <generator object _attached_input at 0x10ff80040>
+    ..................................................
+
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/prompt_toolkit/input/vt100.py, line 150, in _attached_input
+    139  def _attached_input(input, callback):
+ (...)
+    146      loop = get_event_loop()
+    147      fd = input.fileno()
+    148      previous = _current_callbacks.get((loop, fd))
+    149  
+--> 150      loop.add_reader(fd, callback)
+    151      _current_callbacks[loop, fd] = callback
+    ..................................................
+     input = <prompt_toolkit.input.vt100.Vt100Input object at 0x10fe7d820
+              >
+     callback = <function 'Application.run_async.<locals>._run_async.<locals
+                 >.read_from_input' application.py:576>
+     loop = <prompt_toolkit.eventloop.posix.PosixEventLoop object at 0x1
+             0fa664f0>
+     fd = 0
+     input.fileno = <method 'Vt100Input.fileno' of <prompt_toolkit.input.vt100.V
+                     t100Input object at 0x10fe7d820> vt100.py:128>
+     previous = None
+     loop.add_reader = <method 'PosixEventLoop.add_reader' of <prompt_toolkit.event
+                        loop.posix.PosixEventLoop object at 0x10fa664f0> posix.py:26
+                        7>
+     _current_callbacks = {}
+    ..................................................
+
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/prompt_toolkit/eventloop/posix.py, line 273, in add_reader
+    267  def add_reader(self, fd, callback):
+ (...)
+    269      callback = wrap_in_current_context(callback)
+    270  
+    271      fd = fd_to_int(fd)
+    272      self._read_fds[fd] = callback
+--> 273      self.selector.register(fd)
+    ..................................................
+     self = <prompt_toolkit.eventloop.posix.PosixEventLoop object at 0x1
+             0fa664f0>
+     fd = 0
+     callback = <function 'Application.run_async.<locals>._run_async.<locals
+                 >.read_from_input' context.py:113>
+     self._read_fds = {0: <function 'Application.run_async.<locals>._run_async.<lo
+                       cals>.read_from_input' context.py:113>}
+     self.selector.register = <method 'AutoSelector.register' of <prompt_toolkit.eventloop
+                               .select.AutoSelector object at 0x10fa66580> select.py:72>
+    ..................................................
+
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/prompt_toolkit/eventloop/select.py, line 78, in register
+    72   def register(self, fd):
+ (...)
+    74   
+    75       self._fds.append(fd)
+    76   
+    77       for sel in self._selectors:
+--> 78           sel.register(fd)
+    ..................................................
+     self = <prompt_toolkit.eventloop.select.AutoSelector object at 0x10
+             fa66580>
+     fd = 0
+     sel = <prompt_toolkit.eventloop.select.Python3Selector object at 0
+            x10fa6cf40>
+     self._selectors = [<prompt_toolkit.eventloop.select.SelectSelector object at 0
+                        x10fa665b0>, <prompt_toolkit.eventloop.select.PollSelector o
+                        bject at 0x10fa66c10>, <prompt_toolkit.eventloop.select.Pyth
+                        on3Selector object at 0x10fa6cf40>, ]
+     sel.register = <method 'Python3Selector.register' of <prompt_toolkit.eventl
+                     oop.select.Python3Selector object at 0x10fa6cf40> select.py:
+                     130>
+    ..................................................
+
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/prompt_toolkit/eventloop/select.py, line 133, in register
+    130  def register(self, fd):
+    131      assert isinstance(fd, int)
+    132      import selectors  # Inline import: Python3 only!
+--> 133      self._sel.register(fd, selectors.EVENT_READ, None)
+    ..................................................
+     self = <prompt_toolkit.eventloop.select.Python3Selector object at 0
+             x10fa6cf40>
+     fd = 0
+     selectors = <module 'selectors' from '/Library/Frameworks/Python.framewo
+                  rk/Versions/3.8/lib/python3.8/selectors.py'>
+     self._sel.register = <method 'KqueueSelector.register' of <selectors.KqueueSelect
+                           or object at 0x10fa6cf70> selectors.py:516>
+     selectors.EVENT_READ = 1
+    ..................................................
+
+File /Library/Frameworks/Python.framework/Versions/3.8/lib/python3.8/selectors.py, line 522, in register
+    516  def register(self, fileobj, events, data=None):
+ (...)
+    518      try:
+    519          if events & EVENT_READ:
+    520              kev = select.kevent(key.fd, select.KQ_FILTER_READ,
+    521                                  select.KQ_EV_ADD)
+--> 522              self._selector.control([kev], 0, 0)
+    523          if events & EVENT_WRITE:
+    ..................................................
+     self = <selectors.KqueueSelector object at 0x10fa6cf70>
+     fileobj = 0
+     events = 1
+     data = None
+     EVENT_READ = 1
+     kev = <select.kevent ident=0 filter=-1 flags=0x1 fflags=0x0 data=0
+            x0 udata=0x0>
+     select.kevent = <class 'select.kevent'>
+     key.fd = 0
+     select.KQ_FILTER_READ = -1
+     select.KQ_EV_ADD = 1
+     EVENT_WRITE = 2
+    ..................................................
+
+---- (full traceback above) ----
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/_pytest/config/__init__.py, line 216, in _prepareconfig
+    return pluginmanager.hook.pytest_cmdline_parse(
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/pluggy/hooks.py, line 287, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/pluggy/manager.py, line 92, in _hookexec
+    return self._inner_hookexec(hook, methods, kwargs)
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/pluggy/manager.py, line 83, in <lambda>
+    self._inner_hookexec = lambda hook, methods, kwargs: hook.multicall(
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/pluggy/callers.py, line 187, in _multicall
+    res = hook_impl.function(*args)
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/_pytest/helpconfig.py, line 89, in pytest_cmdline_parse
+    config = outcome.get_result()
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/pluggy/callers.py, line 80, in get_result
+    raise ex[1].with_traceback(ex[2])
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/pluggy/callers.py, line 187, in _multicall
+    res = hook_impl.function(*args)
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/_pytest/config/__init__.py, line 738, in pytest_cmdline_parse
+    self.parse(args)
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/_pytest/config/__init__.py, line 945, in parse
+    self._preparse(args, addopts=addopts)
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/_pytest/config/__init__.py, line 901, in _preparse
+    self.hook.pytest_load_initial_conftests(
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/pluggy/hooks.py, line 287, in __call__
+    return self._hookexec(self, self.get_hookimpls(), kwargs)
+File /Library/Frameworks/Python.framework/Versions/3.8/lib/python3.8/bdb.py, line 92, in trace_dispatch
+    return self.dispatch_return(frame, arg)
+File /Library/Frameworks/Python.framework/Versions/3.8/lib/python3.8/bdb.py, line 151, in dispatch_return
+    self.user_return(frame, arg)
+File /Library/Frameworks/Python.framework/Versions/3.8/lib/python3.8/pdb.py, line 294, in user_return
+    self.interaction(frame, None)
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/IPython/core/debugger.py, line 294, in interaction
+    OldPdb.interaction(self, frame, traceback)
+File /Library/Frameworks/Python.framework/Versions/3.8/lib/python3.8/pdb.py, line 353, in interaction
+    self._cmdloop()
+File /Library/Frameworks/Python.framework/Versions/3.8/lib/python3.8/pdb.py, line 322, in _cmdloop
+    self.cmdloop()
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/IPython/terminal/debugger.py, line 91, in cmdloop
+    line = self.pt_app.prompt() # reset_current_buffer=True)
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/prompt_toolkit/shortcuts/prompt.py, line 797, in prompt
+    return run_sync()
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/prompt_toolkit/shortcuts/prompt.py, line 786, in run_sync
+    return self.app.run(inputhook=self.inputhook, pre_run=pre_run2)
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/prompt_toolkit/application/application.py, line 736, in run
+    return run()
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/prompt_toolkit/application/application.py, line 710, in run
+    return f.result()
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/prompt_toolkit/eventloop/future.py, line 151, in result
+    raise self._exception
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/prompt_toolkit/eventloop/coroutine.py, line 92, in step_next
+    new_f = coroutine.throw(exc)
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/prompt_toolkit/application/application.py, line 685, in _run_async2
+    result = yield f
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/prompt_toolkit/eventloop/coroutine.py, line 88, in step_next
+    new_f = coroutine.send(None)
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/prompt_toolkit/application/application.py, line 625, in _run_async
+    with self.input.attach(read_from_input):
+File /Library/Frameworks/Python.framework/Versions/3.8/lib/python3.8/contextlib.py, line 113, in __enter__
+    return next(self.gen)
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/prompt_toolkit/input/vt100.py, line 150, in _attached_input
+    loop.add_reader(fd, callback)
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/prompt_toolkit/eventloop/posix.py, line 273, in add_reader
+    self.selector.register(fd)
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/prompt_toolkit/eventloop/select.py, line 78, in register
+    sel.register(fd)
+File /Users/alberthan/VSCodeProjects/hdlogger/lib/python3.8/site-packages/prompt_toolkit/eventloop/select.py, line 133, in register
+    self._sel.register(fd, selectors.EVENT_READ, None)
+File /Library/Frameworks/Python.framework/Versions/3.8/lib/python3.8/selectors.py, line 522, in register
+    self._selector.control([kev], 0, 0)
+
+OSError: [Errno 22] Invalid argument

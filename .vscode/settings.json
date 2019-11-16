@@ -1,3 +1,13 @@
 {
   "python.pythonPath": "/Users/alberthan/VSCodeProjects/HDLogger/bin/python",
+  "python.testing.unittestEnabled": true,
+  "python.testing.nosetestsEnabled": false,
+  "python.testing.pytestEnabled": false,
+  "python.testing.unittestArgs": [
+    "-v",
+    "-s",
+    ".",
+    "-p",
+    "*test.py"
+  ],
 }

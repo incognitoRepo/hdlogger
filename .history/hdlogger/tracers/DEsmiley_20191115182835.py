@@ -23,7 +23,7 @@ from smiley.stats import stats_to_blob
 from smiley import uuidstack
 
 from prettyprinter import pformat
-import importlib
+
 LOG = logging.getLogger(__name__)
 
 
@@ -182,14 +182,12 @@ class Tracer(object):
       # LOG.debug('checking include package %s', d)
       if filename.startswith(d):
         # LOG.debug('including package %s', filename)
-        # return f"{self._include_packages=}"
-        return False
+        return f"{self._include_packages=}" #False
     for d in self._ignore_dirs:
       # LOG.debug('checking ignore directory %s', d)
       if filename.startswith(d):
         # LOG.debug('ignoring package %s', filename)
-        # return f"{self._ignore_dirs=}\n\n{chr(10).join(self._include_packages)=}"
-        return True
+        return f"{self._ignore_dirs=}\n\n{chr(10).join(self._include_packages)=}" #True
     if self._sitepkgdir:
       # LOG.debug('checking site-packages %s', self._sitepkgdir)
       if filename.startswith(self._sitepkgdir):

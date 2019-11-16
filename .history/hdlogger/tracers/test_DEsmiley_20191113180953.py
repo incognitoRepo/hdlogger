@@ -67,9 +67,7 @@ class TracerTest(testtools.TestCase):
     self.assertTrue(t._should_ignore_file(coverage.__file__))
 
   def test_include_smiley(self):
-    t = tracer.Tracer(None, include_packages=['hdlogger.tracers.DEsmiley'])
-    s = t._should_ignore_file(tracer.__file__)
-    with open('inc.log','w') as f: f.write(tracer.__file__)
+    t = tracer.Tracer(None, include_packages=['DEsmiley'])
     self.assertFalse(t._should_ignore_file(tracer.__file__))
 
   def test_ignore_site_packages(self):

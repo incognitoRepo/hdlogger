@@ -23,7 +23,7 @@ from smiley.stats import stats_to_blob
 from smiley import uuidstack
 
 from prettyprinter import pformat
-import importlib
+
 LOG = logging.getLogger(__name__)
 
 
@@ -82,7 +82,7 @@ class Tracer(object):
                           to_ignore, m.__name__)
         self._ignore_dirs.add(to_ignore)
     self._ignore_dirs.add(self._canonical_parent(__file__))
-    self._ignore_dirs.add('/Users/alberthan/VSCodeProjects/HDLogger/hdlogger/tracers')
+    self._ignore_dirs.add()
 
     # If we are not supposed to include the stdlib, we need to
     # look at where some standard modules are located. That's the
@@ -118,10 +118,9 @@ class Tracer(object):
     self._include_packages = set()
     for name in include_packages:
       try:
-        # f, filename, description = imp.find_module(name)
-        filename = importlib.util.find_spec(name).origin
-        # if f:
-        #   f.close()
+        f, filename, description = imp.find_module(name)
+        if f:
+          f.close()
       except ImportError as e:
         LOG.info('Could not find %r to include it: %s',
                          name, e)
@@ -182,13 +181,11 @@ class Tracer(object):
       # LOG.debug('checking include package %s', d)
       if filename.startswith(d):
         # LOG.debug('including package %s', filename)
-        # return f"{self._include_packages=}"
         return False
     for d in self._ignore_dirs:
       # LOG.debug('checking ignore directory %s', d)
       if filename.startswith(d):
         # LOG.debug('ignoring package %s', filename)
-        # return f"{self._ignore_dirs=}\n\n{chr(10).join(self._include_packages)=}"
         return True
     if self._sitepkgdir:
       # LOG.debug('checking site-packages %s', self._sitepkgdir)

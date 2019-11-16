@@ -182,7 +182,7 @@ class Tracer(object):
       # LOG.debug('checking include package %s', d)
       if filename.startswith(d):
         # LOG.debug('including package %s', filename)
-        # return f"{self._include_packages=}"
+        # return f"{self._include_packages=}"=
         return False
     for d in self._ignore_dirs:
       # LOG.debug('checking ignore directory %s', d)

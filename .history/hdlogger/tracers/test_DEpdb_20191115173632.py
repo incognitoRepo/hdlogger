@@ -15,7 +15,7 @@ from test import support
 # This little helper class is essential for testing pdb under doctest.
 from test.test_doctest import _FakeInput
 from unittest.mock import patch
-with open('DEpdb.log','w') as f: f.write('\n'.join(sys.path))
+
 from hdlogger.tracers import DEpdb as pdb
 
 class PdbTestInput(object):
@@ -39,7 +39,7 @@ def test_pdb_displayhook():
   """This tests the custom displayhook for pdb.
 
   >>> def test_function(foo, bar):
-  ...     from hdlogger.tracers import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
   ...     pass
 
   >>> with PdbTestInput([
@@ -85,7 +85,7 @@ def test_pdb_basic_commands():
   ...     pass
 
   >>> def test_function():
-  ...     from hdlogger.tracers import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
   ...     ret = test_function_2('baz')
   ...     test_function3(kwonly=True)
   ...     test_function4(1, 2, 3)
@@ -218,7 +218,7 @@ def test_pdb_breakpoint_commands():
   """Test basic commands related to breakpoints.
 
   >>> def test_function():
-  ...     from hdlogger.tracers import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
   ...     print(1)
   ...     print(2)
   ...     print(3)
@@ -350,7 +350,7 @@ def test_list_commands():
   ...     return foo
 
   >>> def test_function():
-  ...     from hdlogger.tracers import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
   ...     ret = test_function_2('baz')
 
   >>> with PdbTestInput([  # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
@@ -436,7 +436,7 @@ def test_post_mortem():
   ...         print('Exception!')
 
   >>> def test_function():
-  ...     from hdlogger.tracers import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
   ...     test_function_2()
   ...     print('Not reached.')
 
@@ -469,7 +469,7 @@ def test_post_mortem():
   -> 1/0
   (Pdb) list
       1         def test_function():
-      2             from hdlogger.tracers import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
+      2             import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
       3  ->         test_function_2()
       4             print('Not reached.')
   [EOF]
@@ -493,7 +493,7 @@ def test_pdb_skip_modules():
 
   >>> def skip_module():
   ...     import string
-  ...     from hdlogger.tracers import DEpdb as pdb; pdb.Pdb(skip=['stri*'], nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(skip=['stri*'], nosigint=True, readrc=False).set_trace()
   ...     string.capwords('FOO')
 
   >>> with PdbTestInput([
@@ -522,7 +522,7 @@ def test_pdb_skip_modules_with_callback():
   >>> def skip_module():
   ...     def callback():
   ...         return None
-  ...     from hdlogger.tracers import DEpdb as pdb; pdb.Pdb(skip=['module_to_skip*'], nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(skip=['module_to_skip*'], nosigint=True, readrc=False).set_trace()
   ...     mod.foo_pony(callback)
 
   >>> with PdbTestInput([
@@ -563,7 +563,7 @@ def test_pdb_continue_in_bottomframe():
   """Test that "continue" and "next" work properly in bottom frame (issue #5294).
 
   >>> def test_function():
-  ...     from hdlogger.tracers import DEpdb as pdb, sys; inst = pdb.Pdb(nosigint=True, readrc=False)
+  ...     import DEpdb as pdb, sys; inst = pdb.Pdb(nosigint=True, readrc=False)
   ...     inst.set_trace()
   ...     inst.botframe = sys._getframe()  # hackery to get the right botframe
   ...     print(1)
@@ -652,7 +652,7 @@ def test_next_until_return_at_return_event():
   ...     x = 2
 
   >>> def test_function():
-  ...     from hdlogger.tracers import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
   ...     test_function_2()
   ...     test_function_2()
   ...     test_function_2()
@@ -718,7 +718,7 @@ def test_pdb_next_command_for_generator():
   ...     yield 2
 
   >>> def test_function():
-  ...     from hdlogger.tracers import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
   ...     it = test_gen()
   ...     try:
   ...         if next(it) != 0:
@@ -779,7 +779,7 @@ def test_pdb_next_command_for_coroutine():
   ...     await asyncio.sleep(0)
 
   >>> async def test_main():
-  ...     from hdlogger.tracers import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
   ...     await test_coro()
 
   >>> def test_function():
@@ -839,7 +839,7 @@ def test_pdb_next_command_for_asyncgen():
   ...         print(x)
 
   >>> async def test_main():
-  ...     from hdlogger.tracers import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
   ...     await test_coro()
 
   >>> def test_function():
@@ -895,7 +895,7 @@ def test_pdb_return_command_for_generator():
   ...     yield 2
 
   >>> def test_function():
-  ...     from hdlogger.tracers import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
   ...     it = test_gen()
   ...     try:
   ...         if next(it) != 0:
@@ -951,7 +951,7 @@ def test_pdb_return_command_for_coroutine():
   ...     await asyncio.sleep(0)
 
   >>> async def test_main():
-  ...     from hdlogger.tracers import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
   ...     await test_coro()
 
   >>> def test_function():
@@ -992,7 +992,7 @@ def test_pdb_until_command_for_generator():
   ...     yield 2
 
   >>> def test_function():
-  ...     from hdlogger.tracers import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
   ...     for i in test_gen():
   ...         print(i)
   ...     print("finished")
@@ -1042,7 +1042,7 @@ def test_pdb_until_command_for_coroutine():
   ...     print(3)
 
   >>> async def test_main():
-  ...     from hdlogger.tracers import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
   ...     await test_coro()
 
   >>> def test_function():
@@ -1081,7 +1081,7 @@ def test_pdb_next_command_in_generator_for_loop():
   ...     return 1
 
   >>> def test_function():
-  ...     from hdlogger.tracers import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
   ...     for i in test_gen():
   ...         print('value', i)
   ...     x = 123
@@ -1126,7 +1126,7 @@ def test_pdb_next_command_subiterator():
   ...     return x
 
   >>> def test_function():
-  ...     from hdlogger.tracers import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
+  ...     import DEpdb as pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
   ...     for i in test_gen():
   ...         print('value', i)
   ...     x = 123
@@ -1320,7 +1320,7 @@ class PdbTestCase(unittest.TestCase):
     with open(support.TESTFN, 'wb') as f:
       f.write(textwrap.dedent("""
         import threading
-        from hdlogger.tracers import DEpdb as pdb
+        import DEpdb as pdb
 
         def start_pdb():
           pdb.Pdb(readrc=False).set_trace()
@@ -1337,7 +1337,6 @@ class PdbTestCase(unittest.TestCase):
       )
     self.addCleanup(proc.stdout.close)
     stdout, stderr = proc.communicate(b'cont\n')
-    with open('DEpdb.log','w') as f: f.write('\n'.join(sys.path))
     self.assertNotIn('Error', stdout.decode(),
                          "Got an error running test script under PDB")
 
@@ -1355,7 +1354,7 @@ class PdbTestCase(unittest.TestCase):
 
   def test_readrc_kwarg(self):
     script = textwrap.dedent("""
-      from hdlogger.tracers import DEpdb as pdb; pdb.Pdb(readrc=False).set_trace()
+      import DEpdb as pdb; pdb.Pdb(readrc=False).set_trace()
 
       print('hello')
     """)

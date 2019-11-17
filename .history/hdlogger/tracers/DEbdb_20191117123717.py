@@ -812,13 +812,12 @@ def effective(file, line, frame):
   return (None, None)
 
 
-# -------------------- testing --------------------
+# -------------------- testing ---------- ----------
 
 class Tdb(Bdb):
-    def __init__(self, *args, **kwds):
-        self.website=kwargs.pop('website')
-        super().__init__(*args, **kwds)
-        self.results = []
+    def __init__(self, name, age):
+    self.name = name
+    self.age = age
     def user_call(self, frame, args):
         name = frame.f_code.co_name
         if not name: name = '???'

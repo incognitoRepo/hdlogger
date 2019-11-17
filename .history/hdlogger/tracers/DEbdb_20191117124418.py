@@ -815,9 +815,9 @@ def effective(file, line, frame):
 # -------------------- testing --------------------
 
 class Tdb(Bdb):
-    def __init__(self, *args, **kwds):
+    def __init__(self, *args, **kwargs):
         self.website=kwargs.pop('website')
-        super().__init__(*args, **kwds)
+        super(Teenager, self).__init__(*args, **kwargs)
         self.results = []
     def user_call(self, frame, args):
         name = frame.f_code.co_name

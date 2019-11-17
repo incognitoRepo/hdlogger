@@ -815,25 +815,21 @@ def effective(file, line, frame):
 # -------------------- testing --------------------
 
 class Tdb(Bdb):
-    def __init__(self, *args, **kwds):
-        self.website=kwargs.pop('website')
-        super().__init__(*args, **kwds)
-        self.results = []
     def user_call(self, frame, args):
         name = frame.f_code.co_name
         if not name: name = '???'
-        self.results.append(f"'+++ call' {name} {args}")
+        print('+++ call', name, args)
     def user_line(self, frame):
         import linecache
         name = frame.f_code.co_name
         if not name: name = '???'
         fn = self.canonic(frame.f_code.co_filename)
         line = linecache.getline(fn, frame.f_lineno, frame.f_globals)
-        self.results.append(f"'+++' {fn} {frame.f_lineno} {name} ':' {line.strip()}")
+        print('+++', fn, frame.f_lineno, name, ':', line.strip())
     def user_return(self, frame, retval):
-        self.results.append(f"'+++ return' {retval}")
+        print('+++ return', retval)
     def user_exception(self, frame, exc_stuff):
-        self.results.append(f"'+++ exception' {exc_stuff}")
+        print('+++ exception', exc_stuff)
         self.set_continue()
 
 def foo(n):

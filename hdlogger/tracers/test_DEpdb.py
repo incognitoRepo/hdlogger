@@ -1198,7 +1198,7 @@ class PdbTestCase(unittest.TestCase):
 
   def _run_pdb(self, pdb_args, commands):
     self.addCleanup(support.rmtree, '__pycache__')
-    cmd = [sys.executable, '-m', 'pdb'] + pdb_args
+    cmd = [sys.executable, '-m', 'DEpdb'] + pdb_args
     with subprocess.Popen(
         cmd,
         stdout=subprocess.PIPE,

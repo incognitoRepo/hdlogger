@@ -1664,6 +1664,9 @@ def main():
     print(_usage)
     sys.exit(2)
 
+  with open('DDD.log','w') as f: f.write(f"{type(opts)=}\n{repr(opts)=}\n")
+  with open('DDD.log','w') as f: f.write(f"{type(opts)=}\n{repr(opts)=}\n")
+
   commands = []
   run_as_module = False
   for opt, optarg in opts:
@@ -1724,5 +1727,5 @@ def main():
 
 # When invoked as main program, invoke the debugger on a script
 if __name__ == '__main__':
-  import hdlogger.tracers.DEpdb as DEpdb
+  import DEpdb
   DEpdb.main()

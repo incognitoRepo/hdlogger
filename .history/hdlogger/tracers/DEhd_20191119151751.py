@@ -28,23 +28,6 @@ class HiDefTracer:
     print('bdb.Bdb.dispatch: unknown debugging event:', repr(event))
     return self.trace_dispatch
 
-  def globaltrace_lt(self, frame, why, arg):
-    if why == 'call':
-      code = frame.f_code
-      filename = frame.f_globals.get('__file__', None)
-      if filename:
-        # XXX _modname() doesn't work right for packages, so
-        # the ignore support won't work right for packages
-        modulename = _modname(filename)
-        if modulename is not None:
-          ignore_it = self.ignore.names(filename, modulename)
-          if not ignore_it:
-            if self.trace:
-              print((" --- modulename: %s, funcname: %s"
-                                   % (modulename, code.co_name)))
-            return self.localtrace
-      else:
-        return None
 
   @singledispatchmethod
   def run(self, cmd, **kwds):

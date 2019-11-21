@@ -13,7 +13,7 @@ class HiDefTracer:
     pass
 
   def trace_dispatch(self, frame, event, arg):
-    print(f"{frame.f_code.co_flags=}, {frame.f_code.co_flags & GENERATOR_AND_COROUTINE_FLAGS}")
+    print(f"{frame.f_code.co_flags=}")
     # if self.quitting:
       # return # None
     if event == 'line':
@@ -51,7 +51,6 @@ class HiDefTracer:
 
   def user_call(self, frame, argument_list):
     print('user_call')
-    print(f"{argument_list=}")
     return self.trace_dispatch
 
   def user_line(self, frame):
@@ -59,13 +58,11 @@ class HiDefTracer:
     return self.trace_dispatch
 
   def user_return(self, frame, return_value):
-    print('user_return')
-    print(f"{return_value=}")
     frame.f_locals['__return__'] = return_value
+    print('user_return')
 
   def user_exception(self, frame, exc_info):
     print('user_exception')
-    print(f"{return_value=}")
     return self.trace_dispatch
 
   def bp_commands(self, frame):

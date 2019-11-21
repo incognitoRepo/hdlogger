@@ -5,7 +5,7 @@ from types import FunctionType
 from bdb import BdbQuit
 from inspect import CO_GENERATOR, CO_COROUTINE, CO_ASYNC_GENERATOR
 
-GENERATOR_AND_COROUTINE_FLAGS = CO_GENERATOR | CO_COROUTINE | CO_ASYNC_GENERATOR # 672
+GENERATOR_AND_COROUTINE_FLAGS = CO_GENERATOR | CO_COROUTINE | CO_ASYNC_GENERATOR
 
 class HiDefTracer:
 
@@ -13,7 +13,6 @@ class HiDefTracer:
     pass
 
   def trace_dispatch(self, frame, event, arg):
-    print(f"{frame.f_code.co_flags=}, {frame.f_code.co_flags & GENERATOR_AND_COROUTINE_FLAGS}")
     # if self.quitting:
       # return # None
     if event == 'line':
@@ -50,23 +49,10 @@ class HiDefTracer:
     return self.trace_dispatch
 
   def user_call(self, frame, argument_list):
-    print('user_call')
-    print(f"{argument_list=}")
-    return self.trace_dispatch
+    print('user_call'); return
 
   def user_line(self, frame):
-    print('user_line')
-    return self.trace_dispatch
-
-  def user_return(self, frame, return_value):
-    print('user_return')
-    print(f"{return_value=}")
-    frame.f_locals['__return__'] = return_value
-
-  def user_exception(self, frame, exc_info):
-    print('user_exception')
-    print(f"{return_value=}")
-    return self.trace_dispatch
+    print('user_line'); return
 
   def bp_commands(self, frame):
     # self.currentbp is set in bdb in Bdb.break_here if a breakpoint was hit
@@ -87,8 +73,31 @@ class HiDefTracer:
       return
     return 1
 
+  def user_return(self, frame, return_value):
+    print('user_return'); return
+    if self._wait_for_mainpyfile:
+      return
+    frame.f_locals['__return__'] = return_value
+    self.message('--Return--')
+    self.interaction(frame, None)
 
+  def user_exception(self, frame, exc_info):
+    print('user_exception'); return
+    if self._wait_for_mainpyfile:
+      return
+    exc_type, exc_value, exc_traceback = exc_info
+    frame.f_locals['__exception__'] = exc_type, exc_value
 
+    # An 'Internal StopIteration' exception is an exception debug event
+    # issued by the interpreter when handling a subgenerator run with
+    # 'yield from' or a generator controlled by a for loop. No exception has
+    # actually occurred in this case. The debugger uses this debug event to
+    # stop when the debuggee is returning from such generators.
+    prefix = 'Internal ' if (not exc_traceback
+                  and exc_type is StopIteration) else ''
+    self.message('%s%s' % (prefix,
+      traceback.format_exception_only(exc_type, exc_value)[-1].strip()))
+    self.interaction(frame, exc_traceback)
 
 
   def globaltrace_lt(self, frame, why, arg):
@@ -103,7 +112,8 @@ class HiDefTracer:
           ignore_it = self.ignore.names(filename, modulename)
           if not ignore_it:
             if self.trace:
-              print((" --- modulename: %s, funcname: %s" % (modulename, code.co_name)))
+              print((" --- modulename: %s, funcname: %s"
+                                   % (modulename, code.co_name)))
             return self.localtrace
       else:
         return None

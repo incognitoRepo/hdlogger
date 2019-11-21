@@ -1,4 +1,4 @@
-import sys, linecach e
+import sys
 from functools import singledispatchmethod
 from typing import Callable
 from types import FunctionType
@@ -22,8 +22,9 @@ class State:
     self.filename = self.frame.f_code.co_filename
     self.lineno = self.frame.f_lineno
     self.code = self.frame.f_code
-    self.stdlib = self.module
-    self.source = linecache.getline(self.filename, self.lineno, self.frame.f_globals)
+    self.stdlib = elf.module
+
+
 
 
 class HiDefTracer:

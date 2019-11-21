@@ -41,6 +41,7 @@ class HiDefTracer:
 
   def trace_dispatch(self, frame, event, arg):
     print(f"{frame.f_code.co_flags=}, {frame.f_code.co_flags & GENERATOR_AND_COROUTINE_FLAGS}")
+    if arg: print("arg:" + "\n".join([repr(elm) for elm in arg]))
     # if self.quitting:
       # return # None
     if event == 'line':
@@ -91,38 +92,15 @@ class HiDefTracer:
     print("__return__1" + getattr(frame.f_locals,'__return__','dne'))
     print(f"{return_value=}")
     frame.f_locals['__return__'] = return_value
-    print("__return__2" + getattr(frame.f_locals,'__return__','dne'))
-
-  def user_return_f_locals(self, frame, return_value):
-    print('user_return_f_locals')
-    arg = frame.f_locals['rv']
-    print("arg:\n" + "\n".join([repr(elm) for elm in arg]))
-    print("__return__1" + getattr(frame.f_locals,'__return__','dne'))
-    print(f"{return_value=}")
-    frame.f_locals['__return__'] = return_value
-    frame.f_locals['rv'] = [123]
-    print("__return__2" + getattr(frame.f_locals,'__return__','dne'))
-
-  def user_return_w_inspect(self, frame, return_value):
-    print('user_return_w_inspect')
-    arg = frame.f_locals['rv']
-    print("arg:\n")
-
-    print("arg:\n" + "\n".join([repr(elm) for elm in return_value]))
-    print("__return__1" + getattr(frame.f_locals,'__return__','dne'))
-    print(f"{return_value=}")
-    frame.f_locals['__return__'] = return_value
-    frame.f_locals['rv'] = [123]
-    print("__return__2" + getattr(frame.f_locals,'__return__','dne'))
+    print("__return__2" + frame.f_locals['__return__'])
 
   def user_return(self, frame, return_value):
     print('user_return')
-    print(frame.f_locals.keys())
     print("arg:\n" + "\n".join([repr(elm) for elm in return_value]))
-    print("__return__1" + getattr(frame.f_locals,'__return__','dne'))
+    print("__return__1" + frame.f_locals['__return__'])
     print(f"{return_value=}")
     frame.f_locals['__return__'] = return_value
-    print("__return__2" + getattr(frame.f_locals,'__return__','dne'))
+    print("__return__2" + frame.f_locals['__return__'])
 
   def user_exception(self, frame, exc_info):
     print('user_exception')

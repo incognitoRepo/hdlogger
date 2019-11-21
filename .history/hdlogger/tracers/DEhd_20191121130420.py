@@ -96,23 +96,11 @@ class HiDefTracer:
   def user_return_f_locals(self, frame, return_value):
     print('user_return_f_locals')
     arg = frame.f_locals['rv']
-    print("arg:\n" + "\n".join([repr(elm) for elm in arg]))
-    print("__return__1" + getattr(frame.f_locals,'__return__','dne'))
-    print(f"{return_value=}")
-    frame.f_locals['__return__'] = return_value
-    frame.f_locals['rv'] = [123]
-    print("__return__2" + getattr(frame.f_locals,'__return__','dne'))
-
-  def user_return_w_inspect(self, frame, return_value):
-    print('user_return_w_inspect')
-    arg = frame.f_locals['rv']
-    print("arg:\n")
-
     print("arg:\n" + "\n".join([repr(elm) for elm in return_value]))
     print("__return__1" + getattr(frame.f_locals,'__return__','dne'))
     print(f"{return_value=}")
     frame.f_locals['__return__'] = return_value
-    frame.f_locals['rv'] = [123]
+    frame.f_locals['rv'] = 123
     print("__return__2" + getattr(frame.f_locals,'__return__','dne'))
 
   def user_return(self, frame, return_value):

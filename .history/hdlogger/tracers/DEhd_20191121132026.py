@@ -107,8 +107,7 @@ class HiDefTracer:
     print('user_return_w_inspect')
     arg = frame.f_locals['rv']
     print("arg:\n" + "\n".join([repr(elm) for elm in arg]))
-    print(f"{inspect.getgeneratorstate(return_value)}")
-    print(f"{inspect.getgeneratorlocals(return_value)}")
+    print("arg:\n" + f"{inspect.}"
     print("__return__1" + getattr(frame.f_locals,'__return__','dne'))
     print(f"{return_value=}")
     frame.f_locals['__return__'] = return_value

@@ -123,8 +123,6 @@ class State:
       f"{self.function}: {self.arg}"
     )
     self._return = s
-    if self.stack and self.stack[-1] == ident:
-        self.stack.pop()
     return s
 
   @property

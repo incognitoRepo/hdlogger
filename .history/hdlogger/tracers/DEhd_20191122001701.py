@@ -1,4 +1,4 @@
-import sys, os, linecache, collections, inspect, threading
+import sys, os, linecache, collections, inspect
 from functools import singledispatchmethod
 from typing import Callable
 from types import FunctionType
@@ -65,37 +65,20 @@ class State:
     self.code = self.frame.f_code
     self.stdlib = True if self.filename.startswith(SYS_PREFIX_PATHS) else False
     self.source = linecache.getline(self.filename, self.lineno, self.frame.f_globals)
-    self._stack = None
     self._call = None
     self._line = None
     self._return = None
     self._exception = None
 
   @property
-  def stack(self):
-    if self._stack:
-      return self._stack
-    ident = self.module, self.function
-    thread = threading.current_thread()
-    with open('dehd.log','a') as f: f.write(
-      f"{ident=}\n{thread=}\n{self.locals.keys()}\n"
-      )
-    self._stack = self.locals[thread.ident]
-    return self._stack
-
-
-
-  @property
   def format_call(self):
-    self.stack.append(ident)
     if self._call:
       return self._call
     hunter_args = self.frame.f_code.co_varnames[:self.frame.f_code.co_argcount]
-    fmtmap = lambda var: f"{c(var,'vars')}={event.locals.get(var, MISSING)}"
-    sub_s = ", ".join([fmtmap(var) for var in hunter_args])
+    sub_s = ", ".join([f"{c(var,'vars')}={event.locals.get(var, MISSING)}"])
     s = (
       f"{self.filename}{c(self.event):9} "
-      f"{ws(spaces=len(self.stack) - 1)}{c('=>',arg='call')} "
+      f"{ws(spaces=len(stack) - 1)}{c('=>',arg='call')} "
       f"{self.function}({sub_s})\n"
     )
     self._call = s
@@ -107,7 +90,7 @@ class State:
       return self._line
     s = (
       f"{self.filename}{c(self.event)}"
-      f"{ws(spaces=len(self.stack))}"
+      f"{ws(spaces=len(stack))}"
       f"{self.source}\n"
     )
     self._line = s
@@ -119,12 +102,10 @@ class State:
       return self._return
     s = (
       f"{self.filename}{c(self.event):9} "
-      f"{ws(spaces=len(self.stack) - 1)}{c('<=',arg='call')} "
+      f"{ws(spaces=len(stack) - 1)}{c('<=',arg='call')} "
       f"{self.function}: {self.arg}"
     )
     self._return = s
-    if self.stack and self.stack[-1] == ident:
-        self.stack.pop()
     return s
 
   @property
@@ -133,7 +114,7 @@ class State:
       return self._return
     s = (
       f"{self.filename}{c(self.event):9} "
-      f"{ws(spaces=len(self.stack) - 1)}{c(' !',arg='call')} "
+      f"{ws(spaces=len(stack) - 1)}{c(' !',arg='call')} "
       f"{self.function}: {self.arg}"
     )
     self._return = s

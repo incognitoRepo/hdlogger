@@ -65,11 +65,16 @@ class State:
     self.code = self.frame.f_code
     self.stdlib = True if self.filename.startswith(SYS_PREFIX_PATHS) else False
     self.source = linecache.getline(self.filename, self.lineno, self.frame.f_globals)
-    self._stack = None
+    self._stack
     self._call = None
     self._line = None
     self._return = None
     self._exception = None
+
+        ident = event.module, event.function
+
+        thread = threading.current_thread()
+        stack = self.locals[thread.ident]
 
   @property
   def stack(self):
@@ -77,9 +82,6 @@ class State:
       return self._stack
     ident = self.module, self.function
     thread = threading.current_thread()
-    with open('dehd.log','a') as f: f.write(
-      f"{ident=}\n{thread=}\n{self.locals.keys()}\n"
-      )
     self._stack = self.locals[thread.ident]
     return self._stack
 
@@ -87,7 +89,6 @@ class State:
 
   @property
   def format_call(self):
-    self.stack.append(ident)
     if self._call:
       return self._call
     hunter_args = self.frame.f_code.co_varnames[:self.frame.f_code.co_argcount]
@@ -123,8 +124,6 @@ class State:
       f"{self.function}: {self.arg}"
     )
     self._return = s
-    if self.stack and self.stack[-1] == ident:
-        self.stack.pop()
     return s
 
   @property

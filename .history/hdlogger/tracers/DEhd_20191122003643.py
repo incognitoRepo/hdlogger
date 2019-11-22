@@ -75,11 +75,9 @@ class State:
   def stack(self):
     if self._stack:
       return self._stack
+    from ipdb import set_trace as st; st()
     ident = self.module, self.function
     thread = threading.current_thread()
-    with open('dehd.log','a') as f: f.write(
-      f"{ident=}\n{thread=}\n{self.locals.keys()}\n"
-      )
     self._stack = self.locals[thread.ident]
     return self._stack
 
@@ -87,7 +85,6 @@ class State:
 
   @property
   def format_call(self):
-    self.stack.append(ident)
     if self._call:
       return self._call
     hunter_args = self.frame.f_code.co_varnames[:self.frame.f_code.co_argcount]
@@ -123,8 +120,6 @@ class State:
       f"{self.function}: {self.arg}"
     )
     self._return = s
-    if self.stack and self.stack[-1] == ident:
-        self.stack.pop()
     return s
 
   @property

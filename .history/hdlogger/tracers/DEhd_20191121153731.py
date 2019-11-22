@@ -1,9 +1,8 @@
-import sys, os, linecache, collections, inspect, threading
+import sys, os, linecache, collections, inspect
 from functools import singledispatchmethod
 from typing import Callable
 from types import FunctionType
 from bdb import BdbQuit
-from hunter.const import SYS_PREFIX_PATHS
 from inspect import CO_GENERATOR, CO_COROUTINE, CO_ASYNC_GENERATOR
 
 GENERATOR_AND_COROUTINE_FLAGS = CO_GENERATOR | CO_COROUTINE | CO_ASYNC_GENERATOR # 672
@@ -33,11 +32,6 @@ def c(s,arg=None):
 
   if arg:
     if arg == 'vars': return _c(s,modifier=0,intensity=9,color=5)
-    # symbols
-    if arg == 'call': return _c(s,modifier=1,intensity=9,color=2)
-    if arg == 'line': return _c(s,modifier=2,intensity=3,color=0)
-    if arg == 'return': return _c(s,modifier=1,intensity=9,color=3)
-    if arg == 'exception': return _c(s,modifier=1,intensity=9,color=1)
 
 
 class State:
@@ -52,11 +46,11 @@ class State:
     self.frame = frame
     self.event = event
     self.arg = arg
-    self.initialize()
+    initialize()
 
   def initialize(self):
     self.locals = self.frame.f_locals
-    self.globals = self.frame.f_globals
+    self.globals = self.frame.g_globals
     self.function = self.frame.f_code.co_name
     self.function_object = self.frame.f_code
     self.module = self.frame.f_globals.get('__name__','')
@@ -65,89 +59,29 @@ class State:
     self.code = self.frame.f_code
     self.stdlib = True if self.filename.startswith(SYS_PREFIX_PATHS) else False
     self.source = linecache.getline(self.filename, self.lineno, self.frame.f_globals)
-    self._stack = None
-    self._call = None
-    self._line = None
-    self._return = None
-    self._exception = None
 
-  @property
-  def stack(self):
-    if self._stack:
-      return self._stack
-    ident = self.module, self.function
-    thread = threading.current_thread()
-    with open('dehd.log','a') as f: f.write(
-      f"{ident=}\n{thread=}\n{self.locals.keys()}\n"
-      )
-    self._stack = self.locals[thread.ident]
-    return self._stack
+  @singledispatchmethod
+  def format(self,dispatch_class):
+    raise NotImplementedError
 
-
-
-  @property
-  def format_call(self):
-    self.stack.append(ident)
-    if self._call:
-      return self._call
+  @format.register
+  def _(self,dispatch_class:type('call',(),{})):
     hunter_args = self.frame.f_code.co_varnames[:self.frame.f_code.co_argcount]
-    fmtmap = lambda var: f"{c(var,'vars')}={event.locals.get(var, MISSING)}"
-    sub_s = ", ".join([fmtmap(var) for var in hunter_args])
+    sub_s = ", ".join([f"{c(var,'vars')}={event.locals.get(var, MISSING)}"])
     s = (
-      f"{self.filename}{c(self.event):9} "
-      f"{ws(spaces=len(self.stack) - 1)}{c('=>',arg='call')} "
-      f"{self.function}({sub_s})\n"
+      f"{self.filename}{c(self.event_kind):9} "
+      f"{self.function}=> "
     )
-    self._call = s
-    return s
 
-  @property
-  def format_line(self):
-    if self._line:
-      return self._line
-    s = (
-      f"{self.filename}{c(self.event)}"
-      f"{ws(spaces=len(self.stack))}"
-      f"{self.source}\n"
-    )
-    self._line = s
-    return s
-
-  @property
-  def format_return(self):
-    if self._return:
-      return self._return
-    s = (
-      f"{self.filename}{c(self.event):9} "
-      f"{ws(spaces=len(self.stack) - 1)}{c('<=',arg='call')} "
-      f"{self.function}: {self.arg}"
-    )
-    self._return = s
-    if self.stack and self.stack[-1] == ident:
-        self.stack.pop()
-    return s
-
-  @property
-  def format_exception(self):
-    if self._return:
-      return self._return
-    s = (
-      f"{self.filename}{c(self.event):9} "
-      f"{ws(spaces=len(self.stack) - 1)}{c(' !',arg='call')} "
-      f"{self.function}: {self.arg}"
-    )
-    self._return = s
-    return s
 
 
 class HiDefTracer:
 
   def __init__(self):
-    self.state = None
+    pass
 
   def trace_dispatch(self, frame, event, arg):
     print(f"{frame.f_code.co_flags=}, {frame.f_code.co_flags & GENERATOR_AND_COROUTINE_FLAGS}")
-    self.state = State(frame,event,arg)
     # if self.quitting:
       # return # None
     if event == 'line':
@@ -185,18 +119,18 @@ class HiDefTracer:
 
   def user_call(self, frame, argument_list):
     print('user_call')
-    print(self.state.format_call)
+    print(f"{argument_list=}")
     return self.trace_dispatch
 
   def user_line(self, frame):
     print('user_line')
-    print(self.state.format_line)
     return self.trace_dispatch
 
   def user_return_no_generator(self, frame, return_value):
     print('user_return_no_generator')
+    print("arg:\n" + repr(return_value))
     print("__return__1" + getattr(frame.f_locals,'__return__','dne'))
-    print(self.state.format_return)
+    print(f"{return_value=}")
     frame.f_locals['__return__'] = return_value
     print("__return__2" + getattr(frame.f_locals,'__return__','dne'))
 
@@ -205,7 +139,7 @@ class HiDefTracer:
     arg = frame.f_locals['rv']
     print("arg:\n" + "\n".join([repr(elm) for elm in arg]))
     print("__return__1" + getattr(frame.f_locals,'__return__','dne'))
-    print(self.state.format_return)
+    print(f"{return_value=}")
     frame.f_locals['__return__'] = return_value
     frame.f_locals['rv'] = [123]
     print("__return__2" + getattr(frame.f_locals,'__return__','dne'))
@@ -213,10 +147,11 @@ class HiDefTracer:
   def user_return_w_inspect(self, frame, return_value):
     print('user_return_w_inspect')
     arg = frame.f_locals['rv']
+    # print("arg:\n" + "\n".join([repr(elm) for elm in arg]))
     print(f"{inspect.getgeneratorstate(return_value)}")
     print(f"{inspect.getgeneratorlocals(return_value)}")
     print("__return__1" + getattr(frame.f_locals,'__return__','dne'))
-    print(self.state.format_return)
+    print(f"{return_value=}")
     frame.f_locals['__return__'] = return_value
     frame.f_locals['rv'] = [123]
     print("__return__2" + getattr(frame.f_locals,'__return__','dne'))
@@ -226,13 +161,13 @@ class HiDefTracer:
     print(frame.f_locals.keys())
     print("arg:\n" + "\n".join([repr(elm) for elm in return_value]))
     print("__return__1" + getattr(frame.f_locals,'__return__','dne'))
-    print(self.state.format_return)
+    print(f"{return_value=}")
     frame.f_locals['__return__'] = return_value
     print("__return__2" + getattr(frame.f_locals,'__return__','dne'))
 
   def user_exception(self, frame, exc_info):
     print('user_exception')
-    print(self.state.format_exception)
+    print(f"{return_value=}")
     return self.trace_dispatch
 
   def bp_commands(self, frame):

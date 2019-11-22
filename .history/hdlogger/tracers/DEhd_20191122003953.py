@@ -87,7 +87,6 @@ class State:
 
   @property
   def format_call(self):
-    self.stack.append(ident)
     if self._call:
       return self._call
     hunter_args = self.frame.f_code.co_varnames[:self.frame.f_code.co_argcount]
@@ -123,8 +122,6 @@ class State:
       f"{self.function}: {self.arg}"
     )
     self._return = s
-    if self.stack and self.stack[-1] == ident:
-        self.stack.pop()
     return s
 
   @property

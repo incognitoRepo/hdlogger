@@ -4,7 +4,6 @@ import dis, sys, inspect, trace
 from linecache import getline
 from ipdb import set_trace as st
 from itertools import tee
-from pathlib import Path
 from types import GeneratorType
 import inspect, ctypes
 from pygments import highlight
@@ -68,11 +67,9 @@ def trace_hook_callback2(frame,event,arg):
   counter2 += 1
   if event == 'kill':
     sys.settrace(None)
-    pth = Path('_trace2.log').resolve()
-    with open(pth,'a') as f:
+    with open('_trace2.log','a') as f:
       f.write(f"{evt.data}")
       return evt.data
-    pth.unlink()
   return trace_hook_callback2
 
 def thcb_evt0(frame,event,arg):
@@ -81,10 +78,8 @@ def thcb_evt0(frame,event,arg):
   if not filter_only(evt.module,['hdlogger','tester']): return
   if event == 'kill':
     sys.settrace(None)
-    pth = Path('_thcb_evt0.log').resolve()
     with open('_thcb_evt0.log','a') as f:
       f.write(f"{evt.data}")
-    pth.unlink()
     return 'killed_evt0'
   return thcb_evt0
 

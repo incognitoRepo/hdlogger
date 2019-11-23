@@ -98,8 +98,9 @@ class State:
   def format_filename(self):
     if not isinstance(self.filename,Path):
       filename = Path(self.filename)
-    stem = f"{filename.stem:10.10}"
-    return stem
+    stem = filename.stem
+
+
 
 
 
@@ -113,7 +114,7 @@ class State:
     sub_s = ", ".join([fmtmap(var) for var in hunter_args])
     assert c(self.event) == 'call'
     s = (
-      f"{self.format_filename}:{self.lineno:<5}{c(self.event):9} "
+      f"{self.filename}:{self.lineno:<5}{c(self.event):9} "
       f"{ws(spaces=len(self.stack) - 1)}{c('=>',arg='call')} "
       f"{self.function}({sub_s})\n"
     )
@@ -125,7 +126,7 @@ class State:
     if self._line:
       return self._line
     s = (
-      f"{self.format_filename}:{self.lineno:<5}{c(self.event)}"
+      f"{self.filename}:{self.lineno:<5}{c(self.event)}"
       f"{ws(spaces=len(self.stack))}"
       f"{self.source}\n"
     )
@@ -137,7 +138,7 @@ class State:
     if self._return:
       return self._return
     s = (
-      f"{self.format_filename}:{self.lineno:<5}{c(self.event):9} "
+      f"{self.filename}:{self.lineno:<5}{c(self.event):9} "
       f"{ws(spaces=len(self.stack) - 1)}{c('<=',arg='return')} "
       f"{self.function}: {self.arg}"
     )
@@ -151,7 +152,7 @@ class State:
     if self._return:
       return self._return
     s = (
-      f"{self.format_filename}:{self.lineno:<5}{c(self.event):9} "
+      f"{self.filename}:{self.lineno:<5}{c(self.event):9} "
       f"{ws(spaces=len(self.stack) - 1)}{c(' !',arg='call')} "
       f"{self.function}: {self.arg}"
     )

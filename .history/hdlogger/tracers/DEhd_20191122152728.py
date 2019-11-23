@@ -1,13 +1,13 @@
 import sys, os, linecache, collections, inspect, threading
-from functools import singledispatchmethod, cached_property
+from functools import singledispatchmethod
 from typing import Callable
-from types import FunctionType, GeneratorType
+from types import FunctionType
 from bdb import BdbQuit
 from hunter.const import SYS_PREFIX_PATHS
 from inspect import CO_GENERATOR, CO_COROUTINE, CO_ASYNC_GENERATOR
 
 GENERATOR_AND_COROUTINE_FLAGS = CO_GENERATOR | CO_COROUTINE | CO_ASYNC_GENERATOR # 672
-WRITE = True
+WRITE = False
 def ws(spaces=0,tabs=0):
   indent_size = spaces + (tabs * 2)
   whitespace_character = " "
@@ -25,7 +25,7 @@ def _c(s,modifier=0,intensity=3,color=0):
   return ns
 
 def c(s,arg=None):
-  if WRITE is True: return s
+  if WRITE = True: return s
   """apply color to a string"""
   if s == 'call': return _c(s,modifier=1,intensity=9,color=2)
   if s == 'line': return _c(s,modifier=2,intensity=3,color=0)
@@ -52,7 +52,7 @@ class State:
   def __init__(self, frame, event, arg):
     self.frame = frame
     self.event = event
-    self._arg = arg
+    self.arg = arg
     self.initialize()
 
   def initialize(self):
@@ -73,15 +73,6 @@ class State:
     self._exception = None
 
   @property
-  def arg(self):
-    if isinstance(self._arg,GeneratorType):
-      g_state = inspect.getgeneratorstate(self._arg)
-      g_locals = inspect.getgeneratorlocals(self._arg)
-      s = f"<generator object: state:{g_state.lower()} locals:{g_locals} id:{hex(id(self._arg))}>"
-      return s
-    return self._arg
-
-  @property
   def stack(self):
     return []
     if self._stack:
@@ -94,13 +85,6 @@ class State:
     self._stack = self.locals[thread.ident]
     return self._stack
 
-  @cached_property
-  def format_filename(self):
-    if not isinstance(self.filename,Path):
-      filename = Path(self.filename)
-    stem = f"{filename.stem:10.10}"
-    return stem
-
 
 
   @property
@@ -111,9 +95,8 @@ class State:
     hunter_args = self.frame.f_code.co_varnames[:self.frame.f_code.co_argcount]
     fmtmap = lambda var: f"{c(var,'vars')}={event.locals.get(var, MISSING)}"
     sub_s = ", ".join([fmtmap(var) for var in hunter_args])
-    assert c(self.event) == 'call'
     s = (
-      f"{self.format_filename}:{self.lineno:<5}{c(self.event):9} "
+      f"{self.filename}{c(self.event):9} "
       f"{ws(spaces=len(self.stack) - 1)}{c('=>',arg='call')} "
       f"{self.function}({sub_s})\n"
     )
@@ -125,7 +108,7 @@ class State:
     if self._line:
       return self._line
     s = (
-      f"{self.format_filename}:{self.lineno:<5}{c(self.event)}"
+      f"{self.filename}{c(self.event)}"
       f"{ws(spaces=len(self.stack))}"
       f"{self.source}\n"
     )
@@ -137,13 +120,13 @@ class State:
     if self._return:
       return self._return
     s = (
-      f"{self.format_filename}:{self.lineno:<5}{c(self.event):9} "
-      f"{ws(spaces=len(self.stack) - 1)}{c('<=',arg='return')} "
+      f"{self.filename}{c(self.event):9} "
+      f"{ws(spaces=len(self.stack) - 1)}{c('<=',arg='call')} "
       f"{self.function}: {self.arg}"
     )
     self._return = s
     if self.stack and self.stack[-1] == ident:
-      self.stack.pop()
+        self.stack.pop()
     return s
 
   @property
@@ -151,7 +134,7 @@ class State:
     if self._return:
       return self._return
     s = (
-      f"{self.format_filename}:{self.lineno:<5}{c(self.event):9} "
+      f"{self.filename}{c(self.event):9} "
       f"{ws(spaces=len(self.stack) - 1)}{c(' !',arg='call')} "
       f"{self.function}: {self.arg}"
     )
@@ -240,18 +223,14 @@ class HiDefTracer:
     frame.f_locals['rv'] = [123]
     print("__return__2" + getattr(frame.f_locals,'__return__','dne'))
 
-  def user_return_w_jsonpickle(self, frame, return_value):
-    # TODO
-    pass
-
-  def user_return_w_itertools_tee(self, frame, return_value):
-    # TODO
-    pass
-
   def user_return(self, frame, return_value):
     print('user_return')
+    print(frame.f_locals.keys())
+    print("arg:\n" + "\n".join([repr(elm) for elm in return_value]))
+    print("__return__1" + getattr(frame.f_locals,'__return__','dne'))
     print(self.state.format_return)
-    # frame.f_locals['__return__'] = return_value
+    frame.f_locals['__return__'] = return_value
+    print("__return__2" + getattr(frame.f_locals,'__return__','dne'))
 
   def user_exception(self, frame, exc_info):
     print('user_exception')

@@ -86,7 +86,7 @@ class State:
   def format_filename(self):
     if not isinstance(self.filename,Path):
       filename = Path(self.filename)
-    stem = f"{filename.stem:>10.10}"
+    stem = f"{filename.stem:10.10}"
     return stem
 
   @property
@@ -95,23 +95,14 @@ class State:
     if self._call:
       return self._call
     hunter_args = self.frame.f_code.co_varnames[:self.frame.f_code.co_argcount]
-    fmtmap = lambda var: f"{c(var,'vars')}={repr(self.frame.f_locals.get(var, 'MISSING'))}"
-    try:
-      sub_s = ", ".join([fmtmap(var) for var in hunter_args])
-    except:
-      with open('format_call.log','a') as f:
-        f.write(
-          f"\n{hunter_args=}\n{self.frame.f_locals.keys()=}\n"
-        )
-      sub_s = ', '.join([type(var).__name__ for var in hunter_args])
+    fmtmap = lambda var: f"{c(var,'vars')}={event.locals.get(var, MISSING)}"
+    sub_s = ", ".join([fmtmap(var) for var in hunter_args])
     s = (
       f"{self.format_filename}:{self.lineno:<5}{c(self.event):9} "
       f"{ws(spaces=len(self.stack) - 1)}{c('=>',arg='call')} "
       f"{self.function}({sub_s})\n"
     )
     self._call = s
-    # TODO: this is a perfect place for logging.debug()
-
     return s
 
   @property
@@ -293,11 +284,11 @@ class HiDefTracer:
         return None
 
   @singledispatchmethod
-  def run(self, cmd, *args, **kwds):
+  def run(self, cmd, **kwds):
     raise NotImplementedError
 
   @run.register
-  def _(self, cmd:str, *args, **kwds):
+  def _(self, cmd:str, **kwds):
     globals, locals = kwds.get('globals',None), kwds.get('locals',None)
     if globals is None:
       import __main__
@@ -318,7 +309,7 @@ class HiDefTracer:
       sys.settrace(None)
 
   @run.register
-  def _(self, cmd:FunctionType, *args, **kwds):
+  def _(self, cmd:FunctionType, **kwds):
 
     self.reset()
     sys.settrace(self.trace_dispatch)

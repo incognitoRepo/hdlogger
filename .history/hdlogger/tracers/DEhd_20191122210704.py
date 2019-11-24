@@ -101,9 +101,9 @@ class State:
     except:
       with open('format_call.log','a') as f:
         f.write(
-          f"\n{hunter_args=}\n{self.frame.f_locals.keys()=}\n"
+          f"\n{hunter_args=}\n{sub_s=}\n{self.frame.f_locals.keys()=}\n"
         )
-      sub_s = ', '.join([type(var).__name__ for var in hunter_args])
+      raise
     s = (
       f"{self.format_filename}:{self.lineno:<5}{c(self.event):9} "
       f"{ws(spaces=len(self.stack) - 1)}{c('=>',arg='call')} "
@@ -293,11 +293,11 @@ class HiDefTracer:
         return None
 
   @singledispatchmethod
-  def run(self, cmd, *args, **kwds):
+  def run(self, cmd, **kwds):
     raise NotImplementedError
 
   @run.register
-  def _(self, cmd:str, *args, **kwds):
+  def _(self, cmd:str, **kwds):
     globals, locals = kwds.get('globals',None), kwds.get('locals',None)
     if globals is None:
       import __main__
@@ -318,7 +318,7 @@ class HiDefTracer:
       sys.settrace(None)
 
   @run.register
-  def _(self, cmd:FunctionType, *args, **kwds):
+  def _(self, cmd:FunctionType, **kwds):
 
     self.reset()
     sys.settrace(self.trace_dispatch)

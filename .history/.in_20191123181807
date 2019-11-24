@@ -4,9 +4,11 @@ path=(
   )
 alias ytdev="source /Users/alberthan/VSCodeProjects/vytd/src/youtube-dl/devscripts/ytdev.zsh"
 run_tracer_tests() {
-  cd '/Users/alberthan/VSCodeProjects/tester'
-  python -m unittest tests.test_tracers
-  cd -
+
+  if condition
+  then
+
+  fi
 }
 export PYTHONSTARTUP=/Users/alberthan/.pythonvenvrc.py
 export PYTHONPATH=/Users/alberthan/VSCodeProjects/tester

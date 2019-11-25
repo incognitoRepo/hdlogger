@@ -6,7 +6,9 @@ tracers=(
 )
 
 
-export PYTHONPATH="/Users/alberthan/VSCodeProjects/vytd/src/youtube-dl:${PYTHONPATH}"
+export PYTHONPATH=(
+  '/Users/alberthan/VSCodeProjects/vytd/src/youtube-dl'
+)
 path=(
   $path
 )

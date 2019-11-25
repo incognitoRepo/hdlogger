@@ -12,7 +12,7 @@ ytdl_path='/Users/alberthan/VSCodeProjects/vytd/src/youtube-dl'
 alias ytdev='source /Users/alberthan/VSCodeProjects/vytd/src/youtube-dl/devscripts/ytdev.zsh'
 
 # pkd:tester
-tester_path='/Users/alberthan/VSCodeProjects/tester'
+
 [[ -f $ytdl_path ]] && ln -s $ytdl_path
 export PYTHONSTARTUP=/Users/alberthan/.pythonvenvrc.py
 export PYTHONPATH=/Users/alberthan/VSCodeProjects/tester

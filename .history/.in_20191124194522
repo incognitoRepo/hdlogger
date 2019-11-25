@@ -26,3 +26,5 @@ git commit -m "startup $(date)"
 pip install --upgrade stackprinter prettyprinter pyperclip pip pytest jsonpickle ipdb autopep8
 ln -s /Users/alberthan/.dotfiles/python/pytest.ini .
 pytest ${${(%):-%N}:h}/tests/
+
+Run a program in a clean environment in bash/ksh/zsh

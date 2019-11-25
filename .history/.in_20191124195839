@@ -26,3 +26,18 @@ git commit -m "startup $(date)"
 pip install --upgrade stackprinter prettyprinter pyperclip pip pytest jsonpickle ipdb autopep8
 ln -s /Users/alberthan/.dotfiles/python/pytest.ini .
 pytest ${${(%):-%N}:h}/tests/
+
+"clean env": {
+  "prefix": "env",
+  "body": [
+    "env -i your-program-name-here arg1 arg2 ..."
+  ],
+}
+"tmep env": {
+  "prefix": "env",
+  "body": [
+      "env var=value /path/to/command arg1 arg2 ..."
+      "## OR ## "
+      "var=value  /path/to/command arg1 arg2 ..."
+  ],
+}

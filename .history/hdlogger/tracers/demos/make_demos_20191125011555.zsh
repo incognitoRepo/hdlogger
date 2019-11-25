@@ -8,7 +8,7 @@ tracers=(
 
 
 path=(
-  '/Users/alberthan/VSCodeProjects/vytd/src/youtube-dl'
+  '/Users/alberthan/VSCodeProjects/vytd/src/youtube-dl/youtube_dl'
   $path
 )
 print $path

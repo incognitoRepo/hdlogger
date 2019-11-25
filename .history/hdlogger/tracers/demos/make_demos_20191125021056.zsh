@@ -7,6 +7,7 @@ tracers=(
 
 
 export PYTHONPATH="/Users/alberthan/VSCodeProjects/vytd/src/youtube-dl:/Users/alberthan/VSCodeProjects/vytd/src/youtube-dl:${PYTHONPATH}"
+export AUTOLOGGING_TRACED_NOOIP=1
 path=(
   $path
 )

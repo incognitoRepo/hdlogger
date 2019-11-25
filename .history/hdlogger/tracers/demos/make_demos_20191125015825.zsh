@@ -14,7 +14,6 @@ print $path
 python3 -m trace --count --trace --module -C . youtube_dl https://www.youtube.com/watch\?v\=f2exP40AZ6c
 coverage run -m youtube_dl https://www.youtube.com/watch\?v\=f2exP40AZ6c
 pyinstrument --outfile=pyinstrument.log --timeline -m youtube_dl https://www.youtube.com/watch\?v\=f2exP40AZ6c
-
 [
     '',
     '/Users/alberthan/VSCodeProjects/tester',

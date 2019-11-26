@@ -10,4 +10,7 @@
     "-p",
     "*test*.py"
   ],
+  "workbench.colorCustomizations": {
+    "editorLineNumber.foreground": "#eeeeee"
+  }
 }

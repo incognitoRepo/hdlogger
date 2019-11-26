@@ -1,4 +1,4 @@
-import sys, os, linecache, collections, inspect, threading, stackprinter
+import sys, os, linecache, collections, inspect, threading
 from functools import singledispatchmethod, cached_property
 from pathlib import Path
 from typing import Callable
@@ -78,11 +78,11 @@ class State:
 
   @property
   def arg(self):
-    if isinstance(self._arg,GeneratorType):
-      g_state = inspect.getgeneratorstate(self._arg)
-      g_locals = inspect.getgeneratorlocals(self._arg)
-      s = f"<generator object: state:{g_state.lower()} locals:{g_locals} id:{hex(id(self._arg))}>"
-      return s
+    # if isinstance(self._arg,GeneratorType):
+    #   g_state = inspect.getgeneratorstate(self._arg)
+    #   g_locals = inspect.getgeneratorlocals(self._arg)
+    #   s = f"<generator object: state:{g_state.lower()} locals:{g_locals} id:{hex(id(self._arg))}>"
+    #   return s
     return self._arg
 
   @cached_property
@@ -195,42 +195,18 @@ class HiDefTracer:
 
   def dispatch_return(self, frame, arg):
     """note: there are a few `special cases` wrt `arg`"""
-    if isinstance(arg,GeneratorType):
-      g_state = inspect.getgeneratorstate(arg)
-      g_locals = inspect.getgeneratorlocals(arg)
-      new_a = f"<generator object: state:{g_state.lower()} locals:{g_locals} id:{hex(id(self._arg))}>"
+    def process_special_cases(a):
+      new_a = a
+      if isinstance(self._arg,GeneratorType):
+        g_state = inspect.getgeneratorstate(self._arg)
+        g_locals = inspect.getgeneratorlocals(self._arg)
+        new_a = f"<generator object: state:{g_state.lower()} locals:{g_locals} id:{hex(id(self._arg))}>"
+        return new_a
+      return
+
+
     self.user_return(frame, arg)
     return self.trace_dispatch
-
-  def deserialize(self,serialized_objs):
-    """Load each item that was previously written to disk."""
-    if isinstance(serialized_objs,str) or isinstance(serialized_objs,Path):
-      pkld_strhex = Path(self.pickle_path).parent.joinpath('eventpickle_hex')
-      with open(pkld_strhex, 'r') as file:
-        try:
-          lines = file.readlines()
-          decoded_lines = [bytes.fromhex(elm) for elm in lines]
-          unpkld_lines = [pickle.loads(elm) for elm in decoded_lines]
-          return unpkld_lines
-        except EOFError as err:
-          with open('hd216.err.log','a') as f:
-            f.write(stackprinter.format(err))
-          raise
-    else:
-      deserialized = []
-      for obj in serialized_objs:
-        try:
-          unpkld = pickle.loads(obj)
-          deserialized.append(unpkld)
-        except:
-          try:
-            unjpkld = jsonpickle.decode(obj)
-            deserialized.append(unjpkld)
-          except:
-            with open('hd230.err.log','a') as f:
-              f.write(stackprinter.format(sys.exc_info()))
-            raise
-      return deserialized
 
   def dispatch_exception(self, frame, arg):
     self.user_exception(frame, arg)
@@ -297,8 +273,6 @@ class HiDefTracer:
           print(f'{jpkl=}')
           self.serialized_data.append( ('jpkl',jpkl) )
         except:
-          with open('user_return.log','w') as f:
-            f.write(stackprinter.format(sys.exc_info()))
           raise
 
   def user_exception(self, frame, exc_info):

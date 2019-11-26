@@ -1,4 +1,4 @@
-import sys, os, linecache, collections, inspect, threading, stackprinter
+import sys, os, linecache, collections, inspect, threading
 from functools import singledispatchmethod, cached_property
 from pathlib import Path
 from typing import Callable
@@ -213,9 +213,8 @@ class HiDefTracer:
           unpkld_lines = [pickle.loads(elm) for elm in decoded_lines]
           return unpkld_lines
         except EOFError as err:
-          with open('hd216.err.log','a') as f:
+          with open('hc804','a') as f:
             f.write(stackprinter.format(err))
-          raise
     else:
       deserialized = []
       for obj in serialized_objs:
@@ -223,14 +222,8 @@ class HiDefTracer:
           unpkld = pickle.loads(obj)
           deserialized.append(unpkld)
         except:
-          try:
-            unjpkld = jsonpickle.decode(obj)
-            deserialized.append(unjpkld)
-          except:
-            with open('hd230.err.log','a') as f:
-              f.write(stackprinter.format(sys.exc_info()))
-            raise
-      return deserialized
+          unjpkld = jsonpickle.decode(obj)
+          deserialized.append(unjpkld)
 
   def dispatch_exception(self, frame, arg):
     self.user_exception(frame, arg)

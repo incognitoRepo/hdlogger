@@ -213,7 +213,7 @@ class HiDefTracer:
           unpkld_lines = [pickle.loads(elm) for elm in decoded_lines]
           return unpkld_lines
         except EOFError as err:
-          with open('hd216.err.log','a') as f:
+          with open('hc804','a') as f:
             f.write(stackprinter.format(err))
           raise
     else:
@@ -227,8 +227,8 @@ class HiDefTracer:
             unjpkld = jsonpickle.decode(obj)
             deserialized.append(unjpkld)
           except:
-            with open('hd230.err.log','a') as f:
-              f.write(stackprinter.format(sys.exc_info()))
+            with open('hc804','a') as f:
+              f.write(stackprinter.format(err))
             raise
       return deserialized
 

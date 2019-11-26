@@ -41,9 +41,6 @@ def c(s,arg=None):
     if arg == 'return': return _c(s,modifier=1,intensity=9,color=3)
     if arg == 'exception': return _c(s,modifier=1,intensity=9,color=1)
 
-def write_file(obj,filename,mode='w'):
-  with open(filename,mode) as f:
-    f.write(obj)
 
 class State:
   SYS_PREFIX_PATHS = set((
@@ -160,7 +157,6 @@ class HiDefTracer:
 
   def __init__(self):
     self.state = None
-    self.return_values = []
 
   def trace_dispatch(self, frame, event, arg):
     print(f"{frame.f_code.co_flags=}, {frame.f_code.co_flags & GENERATOR_AND_COROUTINE_FLAGS}")
@@ -247,15 +243,9 @@ class HiDefTracer:
     pass
 
   def user_return(self, frame, return_value):
-    import pickle, jsonpickle
     print('user_return')
     print(self.state.format_return)
-    try:
-      pkl = pickle.dumps(return_value)
-      self.return_values.append( {'pkl',pkl} )
-    except:
-      jpkl = jsonpickle.encode(return_value)
-      self.return_values.append( ('jpkl',jpkl) )
+    # frame.f_locals['__return__'] = return_value
 
   def user_exception(self, frame, exc_info):
     print('user_exception')

@@ -280,17 +280,27 @@ class HiDefTracer:
     try:
       jpkl = jsonpickle.encode(obj)
       self.serialized_data.append(jpkl)
-      return jpkl
     except:
       with open('serialize284.err.log','w') as f:
-        f.write(stackprinter.format(sys.exc_info()))
-      raise SystemExit
+
 
   def user_return(self, frame, return_value):
     print('user_return')
     print(self.state.format_return)
     if return_value:
-      serialized = self.serialize(return_value)
+      try:
+        self.serialize(return_value)
+        # print(f'{pkl=}')
+        self.serialized_data.append( {pkl,'pkl'} )
+      except:
+        try:
+          jpkl = jsonpickle.encode(return_value)
+          # print(f'{jpkl=}')
+          self.serialized_data.append( (jpkl,'jpkl') )
+        except:
+          with open('user_return.log','w') as f:
+            f.write(stackprinter.format(sys.exc_info()))
+          raise
 
   def user_exception(self, frame, exc_info):
     print('user_exception')

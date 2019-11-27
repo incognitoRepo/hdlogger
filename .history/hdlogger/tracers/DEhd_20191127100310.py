@@ -211,7 +211,9 @@ class HiDefTracer:
       g_state = inspect.getgeneratorstate(arg)
       g_locals = inspect.getgeneratorlocals(arg)
       arg = f"<generator object: state:{g_state.lower()} locals:{g_locals} id:{hex(id(self._arg))}>"
-    self.user_return(frame, arg)
+    else:
+
+    self.user_return(frame, arg)=
     return self.trace_dispatch
 
   def deserialize(self,serialized_objs):

@@ -227,20 +227,10 @@ class HiDefTracer:
     return deserialized
 
   def serialize(self,obj):
-    class FakeFrame:
-      def __init__(self):
-        self.f_lineno = None
-
+    dispatch_table = copyreg.dispatch_table.copy()
     def pickle_frame(frame):
-      # return f"{frame.f_lineno}"
-      return FakeFrame, (), {'f_lineno':2}
-
-    f = io.BytesIO()
-    p = pickle.Pickler(f)
-    p.dispatch_table = copyreg.dispatch_table.copy()
-    p.dispatch_table[FrameType] = pickle_frame
-    p.dump(obj)
-    return f.getvalue()
+      return f"{frame.f_lineno}"
+    dispatch_table[FrameType] = pickle_frame
 
     try:
       jpkl = jsonpickle.encode(obj)
@@ -250,6 +240,47 @@ class HiDefTracer:
       with open('serialize284.err.log','w') as f:
         f.write(stackprinter.format(sys.exc_info()))
       raise SystemExit
+
+
+  def reduce():
+    callable_for_creation = 'a'
+
+class FakeFrame:
+  def __init__(self):
+    self.f_lineno = None
+
+def pickle_frame(frame):
+  return ( FakeFrame, tuple(), {'f_lineno': str(frame.f_lineno)} )
+
+cf = inspect.currentframe()
+
+f = io.BytesIO()
+p = pickle.Pickler(f)
+p.dispatch_table = copyreg.dispatch_table.copy()
+p.dispatch_table[FrameType] = pickle_frame
+p.dump(cf)
+u = pickle.Unpickler(f)
+objs = u.load()
+
+
+f = io.BytesIO()
+p = pickle.Pickler(f)
+p.dispatch_table = copyreg.dispatch_table.copy()
+p.dispatch_table[type(cf)] = pickle_frame
+
+
+creates an instance of pickle.Pickler with a private dispatch table which handles the SomeClass class specially. Alternatively, the code
+
+class MyPickler(pickle.Pickler):
+    dispatch_table = copyreg.dispatch_table.copy()
+    dispatch_table[SomeClass] = reduce_SomeClass
+f = io.BytesIO()
+p = MyPickler(f)
+does the same, but all instances of MyPickler will by default share the same dispatch table. The equivalent code using the copyreg module is
+
+copyreg.pickle(SomeClass, reduce_SomeClass)
+f = io.BytesIO()
+p = pickle.Pickler(f)
 
   def dispatch_exception(self, frame, arg):
     self.user_exception(frame, arg)

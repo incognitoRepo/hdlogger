@@ -232,15 +232,15 @@ class HiDefTracer:
         self.f_lineno = None
 
     def pickle_frame(frame):
-      # return f"{frame.f_lineno}"
-      return FakeFrame, (), {'f_lineno':2}
+      return f"{frame.f_lineno}"
 
     f = io.BytesIO()
     p = pickle.Pickler(f)
     p.dispatch_table = copyreg.dispatch_table.copy()
     p.dispatch_table[FrameType] = pickle_frame
     p.dump(obj)
-    return f.getvalue()
+    u = pickle.Unpickler(f)
+    objs = u.load()
 
     try:
       jpkl = jsonpickle.encode(obj)
@@ -250,6 +250,25 @@ class HiDefTracer:
       with open('serialize284.err.log','w') as f:
         f.write(stackprinter.format(sys.exc_info()))
       raise SystemExit
+
+cf = inspect.currentframe()
+
+f = io.BytesIO()
+p = pickle.Pickler(f)
+p.dispatch_table = copyreg.dispatch_table.copy()
+p.dispatch_table[FrameType] = pickle_frame
+p.dump(cf)
+u = pickle.Unpickler(f)
+objs = u.load()
+
+
+f = io.BytesIO()
+p = pickle.Pickler(f)
+p.dispatch_table = copyreg.dispatch_table.copy()
+p.dispatch_table[type(cf)] = pickle_frame
+
+
+
 
   def dispatch_exception(self, frame, arg):
     self.user_exception(frame, arg)

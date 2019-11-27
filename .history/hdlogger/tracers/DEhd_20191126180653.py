@@ -177,6 +177,7 @@ class HiDefTracer:
     self.serialized_data = []
 
   def trace_dispatch(self, frame, event, arg):
+    print(f"{frame.f_code.co_flags=}, {frame.f_code.co_flags & GENERATOR_AND_COROUTINE_FLAGS}")
     self.state = State(frame,event,arg)
     # if self.quitting:
       # return # None
@@ -216,15 +217,33 @@ class HiDefTracer:
 
   def deserialize(self,serialized_objs):
     """Load each item that was previously written to disk."""
-    deserializers = {'pkl':pickle.loads,'jpkl':jsonpickle.decode,'repr':repr}
-    deserialized = []
-    for obj, obj_type in serialized_objs:
-      try:
-        obj_deserialized = deserializers[obj_type](obj)
-      except:
-        with open('deserialize240.err.log','w') as f:
-          f.write(repr(obj)+"\n\n"+stackprinter.format(sys.exc_info()))
-    return deserialized
+    with open('serialized_objs.log','a') as f: f.write(f"{serialized_objs=}")
+    if isinstance(serialized_objs,str) or isinstance(serialized_objs,Path):
+      pkld_strhex = Path(self.pickle_path).parent.joinpath('eventpickle_hex')
+      with open(pkld_strhex, 'r') as file:
+        try:
+          lines = file.readlines()
+          decoded_lines = [bytes.fromhex(elm) for elm in lines]
+          unpkld_lines = [pickle.loads(elm) for elm in decoded_lines]
+          return unpkld_lines
+        except EOFError as err:
+          with open('hd216.err.log','a') as f:
+            f.write(stackprinter.format(err))
+          raise
+    else:
+      deserializers = [pickle.loads,jsonpickle.decode,repr]
+      deserialized = []
+      for obj, obj_type in serialized_objs:
+        for deserializer in deserializers:
+          try:
+            from ipdb import set_trace as st; st()
+            ds = deserializer(obj)
+            deserialized.append(ds)
+            break
+          except:
+            continue
+        raise Exception(f'cannot serialize {obj=}')
+      return deserialized
 
   def dispatch_exception(self, frame, arg):
     self.user_exception(frame, arg)
@@ -282,13 +301,13 @@ class HiDefTracer:
     if return_value:
       try:
         pkl = pickle.dumps(return_value)
-        # print(f'{pkl=}')
-        self.serialized_data.append( {pkl,'pkl'} )
+        print(f'{pkl=}')
+        self.serialized_data.append( {'pkl',pkl} )
       except:
         try:
           jpkl = jsonpickle.encode(return_value)
-          # print(f'{jpkl=}')
-          self.serialized_data.append( (jpkl,'jpkl') )
+          print(f'{jpkl=}')
+          self.serialized_data.append( ('jpkl',jpkl) )
         except:
           with open('user_return.log','w') as f:
             f.write(stackprinter.format(sys.exc_info()))

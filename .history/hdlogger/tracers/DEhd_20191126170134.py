@@ -241,7 +241,7 @@ class HiDefTracer:
             break
           except:
             continue
-        raise Exception(f'cannot serialize {obj=}')
+        raise Exception('should never reach here')
       return deserialized
 
   def dispatch_exception(self, frame, arg):

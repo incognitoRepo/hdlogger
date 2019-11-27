@@ -215,6 +215,14 @@ class HiDefTracer:
     self.user_return(frame, arg)
     return self.trace_dispatch
 
+
+def f(funcs):
+  for func in funcs:
+    try:
+      return func(obj)
+  raise Exception('should never reach here')
+
+
   def deserialize(self,serialized_objs):
     """Load each item that was previously written to disk."""
     with open('serialized_objs.log','a') as f: f.write(f"{serialized_objs=}")
@@ -238,10 +246,19 @@ class HiDefTracer:
           try:
             ds = deserializer(obj)
             deserialized.append(ds)
-            break
+      raise Exception('should never reach here')
+
+        try:
+          unpkld = pickle.loads(obj)
+          deserialized.append(unpkld)
+        except:
+          try:
+            unjpkld = jsonpickle.decode(obj)
+            deserialized.append(unjpkld)
           except:
-            continue
-        raise Exception(f'cannot serialize {obj=}')
+            with open('hd230.err.log','a') as f:
+              f.write(stackprinter.format(sys.exc_info()))
+            raise
       return deserialized
 
   def dispatch_exception(self, frame, arg):
@@ -415,3 +432,16 @@ if __name__ == '__main__':
 
 
 
+def a(x):
+  print(1)
+  print(x)
+
+def b(x):
+  print(2)
+  print(x)
+
+def c(x):
+  print(3)
+  print(x)
+
+def f(serializer):

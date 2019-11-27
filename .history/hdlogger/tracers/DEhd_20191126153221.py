@@ -1,4 +1,4 @@
-import sys, os, linecache, collections, inspect, threading, stackprinter, pickle, jsonpickle
+import sys, os, linecache, collections, inspect, threading, stackprinter, jsonpickle
 from functools import singledispatchmethod, cached_property
 from pathlib import Path
 from typing import Callable
@@ -44,19 +44,6 @@ def c(s,arg=None):
 def write_file(obj,filename,mode='w'):
   with open(filename,mode) as f:
     f.write(obj)
-
-def first_true(iterable, default=False, pred=None):
-    """Returns the first true value in the iterable.
-
-    If no true value is found, returns *default*
-
-    If *pred* is not None, returns the first item
-    for which pred(item) is true.
-
-    """
-    # first_true([a,b,c], x) --> a or b or c or x
-    # first_true([a,b], x, f) --> a if f(a) else b if f(b) else x
-    return next(filter(pred, iterable), default)
 
 class State:
   SYS_PREFIX_PATHS = set((
@@ -231,17 +218,20 @@ class HiDefTracer:
             f.write(stackprinter.format(err))
           raise
     else:
-      deserializers = [pickle.loads,jsonpickle.decode]
       deserialized = []
       for obj, obj_type in serialized_objs:
-        for deserializer in deserializers:
+        with open('obj.log','a') as f: f.write(f"{obj=}\n{type(obj)}")
+        try:
+          unpkld = pickle.loads(obj)
+          deserialized.append(unpkld)
+        except:
           try:
-            ds = deserializer(obj)
-            deserialized.append(ds)
-            break
+            unjpkld = jsonpickle.decode(obj)
+            deserialized.append(unjpkld)
           except:
-            continue
-        raise Exception(f'cannot serialize {obj=}')
+            with open('hd230.err.log','a') as f:
+              f.write(stackprinter.format(sys.exc_info()))
+            raise
       return deserialized
 
   def dispatch_exception(self, frame, arg):
@@ -412,6 +402,3 @@ def main():
 
 if __name__ == '__main__':
   main()
-
-
-

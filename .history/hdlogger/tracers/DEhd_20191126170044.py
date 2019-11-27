@@ -239,9 +239,7 @@ class HiDefTracer:
             ds = deserializer(obj)
             deserialized.append(ds)
             break
-          except:
-            continue
-        raise Exception(f'cannot serialize {obj=}')
+        raise Exception('should never reach here')
       return deserialized
 
   def dispatch_exception(self, frame, arg):
@@ -415,3 +413,16 @@ if __name__ == '__main__':
 
 
 
+def a(x):
+  print(1)
+  print(x)
+
+def b(x):
+  print(2)
+  print(x)
+
+def c(x):
+  print(3)
+  print(x)
+
+def f(serializer):

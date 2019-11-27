@@ -215,6 +215,14 @@ class HiDefTracer:
     self.user_return(frame, arg)
     return self.trace_dispatch
 
+
+def f(funcs):
+  for func in funcs:
+    try:
+      return func(obj)
+  raise Exception('should never reach here')
+
+
   def deserialize(self,serialized_objs):
     """Load each item that was previously written to disk."""
     with open('serialized_objs.log','a') as f: f.write(f"{serialized_objs=}")
@@ -239,9 +247,7 @@ class HiDefTracer:
             ds = deserializer(obj)
             deserialized.append(ds)
             break
-          except:
-            continue
-        raise Exception(f'cannot serialize {obj=}')
+        raise Exception('should never reach here')
       return deserialized
 
   def dispatch_exception(self, frame, arg):
@@ -415,3 +421,16 @@ if __name__ == '__main__':
 
 
 
+def a(x):
+  print(1)
+  print(x)
+
+def b(x):
+  print(2)
+  print(x)
+
+def c(x):
+  print(3)
+  print(x)
+
+def f(serializer):

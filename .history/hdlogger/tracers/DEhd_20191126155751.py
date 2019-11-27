@@ -1,4 +1,4 @@
-import sys, os, linecache, collections, inspect, threading, stackprinter, pickle, jsonpickle
+import sys, os, linecache, collections, inspect, threading, stackprinter, jsonpickle
 from functools import singledispatchmethod, cached_property
 from pathlib import Path
 from typing import Callable
@@ -231,17 +231,24 @@ class HiDefTracer:
             f.write(stackprinter.format(err))
           raise
     else:
-      deserializers = [pickle.loads,jsonpickle.decode]
+      serializers = [pickle.loads,jsonpickle.decode]
       deserialized = []
       for obj, obj_type in serialized_objs:
-        for deserializer in deserializers:
+        deserializer = first_true(serialized_objs,default=repr,pred=lambda serializer: serializer(obj))
+        deserialized = deserializer(obj)
+
+        with open('obj.log','a') as f: f.write(f"{obj=}\n{type(obj)}")
+        try:
+          unpkld = pickle.loads(obj)
+          deserialized.append(unpkld)
+        except:
           try:
-            ds = deserializer(obj)
-            deserialized.append(ds)
-            break
+            unjpkld = jsonpickle.decode(obj)
+            deserialized.append(unjpkld)
           except:
-            continue
-        raise Exception(f'cannot serialize {obj=}')
+            with open('hd230.err.log','a') as f:
+              f.write(stackprinter.format(sys.exc_info()))
+            raise
       return deserialized
 
   def dispatch_exception(self, frame, arg):
@@ -412,6 +419,3 @@ def main():
 
 if __name__ == '__main__':
   main()
-
-
-

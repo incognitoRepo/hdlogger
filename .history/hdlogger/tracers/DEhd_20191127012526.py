@@ -245,35 +245,11 @@ class HiDefTracer:
   def reduce():
     callable_for_creation = 'a'
 
-class FakeFrame:
-  def __init__(self):
-    self.f_lineno = None
-
-def pickle_frame(frame):
-  return ( FakeFrame, tuple(), {'f_lineno': str(frame.f_lineno)} )
-
-cf = inspect.currentframe()
 
 f = io.BytesIO()
 p = pickle.Pickler(f)
 p.dispatch_table = copyreg.dispatch_table.copy()
 p.dispatch_table[SomeClass] = reduce_SomeClass
-
-f = io.BytesIO()
-p = pickle.Pickler(f)
-p.dispatch_table = copyreg.dispatch_table.copy()
-p.dispatch_table[FrameType] = pickle_frame
-p.dump(cf)
-u = pickle.Unpickler(f)
-objs = u.load()
-
-
-f = io.BytesIO()
-p = pickle.Pickler(f)
-p.dispatch_table = copyreg.dispatch_table.copy()
-p.dispatch_table[type(cf)] = pickle_frame
-
-
 creates an instance of pickle.Pickler with a private dispatch table which handles the SomeClass class specially. Alternatively, the code
 
 class MyPickler(pickle.Pickler):

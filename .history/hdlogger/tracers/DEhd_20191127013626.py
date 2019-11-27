@@ -250,7 +250,7 @@ class FakeFrame:
     self.f_lineno = None
 
 def pickle_frame(frame):
-  return ( FakeFrame, tuple(), {'f_lineno': str(frame.f_lineno)} )
+  return FakeFrame, {'f_lineno': str(frame.f_lineno)}
 
 cf = inspect.currentframe()
 
@@ -263,10 +263,7 @@ f = io.BytesIO()
 p = pickle.Pickler(f)
 p.dispatch_table = copyreg.dispatch_table.copy()
 p.dispatch_table[FrameType] = pickle_frame
-p.dump(cf)
-u = pickle.Unpickler(f)
-objs = u.load()
-
+p.dumps(cf)
 
 f = io.BytesIO()
 p = pickle.Pickler(f)

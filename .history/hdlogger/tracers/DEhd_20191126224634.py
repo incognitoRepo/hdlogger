@@ -2,7 +2,7 @@ import sys, os, linecache, collections, inspect, threading, stackprinter, pickle
 from functools import singledispatchmethod, cached_property
 from pathlib import Path
 from typing import Callable
-from types import FunctionType, GeneratorType, FrameType
+from types import FunctionType, GeneratorType
 from bdb import BdbQuit
 from hunter.const import SYS_PREFIX_PATHS
 from inspect import CO_GENERATOR, CO_COROUTINE, CO_ASYNC_GENERATOR
@@ -228,10 +228,7 @@ class HiDefTracer:
 
   def serialize(self,obj):
     dispatch_table = copyreg.dispatch_table.copy()
-    def pickle_frame(frame):
-      return f"{frame.f_lineno}"
-    dispatch_table[FrameType] = pickle_frame
-
+    dispatch_table[]
     try:
       jpkl = jsonpickle.encode(obj)
       self.serialized_data.append(jpkl)
@@ -245,35 +242,11 @@ class HiDefTracer:
   def reduce():
     callable_for_creation = 'a'
 
-class FakeFrame:
-  def __init__(self):
-    self.f_lineno = None
-
-def pickle_frame(frame):
-  return ( FakeFrame, tuple(), {'f_lineno': str(frame.f_lineno)} )
-
-cf = inspect.currentframe()
 
 f = io.BytesIO()
 p = pickle.Pickler(f)
 p.dispatch_table = copyreg.dispatch_table.copy()
 p.dispatch_table[SomeClass] = reduce_SomeClass
-
-f = io.BytesIO()
-p = pickle.Pickler(f)
-p.dispatch_table = copyreg.dispatch_table.copy()
-p.dispatch_table[FrameType] = pickle_frame
-p.dump(cf)
-u = pickle.Unpickler(f)
-objs = u.load()
-
-
-f = io.BytesIO()
-p = pickle.Pickler(f)
-p.dispatch_table = copyreg.dispatch_table.copy()
-p.dispatch_table[type(cf)] = pickle_frame
-
-
 creates an instance of pickle.Pickler with a private dispatch table which handles the SomeClass class specially. Alternatively, the code
 
 class MyPickler(pickle.Pickler):

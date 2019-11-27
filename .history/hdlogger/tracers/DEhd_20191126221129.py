@@ -1,4 +1,4 @@
-import sys, os, linecache, collections, inspect, threading, stackprinter, pickle, jsonpickle, copyreg
+import sys, os, linecache, collections, inspect, threading, stackprinter, pickle, jsonpickle
 from functools import singledispatchmethod, cached_property
 from pathlib import Path
 from typing import Callable
@@ -226,18 +226,6 @@ class HiDefTracer:
           f.write(repr(obj)+"\n\n"+stackprinter.format(sys.exc_info()))
     return deserialized
 
-  def serialize(self,obj):
-    dispatch_table = copyreg.dispatch_table.copy()
-    dispatch_table[]
-    try:
-      jpkl = jsonpickle.encode(obj)
-      self.serialized_data.append(jpkl)
-      return jpkl
-    except:
-      with open('serialize284.err.log','w') as f:
-        f.write(stackprinter.format(sys.exc_info()))
-      raise SystemExit
-
 
 f = io.BytesIO()
 p = pickle.Pickler(f)
@@ -305,6 +293,16 @@ p = pickle.Pickler(f)
   def user_return_w_itertools_tee(self, frame, return_value):
     # TODO
     pass
+
+  def serialize(self,obj):
+    try:
+      jpkl = jsonpickle.encode(obj)
+      self.serialized_data.append(jpkl)
+      return jpkl
+    except:
+      with open('serialize284.err.log','w') as f:
+        f.write(stackprinter.format(sys.exc_info()))
+      raise SystemExit
 
   def user_return(self, frame, return_value):
     print('user_return')

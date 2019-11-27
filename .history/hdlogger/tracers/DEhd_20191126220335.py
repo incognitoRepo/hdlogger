@@ -1,4 +1,4 @@
-import sys, os, linecache, collections, inspect, threading, stackprinter, pickle, jsonpickle, copyreg
+import sys, os, linecache, collections, inspect, threading, stackprinter, pickle, jsonpickle
 from functools import singledispatchmethod, cached_property
 from pathlib import Path
 from typing import Callable
@@ -226,36 +226,6 @@ class HiDefTracer:
           f.write(repr(obj)+"\n\n"+stackprinter.format(sys.exc_info()))
     return deserialized
 
-  def serialize(self,obj):
-    dispatch_table = copyreg.dispatch_table.copy()
-    dispatch_table[]
-    try:
-      jpkl = jsonpickle.encode(obj)
-      self.serialized_data.append(jpkl)
-      return jpkl
-    except:
-      with open('serialize284.err.log','w') as f:
-        f.write(stackprinter.format(sys.exc_info()))
-      raise SystemExit
-
-
-f = io.BytesIO()
-p = pickle.Pickler(f)
-p.dispatch_table = copyreg.dispatch_table.copy()
-p.dispatch_table[SomeClass] = reduce_SomeClass
-creates an instance of pickle.Pickler with a private dispatch table which handles the SomeClass class specially. Alternatively, the code
-
-class MyPickler(pickle.Pickler):
-    dispatch_table = copyreg.dispatch_table.copy()
-    dispatch_table[SomeClass] = reduce_SomeClass
-f = io.BytesIO()
-p = MyPickler(f)
-does the same, but all instances of MyPickler will by default share the same dispatch table. The equivalent code using the copyreg module is
-
-copyreg.pickle(SomeClass, reduce_SomeClass)
-f = io.BytesIO()
-p = pickle.Pickler(f)
-
   def dispatch_exception(self, frame, arg):
     self.user_exception(frame, arg)
     return self.trace_dispatch
@@ -305,6 +275,16 @@ p = pickle.Pickler(f)
   def user_return_w_itertools_tee(self, frame, return_value):
     # TODO
     pass
+
+  def serialize(self,obj):
+    try:
+      jpkl = jsonpickle.encode(obj)
+      self.serialized_data.append(jpkl)
+      return jpkl
+    except:
+      with open('serialize284.err.log','w') as f:
+        f.write(stackprinter.format(sys.exc_info()))
+      raise SystemExit
 
   def user_return(self, frame, return_value):
     print('user_return')

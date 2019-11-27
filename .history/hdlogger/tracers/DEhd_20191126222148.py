@@ -1,4 +1,4 @@
-import sys, os, linecache, collections, inspect, threading, stackprinter, pickle, jsonpickle, copyreg
+import sys, os, linecache, collections, inspect, threading, stackprinter, pickle, jsonpickle
 from functools import singledispatchmethod, cached_property
 from pathlib import Path
 from typing import Callable
@@ -227,8 +227,6 @@ class HiDefTracer:
     return deserialized
 
   def serialize(self,obj):
-    dispatch_table = copyreg.dispatch_table.copy()
-    dispatch_table[]
     try:
       jpkl = jsonpickle.encode(obj)
       self.serialized_data.append(jpkl)

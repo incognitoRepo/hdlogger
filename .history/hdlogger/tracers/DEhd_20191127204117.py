@@ -218,9 +218,8 @@ class HiDefTracer:
   def deserialize(self,serialized_objs):
     """Load each item that was previously written to disk."""
     l = []
-    for obj_as_hex in serialized_objs:
-      pickled_obj = bytes.fromhex(obj_as_hex)
-      deserialized = pickle.loads(pickled_obj)
+    for obj in serialized_objs:
+      deserialized = pickle.loads(obj)
       l.append(deserialized)
     return l
 

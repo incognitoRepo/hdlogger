@@ -237,10 +237,10 @@ class HiDefTracer:
     p.dispatch_table = copyreg.dispatch_table.copy()
     p.dispatch_table[FrameType] = pickle_frame
     p.dump(obj)
-    pickled_bytes = b.getvalue()
+
     with open('f.getvalue.log','wb') as f:
-      f.write(pickled_bytes)
-    self.serialized_data.append(pickled_bytes)
+      f.write(f.getvalue())
+    self.serialized_data.append(f.getvalue())
 
     # try:
     #   jpkl = jsonpickle.encode(obj)

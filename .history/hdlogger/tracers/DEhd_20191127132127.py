@@ -1,5 +1,5 @@
 import sys, os, io, linecache, collections, inspect, threading, stackprinter, jsonpickle, copyreg
-import pickle
+import dill as pickle
 from functools import singledispatchmethod, cached_property
 from pathlib import Path
 from typing import Callable
@@ -217,11 +217,23 @@ class HiDefTracer:
 
   def deserialize(self,serialized_objs):
     """Load each item that was previously written to disk."""
-    l = []
+    f = io.BytesIO()
+    p = pickle.Pickler(f)
+    p.dispatch_table = copyreg.dispatch_table.copy()
+    p.dispatch_table[FrameType] = pickle_frame
+    p.dump(obj)
+    return f.getvalue()
+
+
+    deserializers = {'jpkl':jsonpickle.decode,'repr':repr}
+    deserialized = []
     for obj in serialized_objs:
-      deserialized = pickle.loads(obj)
-      l.append(deserialized)
-    return l
+      try:
+        obj_deserialized = pickle.loads(obj)
+      except:
+        with open('deserialize240.err.log','w') as f:
+          f.write(repr(obj)+"\n\n"+stackprinter.format(sys.exc_info()))
+    return deserialized
 
   def serialize(self,obj):
     class FakeFrame:

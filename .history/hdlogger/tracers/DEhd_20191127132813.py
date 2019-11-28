@@ -1,5 +1,5 @@
 import sys, os, io, linecache, collections, inspect, threading, stackprinter, jsonpickle, copyreg
-import pickle
+import dill as pickle
 from functools import singledispatchmethod, cached_property
 from pathlib import Path
 from typing import Callable
@@ -215,13 +215,9 @@ class HiDefTracer:
     self.user_return(frame, arg)
     return self.trace_dispatch
 
-  def deserialize(self,serialized_objs):
+  def deserialize(self,serialized_obj):
     """Load each item that was previously written to disk."""
-    l = []
-    for obj in serialized_objs:
-      deserialized = pickle.loads(obj)
-      l.append(deserialized)
-    return l
+    return pickle.loads(serialized_obj)
 
   def serialize(self,obj):
     class FakeFrame:

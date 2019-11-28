@@ -1,5 +1,5 @@
 import sys, os, io, linecache, collections, inspect, threading, stackprinter, jsonpickle, copyreg
-import pickle
+import dill as pickle
 from functools import singledispatchmethod, cached_property
 from pathlib import Path
 from typing import Callable

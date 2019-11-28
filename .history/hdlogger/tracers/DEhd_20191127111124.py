@@ -1,5 +1,5 @@
-import sys, os, io, linecache, collections, inspect, threading, stackprinter, jsonpickle, copyreg
-import pickle
+import sys, os, linecache, collections, inspect, threading, stackprinter, jsonpickle, copyreg
+import dill as pickle
 from functools import singledispatchmethod, cached_property
 from pathlib import Path
 from typing import Callable
@@ -174,7 +174,7 @@ class HiDefTracer:
 
   def __init__(self):
     self.state = None
-    self.return_values = []
+    self.return_value = None
     self.serialized_data = []
 
   def trace_dispatch(self, frame, event, arg):
@@ -217,11 +217,15 @@ class HiDefTracer:
 
   def deserialize(self,serialized_objs):
     """Load each item that was previously written to disk."""
-    l = []
+    deserializers = {'jpkl':jsonpickle.decode,'repr':repr}
+    deserialized = []
     for obj in serialized_objs:
-      deserialized = pickle.loads(obj)
-      l.append(deserialized)
-    return l
+      try:
+        obj_deserialized = deserializers[obj_type](obj)
+      except:
+        with open('deserialize240.err.log','w') as f:
+          f.write(repr(obj)+"\n\n"+stackprinter.format(sys.exc_info()))
+    return deserialized
 
   def serialize(self,obj):
     class FakeFrame:
@@ -239,14 +243,14 @@ class HiDefTracer:
     p.dump(obj)
     return f.getvalue()
 
-    # try:
-    #   jpkl = jsonpickle.encode(obj)
-    #   self.serialized_data.append(jpkl)
-    #   return jpkl
-    # except:
-    #   with open('serialize284.err.log','w') as f:
-    #     f.write(stackprinter.format(sys.exc_info()))
-    #   raise SystemExit
+    try:
+      jpkl = jsonpickle.encode(obj)
+      self.serialized_data.append(jpkl)
+      return jpkl
+    except:
+      with open('serialize284.err.log','w') as f:
+        f.write(stackprinter.format(sys.exc_info()))
+      raise SystemExit
 
   def dispatch_exception(self, frame, arg):
     self.user_exception(frame, arg)
@@ -302,10 +306,7 @@ class HiDefTracer:
     print('user_return')
     print(self.state.format_return)
     if return_value:
-      self.return_values.append(return_value)
       serialized = self.serialize(return_value)
-      self.serialized_data.append(serialized)
-
 
   def user_exception(self, frame, exc_info):
     print('user_exception')

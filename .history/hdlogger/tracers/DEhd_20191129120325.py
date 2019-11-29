@@ -8,7 +8,7 @@ from types import FunctionType, GeneratorType, FrameType
 from bdb import BdbQuit
 from hunter.const import SYS_PREFIX_PATHS
 from inspect import CO_GENERATOR, CO_COROUTINE, CO_ASYNC_GENERATOR
-from ..data_structures import TraceHookCallbackException
+from ..data_structures import
 
 GENERATOR_AND_COROUTINE_FLAGS = CO_GENERATOR | CO_COROUTINE | CO_ASYNC_GENERATOR # 672
 WRITE = True
@@ -260,15 +260,10 @@ class HiDefTracer:
 
   def dispatch_return(self, frame, arg):
     """note: there are a few `special cases` wrt `arg`"""
-    try:
-      TraceHookCallbackException(**d)
-    except ValidationError as e:
-      print(e.json())
-      raise
-    # if isinstance(arg,GeneratorType):
-    #   g_state = inspect.getgeneratorstate(arg)
-    #   g_locals = inspect.getgeneratorlocals(arg)
-    #   arg = f"<generator object: state:{g_state.lower()} locals:{g_locals} id:{hex(id(self._arg))}>"
+    if isinstance(arg,GeneratorType):
+      g_state = inspect.getgeneratorstate(arg)
+      g_locals = inspect.getgeneratorlocals(arg)
+      arg = f"<generator object: state:{g_state.lower()} locals:{g_locals} id:{hex(id(self._arg))}>"
     self.user_return(frame, arg)
     return self.trace_dispatch
 

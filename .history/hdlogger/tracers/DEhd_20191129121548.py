@@ -265,10 +265,10 @@ class HiDefTracer:
     except ValidationError as e:
       print(e.json())
       raise
-    # if isinstance(arg,GeneratorType):
-    #   g_state = inspect.getgeneratorstate(arg)
-    #   g_locals = inspect.getgeneratorlocals(arg)
-    #   arg = f"<generator object: state:{g_state.lower()} locals:{g_locals} id:{hex(id(self._arg))}>"
+    if isinstance(arg,GeneratorType):
+      g_state = inspect.getgeneratorstate(arg)
+      g_locals = inspect.getgeneratorlocals(arg)
+      arg = f"<generator object: state:{g_state.lower()} locals:{g_locals} id:{hex(id(self._arg))}>"
     self.user_return(frame, arg)
     return self.trace_dispatch
 

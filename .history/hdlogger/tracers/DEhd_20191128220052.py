@@ -94,40 +94,71 @@ class State:
     self._return = None
     self._exception = None
     self.initialize_copyreg()
-    self.serialized_arg = self.serialize_arg()
+    self.serialize_arg()
+
+  def serialize_arg(self):
 
   def initialize_copyreg(self):
-    def pickle_generator(gen):
-      kwds = {
-        'state': inspect.getgeneratorstate(gen),
-        'locals': inspect.getgeneratorlocals(gen),
-        'id': hex(id(gen))
-      }
-      return unpickle, (kwds,)
 
-    def pickle_frame(frame):
-      kwds = {'f_fileno':frame.f_lineno}
-      return unpickle, (kwds,)
 
-    def unpickle(kwds):
-      Unpickleable = type('Unpickleable',(), dict.fromkeys(kwds))
-      return Unpickeable(**kwds)
-
+  @property
+  def serialize_arg(self):
     special_cases = [(GeneratorType,pickle_generator), (FrameType,pickle_frame)]
     for special_case in special_cases:
       copyreg.pickle(*special_case)
-
-  def serialize_arg(self):
     _as_bytes = pickle.dumps(self._arg)
     _as_hex = _as_bytes.hex()
-    with open('logs/state.serialize_arg.log','a') as f: f.write(_as_hex)
-    return _as_hex
+    with open('state.serialize_arg','w') as f: f.write(_as_hex)
+
+  def pickler_init(self):
+
+    def pickle_generator(gen):
+      kwds = {
+        'state': inspect.getgeneratorstate(self._arg),
+        'locals': inspect.getgeneratorlocals(self._arg),
+      }
+      g_state = inspect.getgeneratorstate(self._arg)
+      g_locals = inspect.getgeneratorlocals(self._arg)
+      s = f"<generator object: state:{g_state.lower()} locals:{g_locals} id:{hex(id(self._arg))}>"
+      return Unpickleable, ()
+
+    def pickle_frame(frame):
+      kwds = frame.__dict__
+      kwds['version'] = 2
+      return unpickle_frame, ({'f_lineno':frame.f_lineno},)
+
+    def unpickle_frame(kwds):
+      version = kwds.pop('version',1)
+      Unpickleable = type('Unpickleable',(), dict.fromkeys(kwds))
+      return Unpickeable(**kwds)
+
+    f = inspect.currentframe()
+    try:
+      pickle.dumps(f); print(1)
+    except:
+      copyreg.pickle(FrameType,pickle_frame)
+      pickle.dumps(f); print(2)
+
+
+
+    b = io.BytesIO()
+    p = pickle.Pickler(b)
+    p.dispatch_table = copyreg.dispatch_table.copy()
+    p.dispatch_table[FrameType] = pickle_frame
+    p.dump(obj)
+    pickled_bytes = b.getvalue()
+    pickled_bytes_as_hex = pickled_bytes.hex()
+    with open('logs/f.getvalue.log','w') as f:
+      f.write(pickled_bytes_as_hex)
+    self.serialized_data.append(pickled_bytes_as_hex)
+
+# TODO copyreg.pickle(FrameType,pickle_frame)
 
   def deserialize_arbitrary_pyobj(self,serialized_pyobj):
     def _deserialize(hexo):
       b = bytes.fromhex(hexo)
       deserialized = dill.loads(b)
-      with open('logs/state.deserialized.log','a') as f: f.write(str(deserialized))
+      with open('state.deserialized.log','a') as f: f.write(str(deserialized))
       return deserialized
     if isinstance(serialized_pyobj,bytes):
       deserialized = _deserialize(b)
@@ -137,6 +168,7 @@ class State:
       return deserialized
     else:
       raise SystemExit(f'cannot deserialize {serialized_pyobj}')
+
 
   def serialize_arbitrary_pyobj(self,pyobj):
     _as_bytes = dill.dumps(pyobj)
@@ -349,8 +381,9 @@ class HiDefTracer:
     print('user_return')
     print(self.state.format_return)
     if return_value:
-      assert self.state._arg == return_value, f"{self.state._arg=}, {return_value=}"
       self.return_values.append(return_value)
+      serialized = self.serialize(return_value)
+
 
   def user_exception(self, frame, exc_info):
     print('user_exception')

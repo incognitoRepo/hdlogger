@@ -1,9 +1,9 @@
 import sys, os, io, linecache, collections, inspect, threading, stackprinter, jsonpickle, copyreg
-import pickle, dill
+import pickle
 from itertools import count
 from functools import singledispatchmethod, cached_property
 from pathlib import Path
-from typing import Callable, Iterable
+from typing import Callable
 from types import FunctionType, GeneratorType, FrameType
 from bdb import BdbQuit
 from hunter.const import SYS_PREFIX_PATHS
@@ -70,7 +70,6 @@ class State:
   counter = count(0)
 
   def __init__(self, frame, event, arg):
-    with open('logs/state.arg.log','a') as f: f.write(repr(arg)+"\n")
     self.frame = frame
     self.event = event
     self._arg = arg
@@ -93,56 +92,6 @@ class State:
     self._line = None
     self._return = None
     self._exception = None
-    self.initialize_copyreg()
-    self.serialized_arg = self.serialize_arg()
-
-  def initialize_copyreg(self):
-    def pickle_generator(gen):
-      kwds = {
-        'state': inspect.getgeneratorstate(gen),
-        'locals': inspect.getgeneratorlocals(gen),
-        'id': hex(id(gen))
-      }
-      return unpickle, (kwds,)
-
-    def pickle_frame(frame):
-      kwds = {'f_fileno':frame.f_lineno}
-      return unpickle, (kwds,)
-
-    def unpickle(kwds):
-      Unpickleable = type('Unpickleable',(), dict.fromkeys(kwds))
-      return Unpickeable(**kwds)
-
-    special_cases = [(GeneratorType,pickle_generator), (FrameType,pickle_frame)]
-    for special_case in special_cases:
-      copyreg.pickle(*special_case)
-
-  def serialize_arg(self):
-    _as_bytes = pickle.dumps(self._arg)
-    _as_hex = _as_bytes.hex()
-    with open('logs/state.serialize_arg.log','a') as f: f.write(_as_hex)
-    return _as_hex
-
-  def deserialize_arbitrary_pyobj(self,serialized_pyobj):
-    def _deserialize(hexo):
-      b = bytes.fromhex(hexo)
-      deserialized = dill.loads(b)
-      with open('logs/state.deserialized.log','a') as f: f.write(str(deserialized))
-      return deserialized
-    if isinstance(serialized_pyobj,bytes):
-      deserialized = _deserialize(b)
-      return deserialized
-    elif isinstance(serialized_pyobj,Iterable):
-      deserialized = [_deserialize(obj) for obj in serialized_pyobj]
-      return deserialized
-    else:
-      raise SystemExit(f'cannot deserialize {serialized_pyobj}')
-
-  def serialize_arbitrary_pyobj(self,pyobj):
-    _as_bytes = dill.dumps(pyobj)
-    serialized = _as_bytes.hex()
-    with open('state.serialized.log','a') as f: f.write(serialized)
-    return serialized
 
   @property
   def arg(self):
@@ -151,7 +100,6 @@ class State:
       g_locals = inspect.getgeneratorlocals(self._arg)
       s = f"<generator object: state:{g_state.lower()} locals:{g_locals} id:{hex(id(self._arg))}>"
       return s
-    elif self._arg is None: return ""
     return self._arg
 
   @cached_property
@@ -169,7 +117,7 @@ class State:
     try:
       sub_s = ", ".join(self.arg)
     except:
-      with open('logs/format_call.log','a') as f: f.write(self.arg)
+      with open('format_call.log','a') as f: f.write(fmtd_args_str)
       raise SystemExit()
     s = (
       f"{self.index:>5}|{self.format_filename}:{self.lineno:<5}{c(self.event):9} "
@@ -228,7 +176,6 @@ class HiDefTracer:
     self.serialized_data = []
 
   def trace_dispatch(self, frame, event, arg):
-    with open('logs/hdlog.arg.log','a') as f: f.write(repr(arg)+'\n')
     self.state = State(frame,event,arg)
     # if self.quitting:
       # return # None
@@ -291,7 +238,7 @@ class HiDefTracer:
     p.dump(obj)
     pickled_bytes = b.getvalue()
     pickled_bytes_as_hex = pickled_bytes.hex()
-    with open('logs/f.getvalue.log','w') as f:
+    with open('f.getvalue.log','w') as f:
       f.write(pickled_bytes_as_hex)
     self.serialized_data.append(pickled_bytes_as_hex)
 
@@ -349,8 +296,9 @@ class HiDefTracer:
     print('user_return')
     print(self.state.format_return)
     if return_value:
-      assert self.state._arg == return_value, f"{self.state._arg=}, {return_value=}"
       self.return_values.append(return_value)
+      serialized = self.serialize(return_value)
+
 
   def user_exception(self, frame, exc_info):
     print('user_exception')

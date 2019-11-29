@@ -1,9 +1,8 @@
 import sys, os, io, linecache, collections, inspect, threading, stackprinter, jsonpickle, copyreg
-import pickle, dill
-from itertools import count
+import pickle
 from functools import singledispatchmethod, cached_property
 from pathlib import Path
-from typing import Callable, Iterable
+from typing import Callable
 from types import FunctionType, GeneratorType, FrameType
 from bdb import BdbQuit
 from hunter.const import SYS_PREFIX_PATHS
@@ -67,14 +66,11 @@ class State:
     os.path.dirname(os.__file__),
     os.path.dirname(collections.__file__),
   ))
-  counter = count(0)
 
   def __init__(self, frame, event, arg):
-    with open('logs/state.arg.log','a') as f: f.write(repr(arg)+"\n")
     self.frame = frame
     self.event = event
     self._arg = arg
-    self.index = next(State.counter)
     self.initialize()
 
   def initialize(self):
@@ -93,56 +89,6 @@ class State:
     self._line = None
     self._return = None
     self._exception = None
-    self.initialize_copyreg()
-    self.serialized_arg = self.serialize_arg()
-
-  def initialize_copyreg(self):
-    def pickle_generator(gen):
-      kwds = {
-        'state': inspect.getgeneratorstate(gen),
-        'locals': inspect.getgeneratorlocals(gen),
-        'id': hex(id(gen))
-      }
-      return unpickle, (kwds,)
-
-    def pickle_frame(frame):
-      kwds = {'f_fileno':frame.f_lineno}
-      return unpickle, (kwds,)
-
-    def unpickle(kwds):
-      Unpickleable = type('Unpickleable',(), dict.fromkeys(kwds))
-      return Unpickeable(**kwds)
-
-    special_cases = [(GeneratorType,pickle_generator), (FrameType,pickle_frame)]
-    for special_case in special_cases:
-      copyreg.pickle(*special_case)
-
-  def serialize_arg(self):
-    _as_bytes = pickle.dumps(self._arg)
-    _as_hex = _as_bytes.hex()
-    with open('logs/state.serialize_arg.log','a') as f: f.write(_as_hex)
-    return _as_hex
-
-  def deserialize_arbitrary_pyobj(self,serialized_pyobj):
-    def _deserialize(hexo):
-      b = bytes.fromhex(hexo)
-      deserialized = dill.loads(b)
-      with open('logs/state.deserialized.log','a') as f: f.write(str(deserialized))
-      return deserialized
-    if isinstance(serialized_pyobj,bytes):
-      deserialized = _deserialize(b)
-      return deserialized
-    elif isinstance(serialized_pyobj,Iterable):
-      deserialized = [_deserialize(obj) for obj in serialized_pyobj]
-      return deserialized
-    else:
-      raise SystemExit(f'cannot deserialize {serialized_pyobj}')
-
-  def serialize_arbitrary_pyobj(self,pyobj):
-    _as_bytes = dill.dumps(pyobj)
-    serialized = _as_bytes.hex()
-    with open('state.serialized.log','a') as f: f.write(serialized)
-    return serialized
 
   @property
   def arg(self):
@@ -151,7 +97,6 @@ class State:
       g_locals = inspect.getgeneratorlocals(self._arg)
       s = f"<generator object: state:{g_state.lower()} locals:{g_locals} id:{hex(id(self._arg))}>"
       return s
-    elif self._arg is None: return ""
     return self._arg
 
   @cached_property
@@ -166,13 +111,18 @@ class State:
     self.stack.append(f"{self.module}.{self.function}")
     if self._call:
       return self._call
+    hunter_args = self.frame.f_code.co_varnames[:self.frame.f_code.co_argcount]
+    fmtmap = lambda var: f"{c(var,'vars')}={repr(self.frame.f_locals.get(var, 'MISSING'))}"
     try:
-      sub_s = ", ".join(self.arg)
+      sub_s = ", ".join([fmtmap(var) for var in hunter_args])
     except:
-      with open('logs/format_call.log','a') as f: f.write(self.arg)
-      raise SystemExit()
+      with open('format_call.log','a') as f:
+        f.write(
+          f"\n{hunter_args=}\n{self.frame.f_locals.keys()=}\n"
+        )
+      sub_s = ', '.join([type(var).__name__ for var in hunter_args])
     s = (
-      f"{self.index:>5}|{self.format_filename}:{self.lineno:<5}{c(self.event):9} "
+      f"{self.format_filename}:{self.lineno:<5}{c(self.event):9} "
       f"{ws(spaces=len(self.stack) - 1)}{c('=>',arg='call')} "
       f"{self.function}({sub_s})\n"
     )
@@ -186,7 +136,7 @@ class State:
     if self._line:
       return self._line
     s = (
-      f"{self.index:>5}|{self.format_filename}:{self.lineno:<5}{c(self.event):9} "
+      f"{self.format_filename}:{self.lineno:<5}{c(self.event):9} "
       f"{ws(spaces=len(self.stack))}{c('  ',arg='line')} "
       f"{self.source}\n"
     )
@@ -198,7 +148,7 @@ class State:
     if self._return:
       return self._return
     s = (
-      f"{self.index:>5}|{self.format_filename}:{self.lineno:<5}{c(self.event):9} "
+      f"{self.format_filename}:{self.lineno:<5}{c(self.event):9} "
       f"{ws(spaces=len(self.stack) - 1)}{c('<=',arg='return')} "
       f"{self.function}: {self.arg}"
     )
@@ -212,7 +162,7 @@ class State:
     if self._return:
       return self._return
     s = (
-      f"{self.index:>5}|{self.format_filename}:{self.lineno:<5}{c(self.event):9} "
+      f"{self.format_filename}:{self.lineno:<5}{c(self.event):9} "
       f"{ws(spaces=len(self.stack) - 1)}{c(' !',arg='call')} "
       f"{self.function}: {self.arg}"
     )
@@ -221,14 +171,13 @@ class State:
 
 
 class HiDefTracer:
-
+  counter = 0
   def __init__(self):
     self.state = None
     self.return_values = []
     self.serialized_data = []
 
   def trace_dispatch(self, frame, event, arg):
-    with open('logs/hdlog.arg.log','a') as f: f.write(repr(arg)+'\n')
     self.state = State(frame,event,arg)
     # if self.quitting:
       # return # None
@@ -291,7 +240,7 @@ class HiDefTracer:
     p.dump(obj)
     pickled_bytes = b.getvalue()
     pickled_bytes_as_hex = pickled_bytes.hex()
-    with open('logs/f.getvalue.log','w') as f:
+    with open('f.getvalue.log','w') as f:
       f.write(pickled_bytes_as_hex)
     self.serialized_data.append(pickled_bytes_as_hex)
 
@@ -349,8 +298,9 @@ class HiDefTracer:
     print('user_return')
     print(self.state.format_return)
     if return_value:
-      assert self.state._arg == return_value, f"{self.state._arg=}, {return_value=}"
       self.return_values.append(return_value)
+      serialized = self.serialize(return_value)
+
 
   def user_exception(self, frame, exc_info):
     print('user_exception')

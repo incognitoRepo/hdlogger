@@ -94,7 +94,7 @@ class State:
     self._return = None
     self._exception = None
     self.initialize_copyreg()
-    self.serialized_arg = self.serialize_arg()
+    self.serialize_arg()
 
   def initialize_copyreg(self):
     def pickle_generator(gen):
@@ -121,7 +121,7 @@ class State:
     _as_bytes = pickle.dumps(self._arg)
     _as_hex = _as_bytes.hex()
     with open('logs/state.serialize_arg.log','a') as f: f.write(_as_hex)
-    return _as_hex
+    self.serialized_data.append(pickled_bytes_as_hex)
 
   def deserialize_arbitrary_pyobj(self,serialized_pyobj):
     def _deserialize(hexo):
@@ -349,8 +349,9 @@ class HiDefTracer:
     print('user_return')
     print(self.state.format_return)
     if return_value:
-      assert self.state._arg == return_value, f"{self.state._arg=}, {return_value=}"
       self.return_values.append(return_value)
+      serialized = self.serialize(return_value)
+
 
   def user_exception(self, frame, exc_info):
     print('user_exception')

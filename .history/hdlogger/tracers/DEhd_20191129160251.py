@@ -1,7 +1,5 @@
 import sys, os, io, linecache, collections, inspect, threading, stackprinter, jsonpickle, copyreg, traceback
-import dill as pickle
-from pickle import PicklingError
-# dill.Pickler.dispatch
+import pickle, dill
 from itertools import count
 from functools import singledispatchmethod, cached_property
 from pathlib import Path
@@ -118,34 +116,29 @@ class State:
     self.serialized_arg = self.serialize_arg()
 
   def initialize_copyreg(self):
-    special_cases = [
-      (GeneratorType,pickle_generator),
-      (FrameType,pickle_frame),
-    ]
+    special_cases = [(GeneratorType,pickle_generator),
+    (FrameType,pickle_frame),]
     for special_case in special_cases:
       copyreg.pickle(*special_case)
 
-  def serialize_arg(self):
     if self.event == "return" and self.arg is not None:
       self.arg = TraceHookCallbackReturn(**{'return_value':self.arg})
     if self.event == "exception" and self.arg is not None:
       try:
-        kwds = dict(zip(['etype','value','tb'],self.arg))
-        self.arg = TraceHookCallbackException(**kwds)
+        kwds = dict(zip(['etype','value','traceback'],self.arg))
+        exc_info = TraceHookCallbackException(**kwds)
       except ValidationError as e:
-        with open('logs/dispatch_exception.log','a') as f:
-          f.write(stackprinter.format(e)+"\n\n\n"+stackprinter.format(sys.exc_info()))
+        with open('logs/dispatch_exception.log','a') as f: f.write(str(self.arg))
+        print(e.json())
         raise
       except:
-        with open('logs/dispatch_exception.log','a') as f:
-          f.write(stackprinter.format(sys.exc_info()))
+        print(stackprinter.format(sys.exc_info()))
         raise
+      self.arg = TraceHookCallbackException(**dict(zip(['etype','value','tb'],self.arg)))
 
+  def serialize_arg(self):
     try:
       _as_bytes = pickle.dumps(self.arg)
-    except (PicklingError,TypeError) as e:
-      _as_json = jsonpickle.encode(self.arg)
-      _as_bytes = pickle.dumps(_as_json)
     except:
       with open('logs/serialize_arg.err.log','a') as f:
         f.write(stackprinter.format(sys.exc_info())+"\n\n"+stackprinter.format())

@@ -1,7 +1,6 @@
 from pydantic import BaseModel, ValidationError
 from typing import Type, Any
 from types import TracebackType
-import traceback
 
 """self._arg = (<class 'KeyError'>, KeyError(b'LANGUAGE'), <traceback object at 0x11317f380>, )"""
 
@@ -39,22 +38,8 @@ class PydanticTraceback(BaseException):
 class TraceHookCallbackException(BaseModel):
   etype: Type[BaseException] # class
   value: PydanticBaseException # instance
-  tb: PydanticTraceback
+  traceback: PydanticTraceback
 
-  def __getstate__(self):
-    state = self.__dict__.copy()
-    state['tb'] = traceback.format_tb(self.tb)
-    return state
-
-  def __setstate__(self, state):
-    self.__dict__.update(state)
 
 class TraceHookCallbackReturn(BaseModel):
   return_value: Any
-
-  def __getstate__(self):
-    state = self.__dict__.copy()
-    return state
-
-  def __setstate__(self, state):
-    self.__dict__.update(state)

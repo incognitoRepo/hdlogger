@@ -1,6 +1,6 @@
 import sys, os, io, linecache, collections, inspect, threading, stackprinter, jsonpickle, copyreg, traceback
-import dill as pickle
-from pickle import PicklingError
+import pickle, dill
+pickle = dill
 # dill.Pickler.dispatch
 from itertools import count
 from functools import singledispatchmethod, cached_property
@@ -143,7 +143,7 @@ class State:
 
     try:
       _as_bytes = pickle.dumps(self.arg)
-    except (PicklingError,TypeError) as e:
+    except PicklingError as e:
       _as_json = jsonpickle.encode(self.arg)
       _as_bytes = pickle.dumps(_as_json)
     except:

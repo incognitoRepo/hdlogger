@@ -1,7 +1,5 @@
 import sys, os, io, linecache, collections, inspect, threading, stackprinter, jsonpickle, copyreg, traceback
-import dill as pickle
-from pickle import PicklingError
-# dill.Pickler.dispatch
+import pickle, dill
 from itertools import count
 from functools import singledispatchmethod, cached_property
 from pathlib import Path
@@ -64,6 +62,24 @@ def first_true(iterable, default=False, pred=None):
     # first_true([a,b], x, f) --> a if f(a) else b if f(b) else x
     return next(filter(pred, iterable), default)
 
+def pickle_exc_arg(exc_arg):
+  try:
+    kwds = dict(exc_arg)
+    kwds['tb'] = traceback.format_tb(exc_arg[-1])
+    return TraceHookCallbackException, (kwds,),
+  except:
+    with open('logs/pickle_exc_arg.log','w') as f: f.write(stackprinter.format(sys.exc_info()))
+    raise SystemExit
+
+def pickle_ret_arg(ret_arg):
+  try:
+    kwds = dict(ret_arg)
+    kwds['return_value'] = repr(ret_arg)
+    return TraceHookCallbackReturn, (kwds,),
+  except:
+    with open('logs/pickle_ret_arg.log','w') as f: f.write(stackprinter.format(sys.exc_info()))
+    raise SystemExit
+
 def pickle_generator(gen):
   kwds = {
     'state': inspect.getgeneratorstate(gen),
@@ -118,37 +134,21 @@ class State:
     self.serialized_arg = self.serialize_arg()
 
   def initialize_copyreg(self):
-    special_cases = [
-      (GeneratorType,pickle_generator),
-      (FrameType,pickle_frame),
-    ]
+    special_cases = [(GeneratorType,pickle_generator),
+    (FrameType,pickle_frame),]
     for special_case in special_cases:
       copyreg.pickle(*special_case)
 
-  def serialize_arg(self):
-    if self.event == "return" and self.arg is not None:
+    if self.event == "return":
       self.arg = TraceHookCallbackReturn(**{'return_value':self.arg})
-    if self.event == "exception" and self.arg is not None:
-      try:
-        kwds = dict(zip(['etype','value','tb'],self.arg))
-        self.arg = TraceHookCallbackException(**kwds)
-      except ValidationError as e:
-        with open('logs/dispatch_exception.log','a') as f:
-          f.write(stackprinter.format(e)+"\n\n\n"+stackprinter.format(sys.exc_info()))
-        raise
-      except:
-        with open('logs/dispatch_exception.log','a') as f:
-          f.write(stackprinter.format(sys.exc_info()))
-        raise
+    if self.event == "exception":
+      self.arg = TraceHookCallbackException(**dict(zip(['etype','value','tb'],self.arg)))
 
+  def serialize_arg(self):
     try:
-      _as_bytes = pickle.dumps(self.arg)
-    except (PicklingError,TypeError) as e:
-      _as_json = jsonpickle.encode(self.arg)
-      _as_bytes = pickle.dumps(_as_json)
+      _as_bytes = pickle.dumps(self.arg) if not getattr(self,'narg',None) else pickle.dumps(self.narg)
     except:
-      with open('logs/serialize_arg.err.log','a') as f:
-        f.write(stackprinter.format(sys.exc_info())+"\n\n"+stackprinter.format())
+      with open('logs/serialize_arg.err.log','a') as f: f.write(stackprinter.format(sys.exc_info())+"\n\n"+stackprinter.format())
       raise
     _as_hex = _as_bytes.hex()
     with open('logs/state.serialize_arg.log','a') as f: f.write(_as_hex)
@@ -300,6 +300,17 @@ class HiDefTracer:
     return self.trace_dispatch
 
   def dispatch_exception(self, frame, arg):
+    if arg is not None:
+      try:
+        with open('logs/dispatch_exception.log','a') as f: f.write(str(arg))
+        kwds = dict(zip(['etype','value','traceback'],arg))
+        exc_info = TraceHookCallbackException(**kwds)
+      except ValidationError as e:
+        print(e.json())
+        raise
+      except:
+        print(stackprinter.format(sys.exc_info()))
+        raise
     self.user_exception(frame, arg)
     return self.trace_dispatch
 
@@ -382,7 +393,7 @@ class HiDefTracer:
     print('user_return')
     print(self.state.format_return)
     if return_value:
-      assert self.state.arg.return_value == return_value, f"{self.state.arg=}, {return_value=}"
+      assert self.state.arg == return_value, f"{self.state.arg=}, {return_value=}"
       self.return_values.append(return_value)
 
   def user_exception(self, frame, exc_info):

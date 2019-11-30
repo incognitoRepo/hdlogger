@@ -1,7 +1,6 @@
 from pydantic import BaseModel, ValidationError
-from typing import Type, Any
+from typing import Type
 from types import TracebackType
-import traceback
 
 """self._arg = (<class 'KeyError'>, KeyError(b'LANGUAGE'), <traceback object at 0x11317f380>, )"""
 
@@ -20,7 +19,7 @@ class PydanticTraceback(BaseException):
   """demo:
     try: 1/0
     except: exc = sys.exc_info()
-    d = dict(zip(['etype','value','traceback'],exc))
+    d = dict(zip(['klass','instance','traceback'],exc))
     try:
       TraceHookCallbackException(**d)
     except ValidationError as e:
@@ -37,24 +36,10 @@ class PydanticTraceback(BaseException):
     return v
 
 class TraceHookCallbackException(BaseModel):
-  etype: Type[BaseException] # class
-  value: PydanticBaseException # instance
-  tb: PydanticTraceback
+  klass: Type[BaseException]
+  instance: PydanticBaseException
+  traceback: PydanticTraceback
 
-  def __getstate__(self):
-    state = self.__dict__.copy()
-    state['tb'] = traceback.format_tb(self.tb)
-    return state
-
-  def __setstate__(self, state):
-    self.__dict__.update(state)
 
 class TraceHookCallbackReturn(BaseModel):
-  return_value: Any
-
-  def __getstate__(self):
-    state = self.__dict__.copy()
-    return state
-
-  def __setstate__(self, state):
-    self.__dict__.update(state)
+  pass

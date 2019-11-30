@@ -299,9 +299,9 @@ class HiDefTracer:
     self.user_exception(frame, arg)
     return self.trace_dispatch
 
-  def deserialize(self,bytesfile='logs/state.serialize_arg.log'):
+  def deserialize(self,filename='logs/tracer.deserialize_arg.log'):
     """Load each item that was previously written to disk."""
-    with open(bytesfile,'r') as f:
+    with open(filename,'r') as f:
       _lines_as_hex = f.readlines()
     l = []
     for line in _lines_as_hex:

@@ -206,7 +206,7 @@ class State:
     s = (
       f"{self.index:>5}|{self.format_filename}:{self.lineno:<5}{c(self.event):9} "
       f"{ws(spaces=len(self.stack))}{c('  ',arg='line')} "
-      f"{self.source.rstrip()}\n"
+      f"{self.source}\n"
     )
     self._line = s
     return s
@@ -299,16 +299,34 @@ class HiDefTracer:
     self.user_exception(frame, arg)
     return self.trace_dispatch
 
-  def deserialize(self,bytesfile='logs/state.serialize_arg.log'):
+  def deserialize(self,serialized_objs):
     """Load each item that was previously written to disk."""
-    with open(bytesfile,'r') as f:
-      _lines_as_hex = f.readlines()
     l = []
-    for line in _lines_as_hex:
-      _as_bytes = bytes.fromhex(line)
-      deserialized = pickle.loads(_as_bytes)
+    for obj_as_hex in serialized_objs:
+      pickled_obj = bytes.fromhex(obj_as_hex)
+      deserialized = pickle.loads(pickled_obj)
       l.append(deserialized)
     return l
+
+  def serialize(self,obj):
+    class FakeFrame:
+      def __init__(self):
+        self.f_lineno = None
+
+    def pickle_frame(frame):
+      # return f"{frame.f_lineno}"
+      return FakeFrame, (), {'f_lineno':2}
+
+    # b = io.BytesIO()
+    # p = pickle.Pickler(b)
+    # p.dispatch_table = copyreg.dispatch_table.copy()
+    # p.dispatch_table[FrameType] = pickle_frame
+    # p.dump(obj)
+    # pickled_bytes = b.getvalue()
+    # pickled_bytes_as_hex = pickled_bytes.hex()
+    with open('logs/f.getvalue.log','w') as f:
+      f.write(pickled_bytes_as_hex)
+    self.serialized_data.append(pickled_bytes_as_hex)
 
   def user_call(self, frame, argument_list):
     print('user_call')

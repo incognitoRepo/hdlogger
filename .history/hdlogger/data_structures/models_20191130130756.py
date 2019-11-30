@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel, ValidationError\
 from prettyprinter import pformat
 from typing import Type, Any, Optional
 from types import TracebackType

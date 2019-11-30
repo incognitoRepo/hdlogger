@@ -1,6 +1,5 @@
 from pydantic import BaseModel, ValidationError
-from prettyprinter import pformat
-from typing import Type, Any, Optional
+from typing import Type, Any, Union
 from types import TracebackType
 import traceback
 
@@ -42,9 +41,6 @@ class TraceHookCallbackException(BaseModel):
   value: PydanticBaseException # instance
   tb: Optional[PydanticTraceback]=None # traceback
 
-  def __str__(self):
-    return pformat(dict(self))
-
   def __getstate__(self):
     state = self.__dict__.copy()
     state['tb'] = traceback.format_tb(self.tb)
@@ -55,9 +51,6 @@ class TraceHookCallbackException(BaseModel):
 
 class TraceHookCallbackReturn(BaseModel):
   return_value: Any
-
-  def __str__(self):
-    return pformat(dict(self))
 
   def __getstate__(self):
     state = self.__dict__.copy()

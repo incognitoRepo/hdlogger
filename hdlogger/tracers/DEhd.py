@@ -1,4 +1,4 @@
-import sys, os, io, linecache, collections, inspect, threading, stackprinter, jsonpickle, copyreg, traceback
+import sys, os, io, linecache, collections, inspect, threading, stackprinter, jsonpickle, copyreg, traceback, logging
 import dill as pickle
 from pickle import PicklingError
 # dill.Pickler.dispatch
@@ -98,7 +98,8 @@ class State:
   counter = count(0)
 
   def __init__(self, frame, event, arg):
-    with open('logs/state.arg.log','a') as f: f.write(repr(arg)+"\n")
+    with open('logs/state.raw_arg.log','w') as f:
+      f.write(repr(arg)+"\n")
     self.frame = frame
     self.event = event
     self.arg = arg if arg else ""
@@ -150,30 +151,8 @@ class State:
 
     _as_hex = _as_bytes.hex()
     assert pickle.loads(bytes.fromhex(_as_hex)), f"{pickle.loads(bytes.fromhex(_as_hex))}"
-    with open('logs/state.serialize_arg.log','a') as f: f.write(_as_hex+"\n")
+    with open('logs/state.serialized_arg.log','a') as f: f.write(_as_hex+"\n")
     return _as_hex
-
-  def deserialize_arbitrary_pyobj(self,serialized_pyobj):
-    def _deserialize(hexo):
-      b = bytes.fromhex(hexo)
-      deserialized = dill.loads(b)
-      with open('logs/state.deserialized.log','a') as f: f.write(str(deserialized))
-      return deserialized
-    if isinstance(serialized_pyobj,bytes):
-      deserialized = _deserialize(b)
-      return deserialized
-    elif isinstance(serialized_pyobj,Iterable):
-      deserialized = [_deserialize(obj) for obj in serialized_pyobj]
-      return deserialized
-    else:
-      raise SystemExit(f'cannot deserialize {serialized_pyobj}')
-
-  def serialize_arbitrary_pyobj(self,pyobj):
-    _as_bytes = dill.dumps(pyobj)
-    serialized = _as_bytes.hex()
-    with open('state.serialized.log','a') as f: f.write(serialized)
-    return serialized
-
 
   @cached_property
   def format_filename(self):
@@ -195,10 +174,9 @@ class State:
     s = (
       f"{self.index:>5}|{self.format_filename}:{self.lineno:<5}{c(self.event):9} "
       f"{ws(spaces=len(self.stack) - 1)}{c('=>',arg='call')} "
-      f"{self.function}({sub_s})\n"
+      f"{self.function}({sub_s})"
     )
     self._call = s
-    # TODO: this is a perfect place for logging.debug()
 
     return s
 
@@ -209,7 +187,7 @@ class State:
     s = (
       f"{self.index:>5}|{self.format_filename}:{self.lineno:<5}{c(self.event):9} "
       f"{ws(spaces=len(self.stack))}{c('  ',arg='line')} "
-      f"{self.source.rstrip()}\n"
+      f"{self.source.rstrip()}"
     )
     self._line = s
     return s
@@ -250,7 +228,7 @@ class HiDefTracer:
     initialize_copyreg()
 
   def trace_dispatch(self, frame, event, arg):
-    with open('logs/hdlog.arg.log','a') as f: f.write(repr(arg)+'\n')
+    with open('logs/tracer.arg.log','a') as f: f.write(repr(arg)+'\n')
     self.state = State(frame,event,arg)
     # if self.quitting:
       # return # None
@@ -283,7 +261,7 @@ class HiDefTracer:
     """note: there are a few `special cases` wrt `arg`"""
     if arg is not None:
       try:
-        with open('logs/dispatch_return.log','a') as f: f.write(str(arg))
+        # with open('logs/dispatch_return.log','a') as f: f.write(str(arg))
         kwds = {'return_value': arg}
         TraceHookCallbackReturn(**kwds)
       except ValidationError as e:
@@ -292,10 +270,6 @@ class HiDefTracer:
       except:
         print(stackprinter.format(sys.exc_info()))
         raise
-    # if isinstance(arg,GeneratorType):
-    #   g_state = inspect.getgeneratorstate(arg)
-    #   g_locals = inspect.getgeneratorlocals(arg)
-    #   arg = f"<generator object: state:{g_state.lower()} locals:{g_locals} id:{hex(id(self._arg))}>"
     self.user_return(frame, arg)
     return self.trace_dispatch
 
@@ -303,7 +277,7 @@ class HiDefTracer:
     self.user_exception(frame, arg)
     return self.trace_dispatch
 
-  def deserialize(self,bytesfile='logs/state.serialize_arg.log'):
+  def deserialize(self,bytesfile='logs/state.serialized_arg.log'):
     """Load each item that was previously written to disk."""
     with open(bytesfile,'r') as f:
       _lines_as_hex = f.readlines()

@@ -98,7 +98,7 @@ class State:
   counter = count(0)
 
   def __init__(self, frame, event, arg):
-    logging.debug(f'logs/state.arg.log {repr(arg)}\n')
+    with open('logs/state.arg.log','a') as f: f.write(repr(arg)+"\n")
     self.frame = frame
     self.event = event
     self.arg = arg if arg else ""
@@ -142,10 +142,14 @@ class State:
 
     try:
       _as_bytes = pickle.dumps(self.arg)
+      assert pickle.loads(_as_bytes), f"{pickle.loads(_as_bytes)}"
     except:
       _as_json = jsonpickle.encode(self.arg)
       _as_bytes = pickle.dumps(_as_json)
+      assert pickle.loads(_as_bytes), f"{pickle.loads(_as_bytes)}"
+
     _as_hex = _as_bytes.hex()
+    assert pickle.loads(bytes.fromhex(_as_hex)), f"{pickle.loads(bytes.fromhex(_as_hex))}"
     with open('logs/state.serialize_arg.log','a') as f: f.write(_as_hex+"\n")
     return _as_hex
 
@@ -169,7 +173,6 @@ class State:
     serialized = _as_bytes.hex()
     with open('state.serialized.log','a') as f: f.write(serialized)
     return serialized
-
 
   @cached_property
   def format_filename(self):
@@ -246,7 +249,7 @@ class HiDefTracer:
     initialize_copyreg()
 
   def trace_dispatch(self, frame, event, arg):
-    logging.debug(f'logs/trace_dispatch.arg.log {repr(arg)}\n')
+    with open('logs/hdlog.arg.log','a') as f: f.write(repr(arg)+'\n')
     self.state = State(frame,event,arg)
     # if self.quitting:
       # return # None
@@ -279,7 +282,7 @@ class HiDefTracer:
     """note: there are a few `special cases` wrt `arg`"""
     if arg is not None:
       try:
-        with open('logs/dispatch_return.log','a') as f: f.write(str(arg))
+        # with open('logs/dispatch_return.log','a') as f: f.write(str(arg))
         kwds = {'return_value': arg}
         TraceHookCallbackReturn(**kwds)
       except ValidationError as e:
@@ -288,10 +291,6 @@ class HiDefTracer:
       except:
         print(stackprinter.format(sys.exc_info()))
         raise
-    # if isinstance(arg,GeneratorType):
-    #   g_state = inspect.getgeneratorstate(arg)
-    #   g_locals = inspect.getgeneratorlocals(arg)
-    #   arg = f"<generator object: state:{g_state.lower()} locals:{g_locals} id:{hex(id(self._arg))}>"
     self.user_return(frame, arg)
     return self.trace_dispatch
 
@@ -304,13 +303,16 @@ class HiDefTracer:
     with open(bytesfile,'r') as f:
       _lines_as_hex = f.readlines()
     l = []
-    for line in _lines_as_hex:
+    for i,line in enumerate(_lines_as_hex):
       try:
+        print(i,line)
         _as_bytes = bytes.fromhex(line)
+        deserialized = pickle.loads(_as_bytes)
       except:
-        with open('logs/deserialize.err.log','w') as f:
+        with open('logs/deserialize.err.log','a') as f:
+          f.write(f"{i=}\n{line=}\n\n")
           f.write(stackprinter.format(sys.exc_info()))
-      deserialized = pickle.loads(_as_bytes)
+        raise
       l.append(deserialized)
       with open('logs/tracer.deserialized_arg.log','a') as f:
         f.write(str(deserialized)+"\n")

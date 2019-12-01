@@ -88,6 +88,7 @@ def initialize_copyreg():
   for special_case in special_cases:
     copyreg.pickle(*special_case)
 
+
 class State:
   SYS_PREFIX_PATHS = set((
     sys.prefix,
@@ -121,8 +122,16 @@ class State:
     self._line = None
     self._return = None
     self._exception = None
-    initialize_copyreg()
+    self.initialize_copyreg()
     self.serialized_arg = self.serialize_arg()
+
+  def initialize_copyreg(self):
+    special_cases = [
+      (GeneratorType,pickle_generator),
+      (FrameType,pickle_frame),
+    ]
+    for special_case in special_cases:
+      copyreg.pickle(*special_case)
 
   def serialize_arg(self):
     if self.event == "return" and self.arg is not None:
@@ -243,7 +252,6 @@ class HiDefTracer:
     self.state = None
     self.return_values = []
     self.serialized_data = []
-    initialize_copyreg()
 
   def trace_dispatch(self, frame, event, arg):
     with open('logs/hdlog.arg.log','a') as f: f.write(repr(arg)+'\n')
@@ -304,16 +312,13 @@ class HiDefTracer:
     with open(bytesfile,'r') as f:
       _lines_as_hex = f.readlines()
     l = []
-    for i,line in enumerate(_lines_as_hex):
+    for line in _lines_as_hex:
       try:
-        print(i,line)
         _as_bytes = bytes.fromhex(line)
-        deserialized = pickle.loads(_as_bytes)
       except:
-        with open('logs/deserialize.err.log','a') as f:
-          f.write(f"{i=}\n{line=}\n\n")
+        with open('logs/deserialize.err.log','w') as f:
           f.write(stackprinter.format(sys.exc_info()))
-        raise
+      deserialized = pickle.loads(_as_bytes)
       l.append(deserialized)
       with open('logs/tracer.deserialized_arg.log','a') as f:
         f.write(str(deserialized)+"\n")

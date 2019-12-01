@@ -306,7 +306,6 @@ class HiDefTracer:
     l = []
     for i,line in enumerate(_lines_as_hex):
       try:
-        print(i,line)
         _as_bytes = bytes.fromhex(line)
         deserialized = pickle.loads(_as_bytes)
       except:

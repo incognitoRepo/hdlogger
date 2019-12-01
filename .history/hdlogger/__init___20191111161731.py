@@ -13,7 +13,3 @@ from .core import (
 from .tracers import (
   traceTracer
 )
-from .data_structures import (
-  TraceHookCallbackException,
-  TraceHookCallbackReturn,
-)

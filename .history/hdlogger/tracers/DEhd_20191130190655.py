@@ -304,16 +304,14 @@ class HiDefTracer:
     with open(bytesfile,'r') as f:
       _lines_as_hex = f.readlines()
     l = []
-    for i,line in enumerate(_lines_as_hex):
+    for line in _lines_as_hex:
       try:
-        print(i,line)
         _as_bytes = bytes.fromhex(line)
         deserialized = pickle.loads(_as_bytes)
       except:
         with open('logs/deserialize.err.log','a') as f:
-          f.write(f"{i=}\n{line=}\n\n")
+          f.write(f"{line=}\n\n")
           f.write(stackprinter.format(sys.exc_info()))
-        raise
       l.append(deserialized)
       with open('logs/tracer.deserialized_arg.log','a') as f:
         f.write(str(deserialized)+"\n")

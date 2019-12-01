@@ -305,12 +305,10 @@ class HiDefTracer:
       _lines_as_hex = f.readlines()
     l = []
     for line in _lines_as_hex:
-      print(line)
       _as_bytes = bytes.fromhex(line)
       deserialized = pickle.loads(_as_bytes)
       l.append(deserialized)
-      with open('logs/tracer.deserialized_arg.log','a') as f:
-        f.write(str(deserialized)+"\n")
+      with open('logs/tracer.deserialized_arg.log','a') as f: f.write(str(deserialized))
     return l
 
   def user_call(self, frame, argument_list):

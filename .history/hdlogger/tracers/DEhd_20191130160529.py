@@ -147,7 +147,7 @@ class State:
       _as_json = jsonpickle.encode(self.arg)
       _as_bytes = pickle.dumps(_as_json)
     _as_hex = _as_bytes.hex()
-    with open('logs/state.serialize_arg.log','a') as f: f.write(_as_hex+"\n")
+    with open('logs/state.serialize_arg.log','a') as f: f.write(_as_hex)
     return _as_hex
 
   def deserialize_arbitrary_pyobj(self,serialized_pyobj):
@@ -305,12 +305,10 @@ class HiDefTracer:
       _lines_as_hex = f.readlines()
     l = []
     for line in _lines_as_hex:
-      print(line)
       _as_bytes = bytes.fromhex(line)
       deserialized = pickle.loads(_as_bytes)
       l.append(deserialized)
-      with open('logs/tracer.deserialized_arg.log','a') as f:
-        f.write(str(deserialized)+"\n")
+      with open('logs/tracer.deserialized_arg.log','a') as f: f.write(deserialized)
     return l
 
   def user_call(self, frame, argument_list):

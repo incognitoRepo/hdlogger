@@ -305,7 +305,6 @@ class HiDefTracer:
       _lines_as_hex = f.readlines()
     l = []
     for line in _lines_as_hex:
-      print(line)
       _as_bytes = bytes.fromhex(line)
       deserialized = pickle.loads(_as_bytes)
       l.append(deserialized)

@@ -2,7 +2,6 @@ import sys, os, io, linecache, collections, inspect, threading, stackprinter, js
 import dill as pickle
 from pickle import PicklingError
 # dill.Pickler.dispatch
-from prettyprinter import pformat
 from itertools import count
 from functools import singledispatchmethod, cached_property
 from pathlib import Path
@@ -94,6 +93,7 @@ class StateFormatter:
     self,
     index, filename, lineno, event, indent, symbol,
     source=None, function=None, arg=None):
+    assert indent and len(indent) > 1, indent
     self.index = index
     self.filename = filename
     self.lineno = lineno
@@ -117,12 +117,6 @@ class StateFormatter:
     )
 
     return s
-
-def safer_repr(obj):
-  try:
-    return repr(obj)
-  except:
-    return f"{obj.__module__}.{obj.__class__.__name__}"
 
 class State:
   SYS_PREFIX_PATHS = set((
@@ -153,6 +147,7 @@ class State:
     self.code = self.frame.f_code
     self.stdlib = True if self.filename.startswith(SYS_PREFIX_PATHS) else False
     self.source = linecache.getline(self.filename, self.lineno, self.frame.f_globals)
+    State.stack = []
     self._call = None
     self._line = None
     self._return = None
@@ -199,34 +194,52 @@ class State:
   stack = []
   @property
   def format_call(self):
-    if self._call: return self._call
     State.stack.append(f"{self.module}.{self.function}")
-    assert not self.arg, f"{self.arg.keys()=}\n{self.frame.f_locals.keys()=}"
-    arg = [f"{k}={safer_repr(v)}" for k,v in self.frame.f_locals.items()]
+    if self._call:
+      return self._call
+    try:
+      sub_s = ", ".join(self.arg)
+    except:
+      with open('logs/format_call.log','a') as f: f.write(self.arg)
+      raise SystemExit()
     s = StateFormatter(
       self.index, self.format_filename, self.lineno,
       self.event, "\u0020" * (len(State.stack)-1), "=>",
-      function=self.function, arg=f"({pformat(arg)})")
+      function=self.function, arg=f"({', '.join(self.arg)})")
+    # s = (
+    #   f"{self.index:>5}|{self.format_filename}:{self.lineno:<5}|{c(self.event):9} |"
+    #   f"{ws(spaces=len(State.stack) - 1)}|{c('=>',arg='call')} |"
+    #   f"{self.function}|({sub_s})|")
     self._call = s
     return s
 
   @property
   def format_line(self):
-    if self._line: return self._line
+    if self._line:
+      return self._line
     s = StateFormatter(
       self.index, self.format_filename, self.lineno,
       self.event, "\u0020" * len(State.stack), "  ",
-      source=self.source)
+      source=self.source.rstrip())
+    # s = (
+    #   f"{self.index:>5}|{self.format_filename}:{self.lineno:<5}|{c(self.event):9} |"
+    #   f"{ws(spaces=len(State.stack))}|{c('  ',arg='line')} |"
+    #   f"{self.source.rstrip()}|")
     self._line = s
     return s
 
   @property
   def format_return(self):
-    if self._return: return self._return
+    if self._return:
+      return self._return
     s = StateFormatter(
       self.index, self.format_filename, self.lineno,
       self.event, "\u0020" * (len(State.stack)-1), "<=",
       function=f"{self.function}: ", arg=self.arg)
+    # s = (
+      # f"{self.index:>5}|{self.format_filename}:{self.lineno:<5}|{c(self.event):9} |"
+      # f"{ws(spaces=len(State.stack) - 1)}|{c('<=',arg='return')} |"
+      # f"{self.function}: |{self.arg}|")
     self._return = s
     if State.stack and State.stack[-1] == f"{self.module}.{self.function}":
       State.stack.pop()
@@ -240,6 +253,10 @@ class State:
       self.index, self.format_filename, self.lineno,
       self.event, "\u0020" * (len(State.stack)-1), " !",
       function=f"{self.function}: ", arg=self.arg)
+    # s = (
+    #   f"{self.index:>5}|{self.format_filename}:{self.lineno:<5}|{c(self.event):9} |"
+    #   f"{ws(spaces=len(State.stack) - 1)}|{c(' !',arg='call')} |"
+    #   f"{self.function}: |{self.arg}|")
     self._return = s
     return s
 
@@ -392,7 +409,7 @@ class HiDefTracer:
         self.onecmd(line)
       self.lastcmd = lastcmd_back
       if not self.commands_silent[currentbp]:
-        self.print_stack_entry(self.stack[self.curindex])
+        self.print_stack_entry(State.stack[self.curindex])
       if self.commands_doprompt[currentbp]:
         self._cmdloop()
       self.forget()

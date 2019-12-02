@@ -2,7 +2,6 @@ import sys, os, io, linecache, collections, inspect, threading, stackprinter, js
 import dill as pickle
 from pickle import PicklingError
 # dill.Pickler.dispatch
-from prettyprinter import pformat
 from itertools import count
 from functools import singledispatchmethod, cached_property
 from pathlib import Path
@@ -104,25 +103,30 @@ class StateFormatter:
     self.function = function
     self.arg = arg
 
-  def __str__(self,color=False):
-    if self.source:
-      line = self.source
-    else:
-      line = self.function + str(self.arg)
+  def __str__(self):
 
     s = (
-      f"{self.index:>5}|{self.filename}:{self.lineno:<5}|{self.event:9} |"
-      f"{self.indent}|{self.symbol} |"
-      f"{line}|"
+      f"{self.index:>5}|{self.format_filename}:{self.lineno:<5}|{c(self.event):9} |"
+      f"{self.indent}|{self.symbol}"
+      f""
     )
 
-    return s
-
-def safer_repr(obj):
-  try:
-    return repr(obj)
-  except:
-    return f"{obj.__module__}.{obj.__class__.__name__}"
+    s = (
+      f"{self.index:>5}|{self.format_filename}:{self.lineno:<5}|{c(self.event):9} |"
+      f"{ws(spaces=len(self.stack) - 1)}|{c('=>',arg='call')} |"
+      f"{ws(spaces=len(self.stack))}|{c('  ',arg='line')} |"
+      f"{ws(spaces=len(self.stack) - 1)}|{c('<=',arg='return')} |"
+      f"{ws(spaces=len(self.stack) - 1)}|{c(' !',arg='call')} |"
+      f"{self.function}|({sub_s})|"
+    )
+    s = (
+      f"{self.source.rstrip()}|"
+    )
+    s = (
+      f"{self.function}: |{self.arg}|"
+    )
+    s = (
+      f"{self.function}: |{self.arg}|"
 
 class State:
   SYS_PREFIX_PATHS = set((
@@ -153,6 +157,7 @@ class State:
     self.code = self.frame.f_code
     self.stdlib = True if self.filename.startswith(SYS_PREFIX_PATHS) else False
     self.source = linecache.getline(self.filename, self.lineno, self.frame.f_globals)
+    self.stack = []
     self._call = None
     self._line = None
     self._return = None
@@ -196,40 +201,57 @@ class State:
     stem = f"{filename.stem:>10.10}"
     return stem
 
-  stack = []
   @property
   def format_call(self):
-    if self._call: return self._call
-    State.stack.append(f"{self.module}.{self.function}")
-    assert not self.arg, f"{self.arg.keys()=}\n{self.frame.f_locals.keys()=}"
-    arg = [f"{k}={safer_repr(v)}" for k,v in self.frame.f_locals.items()]
+    self.stack.append(f"{self.module}.{self.function}")
+    if self._call:
+      return self._call
+    try:
+      sub_s = ", ".join(self.arg)
+    except:
+      with open('logs/format_call.log','a') as f: f.write(self.arg)
+      raise SystemExit()
     s = StateFormatter(
       self.index, self.format_filename, self.lineno,
-      self.event, "\u0020" * (len(State.stack)-1), "=>",
-      function=self.function, arg=f"({pformat(arg)})")
+      self.event, ws(spaces=len(self.stack) - 1), "=>",
+      function=self.function, arg=f"({', '.join(self.arg)})")
+    # s = (
+    #   f"{self.index:>5}|{self.format_filename}:{self.lineno:<5}|{c(self.event):9} |"
+    #   f"{ws(spaces=len(self.stack) - 1)}|{c('=>',arg='call')} |"
+    #   f"{self.function}|({sub_s})|")
     self._call = s
     return s
 
   @property
   def format_line(self):
-    if self._line: return self._line
+    if self._line:
+      return self._line
     s = StateFormatter(
       self.index, self.format_filename, self.lineno,
-      self.event, "\u0020" * len(State.stack), "  ",
-      source=self.source)
+      self.event, ws(spaces=len(self.stack)), "  ",
+      source=self.source.rstrip())
+    # s = (
+    #   f"{self.index:>5}|{self.format_filename}:{self.lineno:<5}|{c(self.event):9} |"
+    #   f"{ws(spaces=len(self.stack))}|{c('  ',arg='line')} |"
+    #   f"{self.source.rstrip()}|")
     self._line = s
     return s
 
   @property
   def format_return(self):
-    if self._return: return self._return
+    if self._return:
+      return self._return
     s = StateFormatter(
       self.index, self.format_filename, self.lineno,
-      self.event, "\u0020" * (len(State.stack)-1), "<=",
-      function=f"{self.function}: ", arg=self.arg)
+      self.event, ws(spaces=len(self.stack) - 1), "<=",
+      function=f"{self.function}: ", arg= self.arg)
+    # s = (
+      # f"{self.index:>5}|{self.format_filename}:{self.lineno:<5}|{c(self.event):9} |"
+      # f"{ws(spaces=len(self.stack) - 1)}|{c('<=',arg='return')} |"
+      # f"{self.function}: |{self.arg}|")
     self._return = s
-    if State.stack and State.stack[-1] == f"{self.module}.{self.function}":
-      State.stack.pop()
+    if self.stack and self.stack[-1] == f"{self.module}.{self.function}":
+      self.stack.pop()
     return s
 
   @property
@@ -238,8 +260,12 @@ class State:
       return self._return
     s = StateFormatter(
       self.index, self.format_filename, self.lineno,
-      self.event, "\u0020" * (len(State.stack)-1), " !",
+      self.event, ws(spaces=len(self.stack) - 1), " !",
       function=f"{self.function}: ", arg=self.arg)
+    # s = (
+    #   f"{self.index:>5}|{self.format_filename}:{self.lineno:<5}|{c(self.event):9} |"
+    #   f"{ws(spaces=len(self.stack) - 1)}|{c(' !',arg='call')} |"
+    #   f"{self.function}: |{self.arg}|")
     self._return = s
     return s
 

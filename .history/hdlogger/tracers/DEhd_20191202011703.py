@@ -2,7 +2,6 @@ import sys, os, io, linecache, collections, inspect, threading, stackprinter, js
 import dill as pickle
 from pickle import PicklingError
 # dill.Pickler.dispatch
-from prettyprinter import pformat
 from itertools import count
 from functools import singledispatchmethod, cached_property
 from pathlib import Path
@@ -206,7 +205,7 @@ class State:
     s = StateFormatter(
       self.index, self.format_filename, self.lineno,
       self.event, "\u0020" * (len(State.stack)-1), "=>",
-      function=self.function, arg=f"({pformat(arg)})")
+      function=self.function, arg=f"({'\n'.join(arg)})")
     self._call = s
     return s
 
@@ -216,7 +215,7 @@ class State:
     s = StateFormatter(
       self.index, self.format_filename, self.lineno,
       self.event, "\u0020" * len(State.stack), "  ",
-      source=self.source)
+      source=self.source.rstrip())
     self._line = s
     return s
 

@@ -2,7 +2,6 @@ import sys, os, io, linecache, collections, inspect, threading, stackprinter, js
 import dill as pickle
 from pickle import PicklingError
 # dill.Pickler.dispatch
-from prettyprinter import pformat
 from itertools import count
 from functools import singledispatchmethod, cached_property
 from pathlib import Path
@@ -118,12 +117,6 @@ class StateFormatter:
 
     return s
 
-def safer_repr(obj):
-  try:
-    return repr(obj)
-  except:
-    return f"{obj.__module__}.{obj.__class__.__name__}"
-
 class State:
   SYS_PREFIX_PATHS = set((
     sys.prefix,
@@ -153,6 +146,7 @@ class State:
     self.code = self.frame.f_code
     self.stdlib = True if self.filename.startswith(SYS_PREFIX_PATHS) else False
     self.source = linecache.getline(self.filename, self.lineno, self.frame.f_globals)
+    State.stack = []
     self._call = None
     self._line = None
     self._return = None
@@ -199,14 +193,12 @@ class State:
   stack = []
   @property
   def format_call(self):
-    if self._call: return self._call
     State.stack.append(f"{self.module}.{self.function}")
-    assert not self.arg, f"{self.arg.keys()=}\n{self.frame.f_locals.keys()=}"
-    arg = [f"{k}={safer_repr(v)}" for k,v in self.frame.f_locals.items()]
+    if self._call: return self._call
     s = StateFormatter(
       self.index, self.format_filename, self.lineno,
       self.event, "\u0020" * (len(State.stack)-1), "=>",
-      function=self.function, arg=f"({pformat(arg)})")
+      function=self.function, arg=f"({', '.join(self.arg)})")
     self._call = s
     return s
 
@@ -216,13 +208,14 @@ class State:
     s = StateFormatter(
       self.index, self.format_filename, self.lineno,
       self.event, "\u0020" * len(State.stack), "  ",
-      source=self.source)
+      source=self.source.rstrip())
     self._line = s
     return s
 
   @property
   def format_return(self):
-    if self._return: return self._return
+    if self._return:
+      return self._return
     s = StateFormatter(
       self.index, self.format_filename, self.lineno,
       self.event, "\u0020" * (len(State.stack)-1), "<=",
@@ -392,7 +385,7 @@ class HiDefTracer:
         self.onecmd(line)
       self.lastcmd = lastcmd_back
       if not self.commands_silent[currentbp]:
-        self.print_stack_entry(self.stack[self.curindex])
+        self.print_stack_entry(State.stack[self.curindex])
       if self.commands_doprompt[currentbp]:
         self._cmdloop()
       self.forget()

@@ -2,7 +2,6 @@ import sys, os, io, linecache, collections, inspect, threading, stackprinter, js
 import dill as pickle
 from pickle import PicklingError
 # dill.Pickler.dispatch
-from prettyprinter import pformat
 from itertools import count
 from functools import singledispatchmethod, cached_property
 from pathlib import Path
@@ -118,12 +117,6 @@ class StateFormatter:
 
     return s
 
-def safer_repr(obj):
-  try:
-    return repr(obj)
-  except:
-    return f"{obj.__module__}.{obj.__class__.__name__}"
-
 class State:
   SYS_PREFIX_PATHS = set((
     sys.prefix,
@@ -202,11 +195,11 @@ class State:
     if self._call: return self._call
     State.stack.append(f"{self.module}.{self.function}")
     assert not self.arg, f"{self.arg.keys()=}\n{self.frame.f_locals.keys()=}"
-    arg = [f"{k}={safer_repr(v)}" for k,v in self.frame.f_locals.items()]
+    arg = [f"{k}={str(v)}" for k,v in self.frame.f_locals.items()]
     s = StateFormatter(
       self.index, self.format_filename, self.lineno,
       self.event, "\u0020" * (len(State.stack)-1), "=>",
-      function=self.function, arg=f"({pformat(arg)})")
+      function=self.function, arg=f"({', '.join(arg)})")
     self._call = s
     return s
 
@@ -216,7 +209,7 @@ class State:
     s = StateFormatter(
       self.index, self.format_filename, self.lineno,
       self.event, "\u0020" * len(State.stack), "  ",
-      source=self.source)
+      source=self.source.rstrip())
     self._line = s
     return s
 

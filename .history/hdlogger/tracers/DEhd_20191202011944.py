@@ -216,7 +216,7 @@ class State:
     s = StateFormatter(
       self.index, self.format_filename, self.lineno,
       self.event, "\u0020" * len(State.stack), "  ",
-      source=self.source)
+      source=self.source.rstrip())
     self._line = s
     return s
 

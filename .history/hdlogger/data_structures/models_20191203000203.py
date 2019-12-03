@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ValidationError, validator, Field
+from pydantic import BaseModel, ValidationError, validator
 from prettyprinter import pformat
 import dill
 from typing import Type, Any, Optional, Dict
@@ -71,11 +71,10 @@ def pickle_compat_enforcer(obj):
   """i only need to make 1 distinction: container?"""
 
 class UnpickleableError(PydanticValueError):
-  code = 'incorrigibly_unpickeable'
-  msg_template = 'attempted `[pickle,jsonpickle,repr,str]` for "{type(v)=}"'
+  incorrageable
 
 class PickleableDict(BaseModel):
-  pick_dict: Optional[Dict[str, Any]] = Field(default=None)
+  pick_dict: Optional[Dict] = None
 
   @validator('pick_dict')
   def must_be_pickleable(cls, v):
@@ -88,7 +87,7 @@ class PickleableDict(BaseModel):
       except:
         with open('logs/models.pickleabledict.log','w') as f:
           f.write(stackprinter.format(sys.exc_info()))
-        raise UnpickleableError(v)
+        raise
 
   @classmethod
   def make_pickleable(dct):

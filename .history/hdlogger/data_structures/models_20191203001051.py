@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ValidationError, validator, Field
+from pydantic import BaseModel, ValidationError, validator
 from prettyprinter import pformat
 import dill
 from typing import Type, Any, Optional, Dict
@@ -75,7 +75,7 @@ class UnpickleableError(PydanticValueError):
   msg_template = 'attempted `[pickle,jsonpickle,repr,str]` for "{type(v)=}"'
 
 class PickleableDict(BaseModel):
-  pick_dict: Optional[Dict[str, Any]] = Field(default=None)
+  pick_dict: Optional[Dict] = None
 
   @validator('pick_dict')
   def must_be_pickleable(cls, v):

@@ -75,7 +75,7 @@ class UnpickleableError(PydanticValueError):
   msg_template = 'attempted `[pickle,jsonpickle,repr,str]` for "{type(v)=}"'
 
 class PickleableDict(BaseModel):
-  pick_dict: Optional[Dict[str, Any]] = Field(default=None)
+  pick_dict: Optional[Dict[str, Any]] = Field(...)
 
   @validator('pick_dict')
   def must_be_pickleable(cls, v):

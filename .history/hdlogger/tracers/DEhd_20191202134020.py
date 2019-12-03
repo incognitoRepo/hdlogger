@@ -3,7 +3,6 @@ import dill as pickle
 from pickle import PicklingError
 # dill.Pickler.dispatch
 from prettyprinter import pformat
-from collections import namedtuple
 from itertools import count
 from functools import singledispatchmethod, cached_property
 from pathlib import Path
@@ -13,7 +12,7 @@ from bdb import BdbQuit
 from hunter.const import SYS_PREFIX_PATHS
 from pydantic import ValidationError
 from inspect import CO_GENERATOR, CO_COROUTINE, CO_ASYNC_GENERATOR
-from ..data_structures import TraceHookCallbackException, TraceHookCallbackReturn, PickleableDict
+from ..data_structures import TraceHookCallbackException, TraceHookCallbackReturn
 
 GENERATOR_AND_COROUTINE_FLAGS = CO_GENERATOR | CO_COROUTINE | CO_ASYNC_GENERATOR # 672
 WRITE = True
@@ -94,16 +93,16 @@ class StateFormatter:
   def __init__(
     self,
     index, filename, lineno, event, indent, symbol,
-    function=None, arg=None, source=None):
-    self.index = f"{index:>5}"
+    source=None, function=None, arg=None):
+    self.index = index
     self.filename = filename
-    self.lineno = f"{lineno:<5}"
-    self.event = f"{event:9} "
+    self.lineno = lineno
+    self.event = event
     self.indent = indent
-    self.symbol = f"{symbol} "
+    self.symbol = symbol
+    self.source = source
     self.function = function
     self.arg = arg
-    self.source = source
 
   def __str__(self,color=False):
     if self.source:
@@ -112,9 +111,9 @@ class StateFormatter:
       line = self.function + str(self.arg)
 
     s = (
-      f"{self.index}|{self.filename}:{self.lineno}|{self.event}|"
-      f"{self.indent}|{self.symbol}|"
-      f"{line.rstrip()}|"
+      f"{self.index:>5}|{self.filename}:{self.lineno:<5}|{self.event:9} |"
+      f"{self.indent}|{self.symbol} |"
+      f"{line}|"
     )
 
     return s
@@ -169,20 +168,11 @@ class State:
         kwds = dict(zip(['etype','value','tb'],self.arg))
         self.arg = TraceHookCallbackException(**kwds)
       except ValidationError as e:
-        with open('logs/serialize_arg.exc.log','a') as f:
+        with open('logs/dispatch_exception.log','a') as f:
           f.write(stackprinter.format(e)+"\n\n\n"+stackprinter.format(sys.exc_info()))
         raise
       except:
-        with open('logs/serialize_arg.exc.log','a') as f:
-          f.write(stackprinter.format(sys.exc_info()))
-        raise
-    if self.event == "call":
-      assert not self.arg, f"{self.arg=}"
-      try:
-        kwds = self.frame.f_locals
-        self.arg = PickleableDict(**kwds)
-      except:
-        with open('logs/serialize_arg.call.log','a') as f:
+        with open('logs/dispatch_exception.log','a') as f:
           f.write(stackprinter.format(sys.exc_info()))
         raise
 
@@ -211,75 +201,48 @@ class State:
   def format_call(self):
     if self._call: return self._call
     State.stack.append(f"{self.module}.{self.function}")
-    assert isinstance(self.arg,PickleableDict), f"{self.arg=}\n{self.frame.f_locals.keys()=}"
+    assert not self.arg, f"{self.arg.keys()=}\n{self.frame.f_locals.keys()=}"
     arg = [f"{k}={safer_repr(v)}" for k,v in self.frame.f_locals.items()]
-    self.formatter = StateFormatter(
+    s = StateFormatter(
       self.index, self.format_filename, self.lineno,
       self.event, "\u0020" * (len(State.stack)-1), "=>",
-      function=self.function, arg=self.arg)
-    self._call = str(self.formatter)
-    return self._call
+      function=self.function, arg=f"({pformat(arg)})")
+    self._call = s
+    return s
 
   @property
   def format_line(self):
     if self._line: return self._line
-    self.formatter = StateFormatter(
+    s = StateFormatter(
       self.index, self.format_filename, self.lineno,
       self.event, "\u0020" * len(State.stack), "  ",
       source=self.source)
-    self._line = str(self.formatter)
-    return self._line
+    self._line = s
+    return s
 
   @property
   def format_return(self):
     if self._return: return self._return
-    self.formatter = StateFormatter(
+    s = StateFormatter(
       self.index, self.format_filename, self.lineno,
       self.event, "\u0020" * (len(State.stack)-1), "<=",
       function=f"{self.function}: ", arg=self.arg)
-    self._return = str(self.formatter)
+    self._return = s
     if State.stack and State.stack[-1] == f"{self.module}.{self.function}":
       State.stack.pop()
-    return self._return
+    return s
 
   @property
   def format_exception(self):
-    if self._return: return self._return
-    self.formatter = StateFormatter(
+    if self._return:
+      return self._return
+    s = StateFormatter(
       self.index, self.format_filename, self.lineno,
       self.event, "\u0020" * (len(State.stack)-1), " !",
       function=f"{self.function}: ", arg=self.arg)
-    self._return = str(self.formatter)
-    return self._return
+    self._return = s
+    return s
 
-class StateCollection:
-  def __init__(self,states):
-    self._df = None
-    self.initialize_states_data()
-    self.states_path = (
-      Path('~/VSCodeProjects')
-      .expanduser()
-      .joinpath('vytd/src/youtube-dl')
-    )
-    self.states = self.states_path.read_text()
-    print(self.states)
-
-  def df(self):
-    if self._df: return self._df
-    Row = namedtuple(
-      'Row',
-      'index filename lineno event indent symbol function arg source',
-      defaults = (None, None, None),
-    )
-    list_of_rows = []
-    for st in self.states:
-      f = st.formatter
-      row = Row(f.index, f.filename, f.lineno, f.event, f.indent, f.symbol, f.function, f.arg, f.source)
-      list_of_rows.append(row)
-    df = pd.DataFrame((row._as_dict() for row in list_of_rows))
-    print(df)
-    self._df = df
-    return df
 
 class HiDefTracer:
 
@@ -315,7 +278,7 @@ class HiDefTracer:
     # if self.quitting:
       # return # None
     if event == 'line':
-      return self.dispatch_line(frame, arg)
+      return self.dispatch_line(frame)
     if event == 'call':
       return self.dispatch_call(frame, arg)
     if event == 'return':
@@ -332,12 +295,10 @@ class HiDefTracer:
     return self.trace_dispatch
 
   def dispatch_call(self, frame, arg):
-    assert arg is None, f"dispatch_call: {(arg is None)=}"
     self.user_call(frame, arg)
     return self.trace_dispatch
 
-  def dispatch_line(self, frame, arg):
-    assert arg is None, f"dispatch_line: {(arg is None)=}"
+  def dispatch_line(self, frame):
     self.user_line(frame)
     return self.trace_dispatch
 
@@ -371,6 +332,42 @@ class HiDefTracer:
     print(self.state.format_line)
     return self.trace_dispatch
 
+  def user_return_no_generator(self, frame, return_value):
+    print('user_return_no_generator')
+    print("__return__1" + getattr(frame.f_locals,'__return__','dne'))
+    print(self.state.format_return)
+    frame.f_locals['__return__'] = return_value
+    print("__return__2" + getattr(frame.f_locals,'__return__','dne'))
+
+  def user_return_f_locals(self, frame, return_value):
+    print('user_return_f_locals')
+    arg = frame.f_locals['rv']
+    print("arg:\n" + "\n".join([repr(elm) for elm in arg]))
+    print("__return__1" + getattr(frame.f_locals,'__return__','dne'))
+    print(self.state.format_return)
+    frame.f_locals['__return__'] = return_value
+    frame.f_locals['rv'] = [123]
+    print("__return__2" + getattr(frame.f_locals,'__return__','dne'))
+
+  def user_return_w_inspect(self, frame, return_value):
+    print('user_return_w_inspect')
+    arg = frame.f_locals['rv']
+    print(f"{inspect.getgeneratorstate(return_value)}")
+    print(f"{inspect.getgeneratorlocals(return_value)}")
+    print("__return__1" + getattr(frame.f_locals,'__return__','dne'))
+    print(self.state.format_return)
+    frame.f_locals['__return__'] = return_value
+    frame.f_locals['rv'] = [123]
+    print("__return__2" + getattr(frame.f_locals,'__return__','dne'))
+
+  def user_return_w_jsonpickle(self, frame, return_value):
+    # TODO
+    pass
+
+  def user_return_w_itertools_tee(self, frame, return_value):
+    # TODO
+    pass
+
   def user_return(self, frame, return_value):
     print('user_return')
     print(self.state.format_return)
@@ -382,6 +379,43 @@ class HiDefTracer:
     print('user_exception')
     print(self.state.format_exception)
     return self.trace_dispatch
+
+  def bp_commands(self, frame):
+    # self.currentbp is set in bdb in Bdb.break_here if a breakpoint was hit
+    if getattr(self, "currentbp", False) and \
+               self.currentbp in self.commands:
+      currentbp = self.currentbp
+      self.currentbp = 0
+      lastcmd_back = self.lastcmd
+      self.setup(frame, None)
+      for line in self.commands[currentbp]:
+        self.onecmd(line)
+      self.lastcmd = lastcmd_back
+      if not self.commands_silent[currentbp]:
+        self.print_stack_entry(self.stack[self.curindex])
+      if self.commands_doprompt[currentbp]:
+        self._cmdloop()
+      self.forget()
+      return
+    return 1
+
+
+  def globaltrace_lt(self, frame, why, arg):
+    if why == 'call':
+      code = frame.f_code
+      filename = frame.f_globals.get('__file__', None)
+      if filename:
+        # XXX _modname() doesn't work right for packages, so
+        # the ignore support won't work right for packages
+        modulename = _modname(filename)
+        if modulename is not None:
+          ignore_it = self.ignore.names(filename, modulename)
+          if not ignore_it:
+            if self.trace:
+              print((" --- modulename: %s, funcname: %s" % (modulename, code.co_name)))
+            return self.localtrace
+      else:
+        return None
 
   @singledispatchmethod
   def run(self, cmd, *args, **kwds):

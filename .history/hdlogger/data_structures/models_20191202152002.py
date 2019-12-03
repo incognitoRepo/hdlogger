@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ValidationError, validator
+from pydantic import BaseModel, ValidationError
 from prettyprinter import pformat
 import dill
 from typing import Type, Any, Optional, Dict
@@ -67,46 +67,7 @@ class TraceHookCallbackReturn(BaseModel):
   def __setstate__(self, state):
     self.__dict__.update(state)
 
-def pickle_compat_enforcer(obj):
-  """i only need to make 1 distinction: container?"""
-
 class PickleableDict(BaseModel):
-  pick_dict: Optional[Dict]
+  d = Dict
 
-  @validator('pick_dict')
-  def must_be_pickleable(cls, v):
-    try:
-      return dill.loads(dill.dumps(v))
-    except:
-      try:
-        potentially_pickleable = PickleableDict.make_pickleable(v)
-        return dill.loads(dill.dumps(potentially_pickleable))
-      except:
-        with open('logs/models.pickleabledict.log','w') as f:
-          f.write(stackprinter.format(sys.exc_info()))
-        raise
-
-  @classmethod
-  def make_pickleable(dct):
-    d = {}
-    for k,v in dct.items():
-      try:
-        dd = dill.dumps(v)
-        assert dill.loads(dd), f"cant load dill.dumps(v)={dd}"
-        d[k] = dd
-      except:
-        for test in [
-          lambda: dill.dumps(jsonpickle.encode(v)),
-          lambda: dill.dumps(repr(v)),
-          lambda: dill.dumps(str(v)),
-          ]:
-          try:
-            dd = test()
-            assert dill.loads(dd), f"cant load dill.dumps(v)={dd}"
-            d[k] = dd
-          except: pass
-        with open('logs/models.unpickleable.log','a') as f:
-          f.write(stackprinter.format(sys.exc_info()))
-        raise SystemExit
-    return d
-
+  def

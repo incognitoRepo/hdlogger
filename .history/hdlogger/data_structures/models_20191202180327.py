@@ -70,23 +70,34 @@ class TraceHookCallbackReturn(BaseModel):
 def pickle_compat_enforcer(obj):
   """i only need to make 1 distinction: container?"""
 
-class PickleableDict(BaseModel):
-  pick_dict: Optional[Dict]
 
-  @validator('pick_dict')
-  def must_be_pickleable(cls, v):
+class PydanticTraceback(BaseException):
+  """demo:
+    try: 1/0
+    except: exc = sys.exc_info()
+    d = dict(zip(['etype','value','traceback'],exc))
     try:
-      return dill.loads(dill.dumps(v))
-    except:
-      try:
-        potentially_pickleable = PickleableDict.make_pickleable(v)
-        return dill.loads(dill.dumps(potentially_pickleable))
-      except:
-        with open('logs/models.pickleabledict.log','w') as f:
-          f.write(stackprinter.format(sys.exc_info()))
-        raise
+      TraceHookCallbackException(**d)
+    except ValidationError as e:
+      print(e.json())
+  """
+  @classmethod
+  def __get_validators__(cls):
+    yield cls.validate
 
   @classmethod
+  def validate(cls, v):
+    if not isinstance(v, TracebackType):
+      raise ValueError(f'pydantic base exception: BaseException expected not {type(v)=}')
+    return v
+
+class PickleableDict(BaseModel):
+  pick_dict: Dict
+
+  @validtor('pick_dict')
+  def must_be_pickleable(cls, v):
+    return dill.loads(dill.dumps(v))
+
   def make_pickleable(dct):
     d = {}
     for k,v in dct.items():
@@ -110,3 +121,10 @@ class PickleableDict(BaseModel):
         raise SystemExit
     return d
 
+
+
+
+
+          f.write(
+            f"{k=}\n{repr(v)=}\n{str(v)=}\n"
+          )

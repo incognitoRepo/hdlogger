@@ -71,20 +71,15 @@ def pickle_compat_enforcer(obj):
   """i only need to make 1 distinction: container?"""
 
 class PickleableDict(BaseModel):
-  pick_dict: Optional[Dict]
+  pick_dict: Dict
 
   @validator('pick_dict')
   def must_be_pickleable(cls, v):
     try:
       return dill.loads(dill.dumps(v))
     except:
-      try:
-        potentially_pickleable = PickleableDict.make_pickleable(v)
-        return dill.loads(dill.dumps(potentially_pickleable))
-      except:
-        with open('logs/models.pickleabledict.log','w') as f:
-          f.write(stackprinter.format(sys.exc_info()))
-        raise
+      potentially_pickleable = PickleableDict.make_pickleable(v)
+      return dill.loads(dill.dumps(potentially_pickleable))
 
   @classmethod
   def make_pickleable(dct):

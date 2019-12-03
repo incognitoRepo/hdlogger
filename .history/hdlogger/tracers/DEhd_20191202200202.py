@@ -211,7 +211,7 @@ class State:
   def format_call(self):
     if self._call: return self._call
     State.stack.append(f"{self.module}.{self.function}")
-    assert isinstance(self.arg,PickleableDict), f"{self.arg=}\n{self.frame.f_locals.keys()=}"
+    assert not self.arg, f"{self.arg=}\n{self.frame.f_locals.keys()=}"
     arg = [f"{k}={safer_repr(v)}" for k,v in self.frame.f_locals.items()]
     self.formatter = StateFormatter(
       self.index, self.format_filename, self.lineno,

@@ -71,7 +71,7 @@ def pickle_compat_enforcer(obj):
   """i only need to make 1 distinction: container?"""
 
 class PickleableDict(BaseModel):
-  pick_dict: Optional[Dict]
+  pick_dict: Dict
 
   @validator('pick_dict')
   def must_be_pickleable(cls, v):

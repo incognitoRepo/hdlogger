@@ -13,7 +13,7 @@ from bdb import BdbQuit
 from hunter.const import SYS_PREFIX_PATHS
 from pydantic import ValidationError
 from inspect import CO_GENERATOR, CO_COROUTINE, CO_ASYNC_GENERATOR
-from ..data_structures import TraceHookCallbackException, TraceHookCallbackReturn, PickleableDict
+from ..data_structures import TraceHookCallbackException, TraceHookCallbackReturn
 
 GENERATOR_AND_COROUTINE_FLAGS = CO_GENERATOR | CO_COROUTINE | CO_ASYNC_GENERATOR # 672
 WRITE = True
@@ -95,12 +95,12 @@ class StateFormatter:
     self,
     index, filename, lineno, event, indent, symbol,
     function=None, arg=None, source=None):
-    self.index = f"{index:>5}"
+    self.index = index
     self.filename = filename
-    self.lineno = f"{lineno:<5}"
-    self.event = f"{event:9} "
+    self.lineno = lineno
+    self.event = event
     self.indent = indent
-    self.symbol = f"{symbol} "
+    self.symbol = symbol
     self.function = function
     self.arg = arg
     self.source = source
@@ -112,9 +112,9 @@ class StateFormatter:
       line = self.function + str(self.arg)
 
     s = (
-      f"{self.index}|{self.filename}:{self.lineno}|{self.event}|"
-      f"{self.indent}|{self.symbol}|"
-      f"{line.rstrip()}|"
+      f"{self.index:>5}|{self.filename}:{self.lineno:<5}|{self.event:9} |"
+      f"{self.indent}|{self.symbol} |"
+      f"{line}|"
     )
 
     return s
@@ -169,20 +169,11 @@ class State:
         kwds = dict(zip(['etype','value','tb'],self.arg))
         self.arg = TraceHookCallbackException(**kwds)
       except ValidationError as e:
-        with open('logs/serialize_arg.exc.log','a') as f:
+        with open('logs/dispatch_exception.log','a') as f:
           f.write(stackprinter.format(e)+"\n\n\n"+stackprinter.format(sys.exc_info()))
         raise
       except:
-        with open('logs/serialize_arg.exc.log','a') as f:
-          f.write(stackprinter.format(sys.exc_info()))
-        raise
-    if self.event == "call":
-      assert not self.arg, f"{self.arg=}"
-      try:
-        kwds = self.frame.f_locals
-        self.arg = PickleableDict(**kwds)
-      except:
-        with open('logs/serialize_arg.call.log','a') as f:
+        with open('logs/dispatch_exception.log','a') as f:
           f.write(stackprinter.format(sys.exc_info()))
         raise
 
@@ -211,46 +202,47 @@ class State:
   def format_call(self):
     if self._call: return self._call
     State.stack.append(f"{self.module}.{self.function}")
-    assert isinstance(self.arg,PickleableDict), f"{self.arg=}\n{self.frame.f_locals.keys()=}"
+    assert not self.arg, f"{self.arg.keys()=}\n{self.frame.f_locals.keys()=}"
     arg = [f"{k}={safer_repr(v)}" for k,v in self.frame.f_locals.items()]
-    self.formatter = StateFormatter(
+    s = StateFormatter(
       self.index, self.format_filename, self.lineno,
       self.event, "\u0020" * (len(State.stack)-1), "=>",
-      function=self.function, arg=self.arg)
-    self._call = str(self.formatter)
-    return self._call
+      function=self.function, arg=f"({pformat(arg)})")
+    self._call = s
+    return s
 
   @property
   def format_line(self):
     if self._line: return self._line
-    self.formatter = StateFormatter(
+    s = StateFormatter(
       self.index, self.format_filename, self.lineno,
       self.event, "\u0020" * len(State.stack), "  ",
       source=self.source)
-    self._line = str(self.formatter)
-    return self._line
+    self._line = s
+    return s
 
   @property
   def format_return(self):
     if self._return: return self._return
-    self.formatter = StateFormatter(
+    s = StateFormatter(
       self.index, self.format_filename, self.lineno,
       self.event, "\u0020" * (len(State.stack)-1), "<=",
       function=f"{self.function}: ", arg=self.arg)
-    self._return = str(self.formatter)
+    self._return = s
     if State.stack and State.stack[-1] == f"{self.module}.{self.function}":
       State.stack.pop()
-    return self._return
+    return s
 
   @property
   def format_exception(self):
-    if self._return: return self._return
-    self.formatter = StateFormatter(
+    if self._return:
+      return self._return
+    s = StateFormatter(
       self.index, self.format_filename, self.lineno,
       self.event, "\u0020" * (len(State.stack)-1), " !",
       function=f"{self.function}: ", arg=self.arg)
-    self._return = str(self.formatter)
-    return self._return
+    self._return = s
+    return s
 
 class StateCollection:
   def __init__(self,states):
@@ -268,18 +260,38 @@ class StateCollection:
     if self._df: return self._df
     Row = namedtuple(
       'Row',
-      'index filename lineno event indent symbol function arg source',
-      defaults = (None, None, None),
+      'index filename lineno event indent symbol function arg source'
     )
-    list_of_rows = []
     for st in self.states:
-      f = st.formatter
-      row = Row(f.index, f.filename, f.lineno, f.event, f.indent, f.symbol, f.function, f.arg, f.source)
-      list_of_rows.append(row)
-    df = pd.DataFrame((row._as_dict() for row in list_of_rows))
-    print(df)
-    self._df = df
-    return df
+      row = Row(st.index, st.filename, st.lineno, st.event,
+
+
+  def df(self):
+    for state in self.states:
+    self.frame = frame
+    self.event = event
+    self.arg = arg if arg else ""
+    self.index = next(State.counter)
+    self.initialize()
+
+  def initialize(self):
+    self.locals = self.frame.f_locals
+    self.globals = self.frame.f_globals
+    self.function = self.frame.f_code.co_name
+    self.function_object = self.frame.f_code
+    self.module = self.frame.f_globals.get('__name__','')
+    self.filename = self.frame.f_code.co_filename
+    self.lineno = self.frame.f_lineno
+    self.code = self.frame.f_code
+    self.stdlib = True if self.filename.startswith(SYS_PREFIX_PATHS) else False
+    self.source = linecache.getline(self.filename, self.lineno, self.frame.f_globals)
+    self._call = None
+    self._line = None
+    self._return = None
+    self._exception = None
+    initialize_copyreg()
+    self.serialized_arg = self.serialize_arg()
+
 
 class HiDefTracer:
 

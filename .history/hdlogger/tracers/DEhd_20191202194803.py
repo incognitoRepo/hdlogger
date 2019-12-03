@@ -13,7 +13,7 @@ from bdb import BdbQuit
 from hunter.const import SYS_PREFIX_PATHS
 from pydantic import ValidationError
 from inspect import CO_GENERATOR, CO_COROUTINE, CO_ASYNC_GENERATOR
-from ..data_structures import TraceHookCallbackException, TraceHookCallbackReturn, PickleableDict
+from ..data_structures import TraceHookCallbackException, TraceHookCallbackReturn
 
 GENERATOR_AND_COROUTINE_FLAGS = CO_GENERATOR | CO_COROUTINE | CO_ASYNC_GENERATOR # 672
 WRITE = True
@@ -183,7 +183,7 @@ class State:
         self.arg = PickleableDict(**kwds)
       except:
         with open('logs/serialize_arg.call.log','a') as f:
-          f.write(stackprinter.format(sys.exc_info()))
+          f.write(stackprinter.format(e)+"\n\n\n"+stackprinter.format(sys.exc_info()))
         raise
 
     try:
@@ -211,7 +211,7 @@ class State:
   def format_call(self):
     if self._call: return self._call
     State.stack.append(f"{self.module}.{self.function}")
-    assert isinstance(self.arg,PickleableDict), f"{self.arg=}\n{self.frame.f_locals.keys()=}"
+    assert not self.arg, f"{self.arg.keys()=}\n{self.frame.f_locals.keys()=}"
     arg = [f"{k}={safer_repr(v)}" for k,v in self.frame.f_locals.items()]
     self.formatter = StateFormatter(
       self.index, self.format_filename, self.lineno,

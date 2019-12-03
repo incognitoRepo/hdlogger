@@ -13,7 +13,7 @@ from bdb import BdbQuit
 from hunter.const import SYS_PREFIX_PATHS
 from pydantic import ValidationError
 from inspect import CO_GENERATOR, CO_COROUTINE, CO_ASYNC_GENERATOR
-from ..data_structures import TraceHookCallbackException, TraceHookCallbackReturn, PickleableDict
+from ..data_structures import TraceHookCallbackException, TraceHookCallbackReturn
 
 GENERATOR_AND_COROUTINE_FLAGS = CO_GENERATOR | CO_COROUTINE | CO_ASYNC_GENERATOR # 672
 WRITE = True
@@ -169,22 +169,14 @@ class State:
         kwds = dict(zip(['etype','value','tb'],self.arg))
         self.arg = TraceHookCallbackException(**kwds)
       except ValidationError as e:
-        with open('logs/serialize_arg.exc.log','a') as f:
+        with open('logs/dispatch_exception.log','a') as f:
           f.write(stackprinter.format(e)+"\n\n\n"+stackprinter.format(sys.exc_info()))
         raise
       except:
-        with open('logs/serialize_arg.exc.log','a') as f:
+        with open('logs/dispatch_exception.log','a') as f:
           f.write(stackprinter.format(sys.exc_info()))
         raise
-    if self.event == "call":
-      assert not self.arg, f"{self.arg=}"
-      try:
-        kwds = self.frame.f_locals
-        self.arg = PickleableDict(**kwds)
-      except:
-        with open('logs/serialize_arg.call.log','a') as f:
-          f.write(stackprinter.format(sys.exc_info()))
-        raise
+    if self.event == "call"
 
     try:
       _as_bytes = pickle.dumps(self.arg)
@@ -211,12 +203,12 @@ class State:
   def format_call(self):
     if self._call: return self._call
     State.stack.append(f"{self.module}.{self.function}")
-    assert isinstance(self.arg,PickleableDict), f"{self.arg=}\n{self.frame.f_locals.keys()=}"
+    assert not self.arg, f"{self.arg.keys()=}\n{self.frame.f_locals.keys()=}"
     arg = [f"{k}={safer_repr(v)}" for k,v in self.frame.f_locals.items()]
     self.formatter = StateFormatter(
       self.index, self.format_filename, self.lineno,
       self.event, "\u0020" * (len(State.stack)-1), "=>",
-      function=self.function, arg=self.arg)
+      function=self.function, arg=f"({})")
     self._call = str(self.formatter)
     return self._call
 

@@ -13,7 +13,7 @@ from bdb import BdbQuit
 from hunter.const import SYS_PREFIX_PATHS
 from pydantic import ValidationError
 from inspect import CO_GENERATOR, CO_COROUTINE, CO_ASYNC_GENERATOR
-from ..data_structures import TraceHookCallbackException, TraceHookCallbackReturn, pickleable_dict
+from ..data_structures import TraceHookCallbackException, TraceHookCallbackReturn, PickleableDict
 
 GENERATOR_AND_COROUTINE_FLAGS = CO_GENERATOR | CO_COROUTINE | CO_ASYNC_GENERATOR # 672
 WRITE = True
@@ -159,8 +159,6 @@ class State:
     self._return = None
     self._exception = None
     initialize_copyreg()
-    self.pickleable_locals = pickleable_dict(self.frame.f_locals)
-    self.pickleable_arg = pickleable_dict(self.arg)
     self.serialized_arg = self.serialize_arg()
 
   def serialize_arg(self):
@@ -180,12 +178,12 @@ class State:
       assert not self.arg, f"{self.arg=}"
       try:
         kwds = self.frame.f_locals
-        self.arg = pickleable_dict(kwds)
-        with open('logs/state.serialize_arg.log','w') as f:
+        self.arg = PickleableDict(**kwds)
+        with open('logs/state.seriaize_arg.log','w') as f:
           f.write(f"{self.arg=}, {type(self.arg)=}\n")
-      except ValidationError as e:
+      except:
         with open('logs/serialize_arg.call.log','a') as f:
-          f.write(e)
+          f.write(stackprinter.format(sys.exc_info()))
         raise
 
     try:
@@ -213,10 +211,11 @@ class State:
   def format_call(self):
     if self._call: return self._call
     State.stack.append(f"{self.module}.{self.function}")
+    assert isinstance(self.arg,PickleableDict), f"{self.arg=}\n{self.frame.f_locals.keys()=}"
     self.formatter = StateFormatter(
       self.index, self.format_filename, self.lineno,
       self.event, "\u0020" * (len(State.stack)-1), "=>",
-      function=self.function, arg=self.frame.f_locals)
+      function=self.function, arg=dict(self.frame.f_locals))
     self._call = str(self.formatter)
     return self._call
 

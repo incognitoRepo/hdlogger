@@ -74,51 +74,22 @@ class UnpickleableError(PydanticValueError):
   code = 'incorrigibly_unpickeable'
   msg_template = 'attempted `[pickle,jsonpickle,repr,str]` for "{type(v)=}"'
 
-def pickleable_dict(d):
-  d2 = {}
-  for k,v in d.items():
-    try:
-      dd = dill.dumps(d)
-      assert dill.loads(dd), f"cant load dill.dumps(v)={dd}"
-      d[k] = dd
-    except:
-      for test in [
-        lambda: dill.dumps(jsonpickle.encode(v)),
-        lambda: dill.dumps(repr(v)),
-        lambda: dill.dumps(str(v)),
-        lambda: dill.dumps(v.__class__.__name__)
-        ]:
-        try:
-          dd = test()
-          assert dill.loads(dd), f"cant load dill.dumps(v)={dd}"
-          d[k] = dd
-        except: pass
-      with open('logs/models.unpickleable.log','a') as f:
-        f.write(stackprinter.format(sys.exc_info()))
-      raise SystemExit
-  return d
-
 class PickleableDict(BaseModel):
-  d: Optional[Dict[str, Any]] = None
+  d: Optional[Dict[str, Any]] = Field(default=None)
 
-  @validator('d',pre=True)
-  def make_pickleable(cls, v):
+  @validator('d')
+  def must_be_pickleable(cls, v):
     try:
       return dill.loads(dill.dumps(v))
     except:
       try:
         potentially_pickleable = PickleableDict.make_pickleable(v)
+        self.__dict__.update(potentially_pickleable)
         return dill.loads(dill.dumps(potentially_pickleable))
       except:
         with open('logs/models.pickleabledict.log','w') as f:
           f.write(stackprinter.format(sys.exc_info()))
         raise UnpickleableError(v)
-      raise
-
-  @validator('d',each_item=True)
-  def check_pickleable(cls, v):
-    assert dill.pickles(v), f'{v} cannot be pickled (dilled)'
-    return v
 
   @classmethod
   def make_pickleable(dct):

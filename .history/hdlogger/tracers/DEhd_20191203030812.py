@@ -159,8 +159,6 @@ class State:
     self._return = None
     self._exception = None
     initialize_copyreg()
-    self.pickleable_locals = pickleable_dict(self.frame.f_locals)
-    self.pickleable_arg = pickleable_dict(self.arg)
     self.serialized_arg = self.serialize_arg()
 
   def serialize_arg(self):
@@ -180,7 +178,7 @@ class State:
       assert not self.arg, f"{self.arg=}"
       try:
         kwds = self.frame.f_locals
-        self.arg = pickleable_dict(kwds)
+        self.arg = pickleable_dict(**kwds)
         with open('logs/state.serialize_arg.log','w') as f:
           f.write(f"{self.arg=}, {type(self.arg)=}\n")
       except ValidationError as e:
@@ -216,7 +214,7 @@ class State:
     self.formatter = StateFormatter(
       self.index, self.format_filename, self.lineno,
       self.event, "\u0020" * (len(State.stack)-1), "=>",
-      function=self.function, arg=self.frame.f_locals)
+      function=self.function, arg=dict(self.frame.f_locals))
     self._call = str(self.formatter)
     return self._call
 

@@ -159,8 +159,6 @@ class State:
     self._return = None
     self._exception = None
     initialize_copyreg()
-    self.pickleable_locals = pickleable_dict(self.frame.f_locals)
-    self.pickleable_arg = pickleable_dict(self.arg)
     self.serialized_arg = self.serialize_arg()
 
   def serialize_arg(self):

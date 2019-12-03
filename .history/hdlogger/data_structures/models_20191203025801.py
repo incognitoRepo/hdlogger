@@ -98,6 +98,19 @@ def pickleable_dict(d):
       raise SystemExit
   return d
 
+  try:
+    dill.loads(dill.dumps(d))
+    return d
+  except:
+    try:
+      potentially_pickleable = PickleableDict.make_pickleable(v)
+      return dill.loads(dill.dumps(potentially_pickleable))
+    except:
+      with open('logs/models.pickleabledict.log','w') as f:
+        f.write(stackprinter.format(sys.exc_info()))
+      raise UnpickleableError(v)
+    raise
+
 class PickleableDict(BaseModel):
   d: Optional[Dict[str, Any]] = None
 

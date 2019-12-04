@@ -378,7 +378,7 @@ class HiDefTracer:
   history = []
   def make_dataframe(self):
     states = HiDefTracer.history
-    row = lambda st: operator.attrgetter()
+    row = lambda st:
 
 
   def deserialize(self, hexfile='logs/tracer.serialized_arg.log'):

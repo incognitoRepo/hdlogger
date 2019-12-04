@@ -231,6 +231,7 @@ def util():
   dispatch_table = copyreg.dispatch_table
   pickle_func = dispatch_table[type(f_locals)]
 
+
 class State:
   SYS_PREFIX_PATHS = set((
     sys.prefix,
@@ -372,14 +373,9 @@ class HiDefTracer:
 
   def __init__(self):
     self.state = None
+    self.return_values = []
     self.serialized_data = []
     initialize_copyreg()
-
-  history = []
-  def make_dataframe(self):
-    states = HiDefTracer.history
-    row = lambda st: operator.attrgetter()
-
 
   def deserialize(self, hexfile='logs/tracer.serialized_arg.log'):
     """Load each item that was previously written to disk."""
@@ -404,7 +400,6 @@ class HiDefTracer:
   def trace_dispatch(self, frame, event, arg):
     with open('logs/tracer.arg.log','a') as f: f.write(repr(arg)+'\n')
     self.state = State(frame,event,arg)
-    HiDefTracer.history.append(self.state)
     # if self.quitting:
       # return # None
     if event == 'line':
@@ -486,6 +481,8 @@ class HiDefTracer:
   def user_return(self, frame, return_value):
     logging.debug('user_return')
     print(self.state.format_return)
+    if return_value:
+      self.return_values.append(return_value)
 
   def user_exception(self, frame, exc_info):
     logging.debug('user_exception')

@@ -376,10 +376,6 @@ class HiDefTracer:
     initialize_copyreg()
 
   history = []
-  def make_dataframe(self):
-    states = HiDefTracer.history
-    row = lambda st: operator.attrgetter()
-
 
   def deserialize(self, hexfile='logs/tracer.serialized_arg.log'):
     """Load each item that was previously written to disk."""

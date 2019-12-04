@@ -189,6 +189,22 @@ def pickleable_simple(s):
       f.write(stackprinter.format(sys.exc_info()))
     raise SystemExit
 
+def pickleable_frame(frm):
+  try:
+    return pickle.loads(pickle.dumps(frm))
+  except:
+    wf('logs/pickleable_frame.tracer.log', stackprinter.format(sys.exc_info()))
+    raise
+  finally:
+    obj = "dataframe"
+    o0 = obj.iloc[0]
+    o0d = dict(o0)
+    for k,v in o0d.items():
+      if k == "globals": continue
+      print(k)
+      print(pickle.loads(pickle.dumps(v)))
+
+
 def pickleable_dispatch(obj):
   if isinstance(obj,Iterable) and not isinstance(obj,str):
     if isinstance(obj, Mapping):

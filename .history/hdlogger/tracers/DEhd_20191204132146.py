@@ -16,6 +16,7 @@ from pydantic import ValidationError
 from inspect import CO_GENERATOR, CO_COROUTINE, CO_ASYNC_GENERATOR
 from ..data_structures import (
   TraceHookCallbackCall, TraceHookCallbackLine, TraceHookCallbackReturn, TraceHookCallbackException,
+  pickleable_dispatch, pickleable_dict,
 )
 
 GENERATOR_AND_COROUTINE_FLAGS = CO_GENERATOR | CO_COROUTINE | CO_ASYNC_GENERATOR # 672
@@ -89,77 +90,6 @@ def first_true(iterable, default=False, pred=None):
     # first_true([a,b], x, f) --> a if f(a) else b if f(b) else x
     return next(filter(pred, iterable), default)
 
-
-def pickleable_dispatch(obj):
-  if isinstance(obj,Iterable) and not isinstance(obj,str):
-    if isinstance(obj, Mapping):
-      return pickleable_dict(obj)
-    elif isinstance(obj, Sequence):
-      return pickleable_list(obj)
-    else:
-      with open('logs/models.pickleable_dispatch.log','w') as f:
-        f.write(stackprinter.format(sys.exc_info()))
-      raise
-  elif isinstance(obj,FrameType):
-    return pickleable_frame(obj)
-  else:
-    return pickleable_simple(obj)
-
-
-def pickleable_list(l):
-  if l == "": return ""
-  try:
-    ddl = dill.dumps(l)
-    assert dill.loads(ddl)
-    return l
-  except:
-      l2 = []
-      for elm in l:
-        try:
-          dde = dill.dumps(elm)
-          assert dill.loads(dde), f"cant load dill.dumps(dde)={dde}"
-          l2.append(dde)
-        except:
-          for test in [
-            lambda: dill.dumps(jsonpickle.encode(elm)),
-            lambda: dill.dumps(repr(elm)),
-            lambda: dill.dumps(str(elm)),
-            lambda: dill.dumps(elm.__class__.__name__)
-            ]:
-            try:
-              dde = test()
-              assert dill.loads(dde), f"cant load dill.dumps(dde)={dde}"
-              l2.append(dde)
-            except: pass
-          with open('logs/models.unpickleable.log','a') as f:
-            f.write(stackprinter.format(sys.exc_info()))
-          raise SystemExit
-      return l2
-
-def pickleable_simple(s):
-  if s == "": return ""
-  try:
-    dds = dill.dumps(s)
-    assert dill.loads(dds)
-    return s
-  except:
-    for test in [
-      lambda: dill.dumps(jsonpickle.encode(s)),
-      lambda: dill.dumps(repr(s)),
-      lambda: dill.dumps(str(s)),
-      lambda: dill.dumps(s.__class__.__name__)
-      ]:
-      try:
-        dds = test()
-        assert dill.loads(dds), f"cant load dill.dumps(dds)={dds}"
-        return dds
-      except:
-        pass
-    with open('logs/models.unpickleable.log','a') as f:
-      f.write(stackprinter.format(sys.exc_info()))
-    raise SystemExit
-
-
 def pickle_generator(gen):
   kwds = {
     'state': inspect.getgeneratorstate(gen),
@@ -172,40 +102,11 @@ def unpickle_generator(kwds):
   return Unpickleable(**kwds)
 
 class PickleableFrame:
-  def __init__(self, frame):
-    self.filename = frame.f_code.co_filename
-    self.lineno = frame.f_lineno
-    self.function = frame.f_code.co_name
-    self.local_vars = frame.f_code.co_names.copy()
-    self.code_context, self.index = self.getcodecontext(frame)
-
-  def getcodecontext(self,frame,context=2):
-    if context > 0:
-      start = self.lineno - 1 - context//2
-      try:
-        lines, lnum = inspect.findsource(frame)
-      except OSError:
-        lines = index = None
-      else:
-        start = max(0, min(start, len(lines) - context))
-        lines = lines[start:start+context]
-        index = self.lineno - 1 - start
-    else:
-      lines = index = None
-    return lines, index
-
-  def __str__(self,color=False):
-    return pformat(self.__dict__)
-
-def pickleable_frame(frm):
-  try:
-    return pickle.loads(pickle.dumps(frm))
-  except:
-    wf('logs/pickleable_frame.tracer.log', stackprinter.format(sys.exc_info()))
-    raise
+  def __init__(self, lineno):
+    self.lineno = lineno
 
 def pickle_frame(frame):
-  kwds = {'frame': frame}
+  kwds = {'lineno':frame.f_lineno}
   return unpickle_frame, (kwds,)
 
 def unpickle_frame(kwds):

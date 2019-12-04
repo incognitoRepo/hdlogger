@@ -176,7 +176,7 @@ class PickleableFrame:
     self.filename = frame.f_code.co_filename
     self.lineno = frame.f_lineno
     self.function = frame.f_code.co_name
-    self.local_vars = frame.f_code.co_names.copy()
+    self.local_vars = frame.f_code.co_names
     self.code_context, self.index = self.getcodecontext(frame)
 
   def getcodecontext(self,frame,context=2):

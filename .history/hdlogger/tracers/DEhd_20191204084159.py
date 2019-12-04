@@ -192,20 +192,23 @@ def safer_repr(obj):
     return f"{obj.__module__}.{obj.__class__.__name__}"
 
 def pickleable_dict(d):
-  def check(func,arg):
-    with contextlib.suppress(Exception):
-      return func(arg)
+def check(func,arg):
+  with contextlib.suppress(Exception):
+    return func(arg)
 
   try:
-    return pickle.loads(pickle.dumps(d))
+    if pickle.pickles(d): return d
+    raise
   except:
-    print(2)
     d2 = {}
-    funclist = [lambda v: pickle.loads(pickle.dumps(v)), lambda v: jsonpickle.encode(v),lambda v: getattr(v,'__class__.__name__')]
+    funclist = [lambda v: jsonpickle.encode(v),lambda v: getattr(v,'__class__.__name__'),lambda v: 1/0,lambda v: 'asdf']
     for k,v in d.items():
+      checked = [check(func,v) for func in funclist]
+      pickleable =
       try:
-        checked = [check(func,v) for func in funclist]
-        pickleable = next(filter(None,checked))
+
+        pickleable = apply_funcs(funclist,v)
+        pickle.pickles(pickleable)
         d2[k] = pickleable
       except:
         with open('logs/tracer.pickleable_dict.log','a') as f:
@@ -224,12 +227,12 @@ def print_attrs(obj):
   return d
 
 
-def util():
-  f_locals = self.frame.f_locals
-  f_code = self.frame.f_code
-  keys = f_locals.keys()
-  dispatch_table = copyreg.dispatch_table
-  pickle_func = dispatch_table[type(f_locals)]
+
+f_locals = self.frame.f_locals
+f_code = self.frame.f_code
+keys = f_locals.keys()
+dispatch_table = copyreg.dispatch_table
+pickle_func = dispatch_table[type(f_locals)]
 
 
 class State:

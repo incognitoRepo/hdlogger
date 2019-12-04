@@ -197,7 +197,8 @@ def pickleable_dict(d):
       return func(arg)
 
   try:
-    return pickle.loads(pickle.dumps(d))
+    str(pickle.loads(pickle.dumps(d)))
+    return d
   except:
     print(2)
     d2 = {}

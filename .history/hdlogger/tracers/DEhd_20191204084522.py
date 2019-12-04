@@ -192,14 +192,14 @@ def safer_repr(obj):
     return f"{obj.__module__}.{obj.__class__.__name__}"
 
 def pickleable_dict(d):
-  def check(func,arg):
-    with contextlib.suppress(Exception):
-      return func(arg)
+def check(func,arg):
+  with contextlib.suppress(Exception):
+    return func(arg)
 
   try:
-    return pickle.loads(pickle.dumps(d))
+    if pickle.pickles(d): return d
+    raise
   except:
-    print(2)
     d2 = {}
     funclist = [lambda v: pickle.loads(pickle.dumps(v)), lambda v: jsonpickle.encode(v),lambda v: getattr(v,'__class__.__name__')]
     for k,v in d.items():
@@ -224,12 +224,12 @@ def print_attrs(obj):
   return d
 
 
-def util():
-  f_locals = self.frame.f_locals
-  f_code = self.frame.f_code
-  keys = f_locals.keys()
-  dispatch_table = copyreg.dispatch_table
-  pickle_func = dispatch_table[type(f_locals)]
+
+f_locals = self.frame.f_locals
+f_code = self.frame.f_code
+keys = f_locals.keys()
+dispatch_table = copyreg.dispatch_table
+pickle_func = dispatch_table[type(f_locals)]
 
 
 class State:

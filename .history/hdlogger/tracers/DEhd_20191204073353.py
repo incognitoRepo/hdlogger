@@ -1,8 +1,8 @@
-import sys, os, io, linecache, collections, inspect, threading, stackprinter, jsonpickle, copyreg, traceback, logging, optparse, contextlib, operator
+import sys, os, io, linecache, collections, inspect, threading, stackprinter, jsonpickle, copyreg, traceback, logging, optparse, contextlib
 import dill as pickle
 from pickle import PicklingError
 # dill.Pickler.dispatch
-from prettyprinter import pformat, cpprint
+from prettyprinter import pformat
 from collections import namedtuple
 from itertools import count
 from functools import singledispatchmethod, cached_property
@@ -192,20 +192,16 @@ def safer_repr(obj):
     return f"{obj.__module__}.{obj.__class__.__name__}"
 
 def pickleable_dict(d):
-  def check(func,arg):
-    with contextlib.suppress(Exception):
-      return func(arg)
-
   try:
-    return pickle.loads(pickle.dumps(d))
+    if pickle.pickles(d): return d
+    raise
   except:
-    print(2)
     d2 = {}
-    funclist = [lambda v: pickle.loads(pickle.dumps(v)), lambda v: jsonpickle.encode(v),lambda v: getattr(v,'__class__.__name__')]
+    funclist = [jsonpickle.encode, lambda v: getattr(v,'__class__.__name__')]
     for k,v in d.items():
       try:
-        checked = [check(func,v) for func in funclist]
-        pickleable = next(filter(None,checked))
+        pickleable = apply_funcs(funclist,v)
+        pickle.pickles(pickleable)
         d2[k] = pickleable
       except:
         with open('logs/tracer.pickleable_dict.log','a') as f:
@@ -214,22 +210,10 @@ def pickleable_dict(d):
         raise
     return d2
 
-import copyreg
-def print_attrs(obj):
-  attrnames = [attr for attr in dir(obj) if not attr.startswith('_')]
-  _ = operator.attrgetter(*attrnames)
-  attrvals = [getattr(obj,name) for name in attrnames]
-  d = {k:v for k,v in zip(attrnames,attrvals)}
-  cpprint(d)
-  return d
+
+f_locals = self.frame.f_locals
 
 
-def util():
-  f_locals = self.frame.f_locals
-  f_code = self.frame.f_code
-  keys = f_locals.keys()
-  dispatch_table = copyreg.dispatch_table
-  pickle_func = dispatch_table[type(f_locals)]
 
 
 class State:

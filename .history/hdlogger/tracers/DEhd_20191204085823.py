@@ -175,7 +175,7 @@ class StateFormatter:
     if self.source:
       line = self.source
     else:
-      line = self.function + str(self.arg)
+      line = self.function + str(self.pickleable_arg)
 
     s = (
       f"{self.index}|{self.filename}:{self.lineno}|{self.event}|"
@@ -197,9 +197,9 @@ def pickleable_dict(d):
       return func(arg)
 
   try:
-    return pickle.loads(pickle.dumps(d))
+    str(pickle.loads(pickle.dumps(d)))
+    return d
   except:
-    print(2)
     d2 = {}
     funclist = [lambda v: pickle.loads(pickle.dumps(v)), lambda v: jsonpickle.encode(v),lambda v: getattr(v,'__class__.__name__')]
     for k,v in d.items():

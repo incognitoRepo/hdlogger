@@ -443,7 +443,7 @@ class HiDefTracer:
     self.dataframe = df
     df_pkl_pth = Path("logs/dataframe.tracer.pkl")
     df.to_pickle(df_pkl_pth)
-    assert pd.read_pickle(df_pkl_pth), "can't pickle df"
+    assert pd.raed_pickle(df_pkl_pth), "can't pickle df"
     return df
 
   def save_history(self):

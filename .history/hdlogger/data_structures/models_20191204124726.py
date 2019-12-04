@@ -2,7 +2,7 @@ from pydantic import BaseModel, PydanticValueError, ValidationError, validator, 
 from prettyprinter import pformat
 import dill, stackprinter, sys, optparse
 from typing import Type, Any, Optional, Dict, Mapping, Sequence, Iterable
-from types import TracebackType, FrameType
+from types import TracebackType
 import traceback, jsonpickle
 
 """self._arg = (<class 'KeyError'>, KeyError(b'LANGUAGE'), <traceback object at 0x11317f380>, )"""
@@ -184,12 +184,6 @@ def pickleable_simple(s):
       f.write(stackprinter.format(sys.exc_info()))
     raise SystemExit
 
-def pickleable_frame(frm):
-  try:
-    return pickle.loads(pickle.dumps(frm))
-  except:
-    wf('logs/pickleable_frame.tracer.log', stackprinter.format(sys.exc_info()))
-    raise
 
 def pickleable_dispatch(obj):
   if isinstance(obj,Iterable) and not isinstance(obj,str):

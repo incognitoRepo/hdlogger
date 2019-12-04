@@ -1,6 +1,5 @@
 import sys, os, io, linecache, collections, inspect, threading, stackprinter, jsonpickle, copyreg, traceback, logging, optparse, contextlib, operator
 import dill as pickle
-import pandas as pd
 from pickle import PicklingError
 # dill.Pickler.dispatch
 from prettyprinter import pformat, cpprint
@@ -21,11 +20,6 @@ from ..data_structures import (
 
 GENERATOR_AND_COROUTINE_FLAGS = CO_GENERATOR | CO_COROUTINE | CO_ASYNC_GENERATOR # 672
 WRITE = True
-
-def wf(filename,obj,mode="w"):
-  with open(filename,mode) as f:
-    f.write(obj)
-
 def ws(spaces=0,tabs=0):
   indent_size = spaces + (tabs * 2)
   whitespace_character = " "
@@ -283,32 +277,22 @@ class State:
     initialize_copyreg()
     self.pickleable_locals = pickleable_dict(self.frame.f_locals)
     self.pickleable_arg = pickleable_dispatch(self.arg)
-    self.pickleable_frame = pickleable_dispatch(self.frame)
-    self.serialized_locals = self.serialize_locals()
     self.serialized_arg = self.serialize_arg()
+    self.serialized_locals = self.serialize_locals()
 
   def serialize_arg(self):
     if self._serialized_arg: return self._serialized_arg
     _as_bytes = pickle.dumps(self.pickleable_arg)
     _as_hex = _as_bytes.hex()
-    with open('logs/serialized_arg.state.log','w') as f:
-      f.write(_as_hex+"\n")
+    with open('logs/tracer.serialized_arg.log','w') as f: f.write(_as_hex+"\n")
     self._serialized_arg = _as_hex
     return self._serialized_arg
-
-  @property
-  def pickleable_vars(self):
-    """provide a commin interace for the event kinds"""
-    PickleableVars = namedtuple('PickleableVars', 'arg locals')
-    pvs = PickleableVars(self.pickleable_arg, self.pickleable_locals)
-    return pvs
 
   def serialize_locals(self):
     if self._serialized_locals: return sekf._serialized_locals
     _as_bytes = pickle.dumps(self.pickleable_locals)
     _as_hex = _as_bytes.hex()
-    with open('logs/tracer.serialized_locals.log','w') as f:
-      f.write(_as_hex+"\n")
+    with open('logs/tracer.serialized_locals.log','w') as f: f.write(_as_hex+"\n")
     self._serialized_locals = _as_hex
     return self._serialized_locals
 
@@ -318,12 +302,6 @@ class State:
       filename = Path(self.filename)
     stem = f"{filename.stem:>10.10}"
     return stem
-
-  @property
-  def pickleable_vars(self):
-    d = {'locals': self.pickleable_locals,
-    'arg': self.pickleable_arg}
-    return d
 
   stack = []
   @property
@@ -403,12 +381,10 @@ class HiDefTracer:
   def __init__(self):
     self.state = None
     self.serialized_data = []
-    self.dataframe = None
     initialize_copyreg()
 
   history = []
   def make_dataframe(self):
-    if self.dataframe: return self.dataframe
     states = HiDefTracer.history
     fields = ['frame',
       'event',
@@ -429,57 +405,29 @@ class HiDefTracer:
       'stdlib',
       'source',
       'format_filename',
-      # 'formatter'
-      ]
-    row = operator.attrgetter(*fields)
-    rows = [row(state) for state in states]
-    for r in rows:
+      'formatter']
+    row = lambda st: operator.attrgetter(*fields)
+
+
+  def deserialize(self, hexfile='logs/tracer.serialized_arg.log'):
+    """Load each item that was previously written to disk."""
+    with open(hexfile,'r') as f:
+      _lines_as_hex = f.readlines()
+    l = []
+    for i,line in enumerate(_lines_as_hex):
       try:
-        pickle.loads(pickle.dumps(r))
+        print(i,line)
+        _as_bytes = bytes.fromhex(line)
+        deserialized = pickle.loads(_as_bytes)
       except:
-        with open('logs/make_dataframe.rowerr.log','a') as f:
+        with open('logs/deserialize.err.log','a') as f:
+          f.write(f"{i=}\n{line=}\n\n")
           f.write(stackprinter.format(sys.exc_info()))
-    df = pd.DataFrame(rows,columns=fields)
-    self.dataframe = df
-    df_pkl_pth = Path("logs/dataframe.tracer.pkl")
-    df.to_pickle(df_pkl_pth)
-    assert pd.read_pickle(df_pkl_pth), "can't pickle df"
-    return df
-
-  def save_history(self):
-    for state in HiDefTracer.history:
-      _as_bytes = pickle.dumps(state)
-      _as_hex = _as_bytes.hex()
-      with open("logs/serialized_states.tracer.log",'a') as f:
-        f.write(_as_hex + "\n")
-
-  def load_history(self):
-    states = []
-    with open("logs/serialized_states.tracer.log",'r') as f:
-      lines = f.readlines()
-    _as_bytes = [bytes.fromhex(line) for line in lines]
-    _as_obj = [pickle.loads(_bytes) for _bytes in _as_bytes]
-    return _as_obj
-
-  # def deserialize(self, hexfile='logs/tracer.serialized_arg.log'):
-  #   """Load each item that was previously written to disk."""
-  #   with open(hexfile,'r') as f:
-  #     _lines_as_hex = f.readlines()
-  #   l = []
-  #   for i,line in enumerate(_lines_as_hex):
-  #     try:
-  #       print(i,line)
-  #       _as_bytes = bytes.fromhex(line)
-  #       deserialized = pickle.loads(_as_bytes)
-  #     except:
-  #       with open('logs/deserialize.err.log','a') as f:
-  #         f.write(f"{i=}\n{line=}\n\n")
-  #         f.write(stackprinter.format(sys.exc_info()))
-  #       raise
-  #     l.append(deserialized)
-  #     with open('logs/tracer.deserialized_arg.log','a') as f:
-  #       f.write(str(deserialized)+"\n")
-  #   return l
+        raise
+      l.append(deserialized)
+      with open('logs/tracer.deserialized_arg.log','a') as f:
+        f.write(str(deserialized)+"\n")
+    return l
 
   def trace_dispatch(self, frame, event, arg):
     with open('logs/tracer.arg.log','a') as f: f.write(repr(arg)+'\n')

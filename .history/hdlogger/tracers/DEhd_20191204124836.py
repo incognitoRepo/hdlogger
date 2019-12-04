@@ -21,11 +21,6 @@ from ..data_structures import (
 
 GENERATOR_AND_COROUTINE_FLAGS = CO_GENERATOR | CO_COROUTINE | CO_ASYNC_GENERATOR # 672
 WRITE = True
-
-def wf(filename,obj,mode="w"):
-  with open(filename,mode) as f:
-    f.write(obj)
-
 def ws(spaces=0,tabs=0):
   indent_size = spaces + (tabs * 2)
   whitespace_character = " "
@@ -197,6 +192,12 @@ def safer_repr(obj):
     return repr(obj)
   except:
     return f"{obj.__module__}.{obj.__class__.__name__}"
+
+def pickleable_frame(frm):
+  try:
+    return pickle.loads(pickle.dumps(frm))
+  except:
+
 
 def pickleable_dict(d):
   def check(func,arg):
@@ -443,7 +444,7 @@ class HiDefTracer:
     self.dataframe = df
     df_pkl_pth = Path("logs/dataframe.tracer.pkl")
     df.to_pickle(df_pkl_pth)
-    assert pd.read_pickle(df_pkl_pth), "can't pickle df"
+    assert pd.raed_pickle(df_pkl_pth), "can't pickle df"
     return df
 
   def save_history(self):

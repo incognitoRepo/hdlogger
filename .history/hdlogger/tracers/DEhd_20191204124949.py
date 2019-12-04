@@ -198,6 +198,12 @@ def safer_repr(obj):
   except:
     return f"{obj.__module__}.{obj.__class__.__name__}"
 
+def pickleable_frame(frm):
+  try:
+    return pickle.loads(pickle.dumps(frm))
+  except:
+
+
 def pickleable_dict(d):
   def check(func,arg):
     with contextlib.suppress(Exception):
@@ -443,7 +449,7 @@ class HiDefTracer:
     self.dataframe = df
     df_pkl_pth = Path("logs/dataframe.tracer.pkl")
     df.to_pickle(df_pkl_pth)
-    assert pd.read_pickle(df_pkl_pth), "can't pickle df"
+    assert pd.raed_pickle(df_pkl_pth), "can't pickle df"
     return df
 
   def save_history(self):

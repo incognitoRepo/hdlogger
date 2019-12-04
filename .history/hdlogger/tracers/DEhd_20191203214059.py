@@ -56,17 +56,6 @@ def funk_works(funk,arg):
   try: return funk(arg)
   except: return None
 
-def apply_funcs(funcs,arg):
-  """return the first working func"""
-  for func in funcs:
-    try:
-      rv = func(arg)
-      pickle.pickles(rv)
-      return rv
-    except:
-      pass
-  raise
-
 def write_file(obj,filename,mode='w'):
   with open(filename,mode) as f:
     f.write(obj)
@@ -197,18 +186,17 @@ def pickleable_dict(d):
     raise
   except:
     d2 = {}
-    funclist = [jsonpickle.encode, lambda v: getattr(v,'__class__.__name__')]
     for k,v in d.items():
+      for func in [jsonpickle.encode,repr]:
+        if pickleable:=funk_works(func,v):
+          d2[k] = pickleable
       try:
-        pickleable = apply_funcs(funclist,v)
-        pickle.pickles(pickleable)
-        d2[k] = pickleable
+        if pickle.pickles(v): d2[k] = v
       except:
         with open('logs/tracer.pickleable_dict.log','a') as f:
           f.write(f"{k=}: {type(v)=}\n\n")
           f.write(stackprinter.format())
         raise
-    return d2
 
 class State:
   SYS_PREFIX_PATHS = set((

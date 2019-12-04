@@ -1,9 +1,9 @@
 from pydantic import BaseModel, PydanticValueError, ValidationError, validator, Field
 from prettyprinter import pformat
-import dill, stackprinter, sys, optparse
-from typing import Type, Any, Optional, Dict, Mapping, Sequence, Iterable
+import dill, stackprinter, sys
+from typing import Type, Any, Optional, Dict
 from types import TracebackType
-import traceback, jsonpickle
+import traceback
 
 """self._arg = (<class 'KeyError'>, KeyError(b'LANGUAGE'), <traceback object at 0x11317f380>, )"""
 
@@ -81,122 +81,34 @@ class UnpickleableError(PydanticValueError):
   msg_template = 'attempted `[pickle,jsonpickle,repr,str]` for "{type(v)=}"'
 
 def pickleable_dict(d):
-  with open('logs/models.pickleable_dict.log','a') as f:
-    f.write(f"\n{type(d)=}\n{d.keys()=}\n")
-    # for k in d:
-    #   f.write(f"{d[k]=}\n")
   if d == "": return ""
   try:
     ddd = dill.dumps(d)
-    assert str(dill.loads(ddd)), d
+    assert dill.loads(ddd)
     return d
   except:
     d2 = {}
-    for k in d:
-      # with open('logs/models.pickleable_dict2.log','a') as f:
-        # f.write(f"{k}={d}")
+    for k,v in d.items():
       try:
-        ddv = dill.dumps(d[k])
-        ddvstr = str(dill.loads(ddv))
-        assert str(dill.loads(ddv)), f"cant load dill.dumps(ddv)={ddv}"
+        ddv = dill.dumps(v)
+        assert dill.loads(ddv), f"cant load dill.dumps(v)={ddv}"
         d2[k] = ddv
       except:
-        tests = [jsonpickle.encode,repr,str,lambda _,v: getattr(v,'__class__.__name__')]
-
-        def check_pickleability(func,obj): return dill.pickles(func(obj))
-        for test in tests:
+        for test in [
+          lambda: dill.dumps(jsonpickle.encode(v)),
+          lambda: dill.dumps(repr(v)),
+          lambda: dill.dumps(str(v)),
+          lambda: dill.dumps(v.__class__.__name__)
+          ]:
           try:
-            check_pickleability(test,d[k])
-            d2.update({k:test(d[k])})
-          except:
-            raise
-
-        # with open('logs/models.unpickleable3.log','a') as f:
-        #   f.write("jsonpickle: "+dill.loads(dill.dumps(jsonpickle.encode(d[k])))+"\n\n")
-        #   f.write("repr: "+dill.loads(dill.dumps(repr(d[k])))+"\n\n"
-        #   f.write("str: "+dill.loads(dill.dumps(str(d[k])))+"\n\n"
-        #   f.write("__class__.__name__: "+dill.loads(dill.dumps(d[k].__class__.__name__))+"\n\n"
-        # for test in [
-        #   lambda: "jsonpickle: "+dill.loads(dill.dumps(jsonpickle.encode(d[k])))+"\n\n",
-        #   lambda: "repr: "+dill.loads(dill.dumps(repr(d[k])))+"\n\n",
-        #   lambda: "str: "+dill.loads(dill.dumps(str(d[k])))+"\n\n",
-        #   lambda: "__class__.__name__: "+dill.loads(dill.dumps(d[k].__class__.__name__))+"\n\n",
-        #   ]:
-        #   try:
-        #     ddv = test()
-        #     d2[k] = ddv
-        #   except: pass
+            ddv = test()
+            assert dill.loads(ddv), f"cant load dill.dumps(v)={ddv}"
+            d2[k] = ddv
+          except: pass
         with open('logs/models.unpickleable.log','a') as f:
           f.write(stackprinter.format(sys.exc_info()))
         raise SystemExit
-    return d2
-
-def pickleable_list(l):
-  if l == "": return ""
-  try:
-    ddl = dill.dumps(l)
-    assert dill.loads(ddl)
-    return l
-  except:
-      l2 = []
-      for elm in l:
-        try:
-          dde = dill.dumps(elm)
-          assert dill.loads(dde), f"cant load dill.dumps(dde)={dde}"
-          l2.append(dde)
-        except:
-          for test in [
-            lambda: dill.dumps(jsonpickle.encode(elm)),
-            lambda: dill.dumps(repr(elm)),
-            lambda: dill.dumps(str(elm)),
-            lambda: dill.dumps(elm.__class__.__name__)
-            ]:
-            try:
-              dde = test()
-              assert dill.loads(dde), f"cant load dill.dumps(dde)={dde}"
-              l2.append(dde)
-            except: pass
-          with open('logs/models.unpickleable.log','a') as f:
-            f.write(stackprinter.format(sys.exc_info()))
-          raise SystemExit
-      return l2
-
-def pickleable_simple(s):
-  if s == "": return ""
-  try:
-    dds = dill.dumps(s)
-    assert dill.loads(dds)
-    return s
-  except:
-    for test in [
-      lambda: dill.dumps(jsonpickle.encode(s)),
-      lambda: dill.dumps(repr(s)),
-      lambda: dill.dumps(str(s)),
-      lambda: dill.dumps(s.__class__.__name__)
-      ]:
-      try:
-        dds = test()
-        assert dill.loads(dds), f"cant load dill.dumps(dds)={dds}"
-        return dds
-      except:
-        pass
-    with open('logs/models.unpickleable.log','a') as f:
-      f.write(stackprinter.format(sys.exc_info()))
-    raise SystemExit
-
-def pickleable_dispatch(obj):
-  if isinstance(obj,Iterable) and not isinstance(obj,str):
-    if isinstance(obj, Mapping):
-      return pickleable_dict(obj)
-    elif isinstance(obj, Sequence):
-      return pickleable_list(obj)
-    else:
-      with open('logs/models.pickleable_dispatch.log','w') as f:
-        f.write(stackprinter.format(sys.exc_info()))
-      raise
-  else:
-      return pickleable_simple(obj)
-
+    return d
 
 class PickleableDict(BaseModel):
   d: Optional[Dict[str, Any]] = None

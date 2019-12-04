@@ -1,4 +1,4 @@
-import sys, os, io, linecache, collections, inspect, threading, stackprinter, jsonpickle, copyreg, traceback, logging, optparse, contextlib
+import sys, os, io, linecache, collections, inspect, threading, stackprinter, jsonpickle, copyreg, traceback, logging
 import dill as pickle
 from pickle import PicklingError
 # dill.Pickler.dispatch
@@ -51,21 +51,6 @@ def c(s,arg=None):
     if arg == 'line': return _c(s,modifier=2,intensity=3,color=0)
     if arg == 'return': return _c(s,modifier=1,intensity=9,color=3)
     if arg == 'exception': return _c(s,modifier=1,intensity=9,color=1)
-
-def funk_works(funk,arg):
-  try: return funk(arg)
-  except: return None
-
-def apply_funcs(funcs,arg):
-  """return the first working func"""
-  for func in funcs:
-    try:
-      rv = func(arg)
-      pickle.pickles(rv)
-      return rv
-    except:
-      pass
-  raise
 
 def write_file(obj,filename,mode='w'):
   with open(filename,mode) as f:
@@ -125,33 +110,11 @@ def unpickle(kwds):
   Unpickleable = type('Unpickleable',(), dict.fromkeys(kwds))
   return Unpickleable(**kwds)
 
-class PickleableOptparseOption:
-  def __init__(self,module,classname):
-    self.module = module
-    self.classname = classname
-    self.id = id(self)  #  0x%x:
-  def __str__(self):
-    # s = f"{obj.__module__}.{obj.__class__.__name__}"
-    s = f"{self.module}.{self.classname}"
-    return s
-
-def pickle_optparse_option(optopt):
-  """str(pickle.loads(pickle.dumps(self)))"""
-  kwds = {
-    'module':optopt.__module__,
-    'classname':optopt.__class__.__name__,
-  }
-  return unpickle_optparse_option, (kwds,)
-
-def unpickle_optparse_option(kwds):
-  return PickleableOptparseOption(**kwds)
-
 def initialize_copyreg():
   special_cases = [
     (GeneratorType,pickle_generator),
     (FrameType,pickle_frame),
     (TracebackType,pickle_traceback),
-    (optparse.Option,pickle_optparse_option),
   ]
   for special_case in special_cases:
     copyreg.pickle(*special_case)
@@ -190,25 +153,6 @@ def safer_repr(obj):
     return repr(obj)
   except:
     return f"{obj.__module__}.{obj.__class__.__name__}"
-
-def pickleable_dict(d):
-  try:
-    if pickle.pickles(d): return d
-    raise
-  except:
-    d2 = {}
-    funclist = [jsonpickle.encode, lambda v: getattr(v,'__class__.__name__')]
-    for k,v in d.items():
-      try:
-        pickleable = apply_funcs(funclist,v)
-        pickle.pickles(pickleable)
-        d2[k] = pickleable
-      except:
-        with open('logs/tracer.pickleable_dict.log','a') as f:
-          f.write(f"{k=}: {type(v)=}\n\n")
-          f.write(stackprinter.format())
-        raise
-    return d2
 
 class State:
   SYS_PREFIX_PATHS = set((

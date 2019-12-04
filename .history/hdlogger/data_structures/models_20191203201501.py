@@ -1,6 +1,6 @@
 from pydantic import BaseModel, PydanticValueError, ValidationError, validator, Field
 from prettyprinter import pformat
-import dill, stackprinter, sys, optparse
+import dill, stackprinter, sys
 from typing import Type, Any, Optional, Dict, Mapping, Sequence, Iterable
 from types import TracebackType
 import traceback, jsonpickle

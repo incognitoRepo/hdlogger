@@ -1,4 +1,4 @@
-import sys, os, io, linecache, collections, inspect, threading, stackprinter, jsonpickle, copyreg, traceback, logging, optparse, contextlib
+import sys, os, io, linecache, collections, inspect, threading, stackprinter, jsonpickle, copyreg, traceback, logging
 import dill as pickle
 from pickle import PicklingError
 # dill.Pickler.dispatch
@@ -8,15 +8,12 @@ from itertools import count
 from functools import singledispatchmethod, cached_property
 from pathlib import Path
 from typing import Callable, Iterable
-from types import FunctionType, GeneratorType, FrameType, TracebackType
+from types import FunctionType, GeneratorType, FrameType
 from bdb import BdbQuit
 from hunter.const import SYS_PREFIX_PATHS
 from pydantic import ValidationError
 from inspect import CO_GENERATOR, CO_COROUTINE, CO_ASYNC_GENERATOR
-from ..data_structures import (
-  TraceHookCallbackCall, TraceHookCallbackLine, TraceHookCallbackReturn, TraceHookCallbackException,
-  pickleable_dispatch, pickleable_dict,
-)
+from ..data_structures import TraceHookCallbackCall, TraceHookCallbackLine, TraceHookCallbackReturn, TraceHookCallbackException, pickleable_dict
 
 GENERATOR_AND_COROUTINE_FLAGS = CO_GENERATOR | CO_COROUTINE | CO_ASYNC_GENERATOR # 672
 WRITE = True
@@ -52,21 +49,6 @@ def c(s,arg=None):
     if arg == 'return': return _c(s,modifier=1,intensity=9,color=3)
     if arg == 'exception': return _c(s,modifier=1,intensity=9,color=1)
 
-def funk_works(funk,arg):
-  try: return funk(arg)
-  except: return None
-
-def apply_funcs(funcs,arg):
-  """return the first working func"""
-  for func in funcs:
-    try:
-      rv = func(arg)
-      pickle.pickles(rv)
-      return rv
-    except:
-      pass
-  raise
-
 def write_file(obj,filename,mode='w'):
   with open(filename,mode) as f:
     f.write(obj)
@@ -90,68 +72,20 @@ def pickle_generator(gen):
     'locals': inspect.getgeneratorlocals(gen),
     'id': hex(id(gen))
   }
-  return unpickle_generator, (kwds,)
-
-def unpickle_generator(kwds):
-  return Unpickleable(**kwds)
-
-class PickleableFrame:
-  def __init__(self, lineno):
-    self.lineno = lineno
+  return unpickle, (kwds,)
 
 def pickle_frame(frame):
-  kwds = {'lineno':frame.f_lineno}
-  return unpickle_frame, (kwds,)
-
-def unpickle_frame(kwds):
-  return PickleableFrame(**kwds)
-
-class PickleableTraceback:
-  def __init__(self,lasti,lineno):
-    self.lasti = lasti
-    self.lineno = lineno
-
-def pickle_traceback(tb):
-  kwds = {
-    'lasti': tb.tb_lasti,
-    'lineno':tb.tb_lineno,
-  }
-  return unpickle_traceback, (kwds,)
-
-def unpickle_traceback(kwds):
-  return PickleableTraceback(**kwds)
+  kwds = {'f_fileno':frame.f_lineno}
+  return unpickle, (kwds,)
 
 def unpickle(kwds):
   Unpickleable = type('Unpickleable',(), dict.fromkeys(kwds))
   return Unpickleable(**kwds)
 
-class PickleableOptparseOption:
-  def __init__(self,module,classname):
-    self.module = module
-    self.classname = classname
-    self.id = id(self)  #  0x%x:
-  def __str__(self):
-    # s = f"{obj.__module__}.{obj.__class__.__name__}"
-    s = f"{self.module}.{self.classname}"
-    return s
-
-def pickle_optparse_option(optopt):
-  """str(pickle.loads(pickle.dumps(self)))"""
-  kwds = {
-    'module':optopt.__module__,
-    'classname':optopt.__class__.__name__,
-  }
-  return unpickle_optparse_option, (kwds,)
-
-def unpickle_optparse_option(kwds):
-  return PickleableOptparseOption(**kwds)
-
 def initialize_copyreg():
   special_cases = [
     (GeneratorType,pickle_generator),
     (FrameType,pickle_frame),
-    (TracebackType,pickle_traceback),
-    (optparse.Option,pickle_optparse_option),
   ]
   for special_case in special_cases:
     copyreg.pickle(*special_case)
@@ -191,25 +125,6 @@ def safer_repr(obj):
   except:
     return f"{obj.__module__}.{obj.__class__.__name__}"
 
-def pickleable_dict(d):
-  try:
-    if pickle.pickles(d): return d
-    raise
-  except:
-    d2 = {}
-    funclist = [jsonpickle.encode, lambda v: getattr(v,'__class__.__name__')]
-    for k,v in d.items():
-      try:
-        pickleable = apply_funcs(funclist,v)
-        pickle.pickles(pickleable)
-        d2[k] = pickleable
-      except:
-        with open('logs/tracer.pickleable_dict.log','a') as f:
-          f.write(f"{k=}: {type(v)=}\n\n")
-          f.write(stackprinter.format())
-        raise
-    return d2
-
 class State:
   SYS_PREFIX_PATHS = set((
     sys.prefix,
@@ -243,29 +158,47 @@ class State:
     self._line = None
     self._return = None
     self._exception = None
-    self._serialized_arg = None
-    self._serialized_locals = None
     initialize_copyreg()
     self.pickleable_locals = pickleable_dict(self.frame.f_locals)
-    self.pickleable_arg = pickleable_dispatch(self.arg)
     self.serialized_arg = self.serialize_arg()
-    self.serialized_locals = self.serialize_locals()
 
   def serialize_arg(self):
-    if self._serialized_arg: return self._serialized_arg
-    _as_bytes = pickle.dumps(self.pickleable_arg)
-    _as_hex = _as_bytes.hex()
-    with open('logs/tracer.serialized_arg.log','w') as f: f.write(_as_hex+"\n")
-    self._serialized_arg = _as_hex
-    return self._serialized_arg
+    if self.event == "return" and self.arg is not None:
+      self.arg = TraceHookCallbackReturn(**{'return_value':self.arg})
 
-  def serialize_locals(self):
-    if self._serialized_locals: return sekf._serialized_locals
-    _as_bytes = pickle.dumps(self.pickleable_locals)
+    if self.event == "exception" and self.arg is not None:
+      try:
+        kwds = dict(zip(['etype','value','tb'], self.arg))
+        self.arg = TraceHookCallbackException(**kwds)
+      except:
+        with open('logs/serialize_arg.exc.log','a') as f:
+          f.write(stackprinter.format(sys.exc_info()))
+        raise
+
+    if self.event == "call":
+      assert not self.arg, f"{self.arg=}"
+      try:
+        kwds = self.frame.f_locals
+        self.arg = pickleable_dict(kwds)
+        with open('logs/state.serialize_arg.log','w') as f:
+          f.write(f"{self.arg=}, {type(self.arg)=}\n")
+      except ValidationError as e:
+        with open('logs/serialize_arg.call.log','a') as f:
+          f.write(e)
+        raise
+
+    try:
+      _as_bytes = pickle.dumps(self.arg)
+      assert pickle.loads(_as_bytes), f"{pickle.loads(_as_bytes)}"
+    except:
+      _as_json = jsonpickle.encode(self.arg)
+      _as_bytes = pickle.dumps(_as_json)
+      assert pickle.loads(_as_bytes), f"{pickle.loads(_as_bytes)}"
+
     _as_hex = _as_bytes.hex()
-    with open('logs/tracer.serialized_locals.log','w') as f: f.write(_as_hex+"\n")
-    self._serialized_locals = _as_hex
-    return self._serialized_locals
+    assert pickle.loads(bytes.fromhex(_as_hex)), f"{pickle.loads(bytes.fromhex(_as_hex))}"
+    with open('logs/state.serialized_arg.log','a') as f: f.write(_as_hex+"\n")
+    return _as_hex
 
   @cached_property
   def format_filename(self):
@@ -282,7 +215,7 @@ class State:
     self.formatter = StateFormatter(
       self.index, self.format_filename, self.lineno,
       self.event, "\u0020" * (len(State.stack)-1), "=>",
-      function=self.function, arg=self.pickleable_locals)
+      function=self.function, arg=self.frame.f_locals)
     self._call = str(self.formatter)
     return self._call
 
@@ -355,9 +288,9 @@ class HiDefTracer:
     self.serialized_data = []
     initialize_copyreg()
 
-  def deserialize(self, hexfile='logs/tracer.serialized_arg.log'):
+  def deserialize(self, bytesfile='logs/state.serialized_arg.log'):
     """Load each item that was previously written to disk."""
-    with open(hexfile,'r') as f:
+    with open(bytesfile,'r') as f:
       _lines_as_hex = f.readlines()
     l = []
     for i,line in enumerate(_lines_as_hex):
@@ -399,51 +332,39 @@ class HiDefTracer:
 
   def dispatch_call(self, frame, arg):
     assert arg is None, f"dispatch_call: {(arg is None)=}"
-    try:
-      pickleable = self.state.pickleable_locals
-    except ValidationError as e:
-      with open('logs/tracer.dispatch_call.log','a') as f:
-        f.write(stackprinter.format(sys.exc_info()))
-      raise
 
-    self.user_call(frame, pickleable)
+    try:
+      lwds = {'call_args': self.frame.f_locals}
+      TraceHookCallbackCall(**kwds)
+    except ValidationError as e:
+      with open('logs/tracer.dispatch_call.log','w') as f:
+        f.write(stackprinter.format(sys.exc_info()))
+    self.user_call(frame, arg)
     return self.trace_dispatch
 
   def dispatch_line(self, frame, arg):
     assert arg is None, f"dispatch_line: {(arg is None)=}"
-    try:
-      pickleable = self.state.pickleable_locals
-    except ValidationError as e:
-      with open('logs/tracer.dispatch_line.log','a') as f:
-        f.write(stackprinter.format(sys.exc_info()))
-      raise
-
-    self.user_line(frame, pickleable)
+    self.user_line(frame)
     return self.trace_dispatch
 
   def dispatch_return(self, frame, arg):
     """note: there are a few `special cases` wrt `arg`"""
-    if arg is None: return ""
-    try:
-      pickleable = self.state.pickleable_arg
-    except ValidationError as e:
-      with open('logs/tracer.dispatch_line.log','a') as f:
-        f.write(stackprinter.format(sys.exc_info()))
-      raise
-
-    self.user_return(frame, pickleable)
+    if arg is not None:
+      try:
+        # with open('logs/dispatch_return.log','a') as f: f.write(str(arg))
+        kwds = {'return_value': arg}
+        TraceHookCallbackReturn(**kwds)
+      except ValidationError as e:
+        print(e.json())
+        raise
+      except:
+        print(stackprinter.format(sys.exc_info()))
+        raise
+    self.user_return(frame, arg)
     return self.trace_dispatch
 
   def dispatch_exception(self, frame, arg):
-    if arg is None: return ""
-    try:
-      pickleable = self.state.pickleable_arg
-    except ValidationError as e:
-      with open('logs/tracer.dispatch_exc.log','a') as f:
-        f.write(stackprinter.format(sys.exc_info()))
-      raise
-
-    self.user_exception(frame, pickleable)
+    self.user_exception(frame, arg)
     return self.trace_dispatch
 
   def user_call(self, frame, argument_list):
@@ -451,7 +372,7 @@ class HiDefTracer:
     print(self.state.format_call)
     return self.trace_dispatch
 
-  def user_line(self, frame, pickleable):
+  def user_line(self, frame):
     print('user_line')
     print(self.state.format_line)
     return self.trace_dispatch
@@ -460,6 +381,7 @@ class HiDefTracer:
     print('user_return')
     print(self.state.format_return)
     if return_value:
+      assert self.state.arg.return_value == return_value, f"{self.state.arg=}, {return_value=}"
       self.return_values.append(return_value)
 
   def user_exception(self, frame, exc_info):

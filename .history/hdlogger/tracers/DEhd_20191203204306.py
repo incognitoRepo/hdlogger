@@ -1,4 +1,4 @@
-import sys, os, io, linecache, collections, inspect, threading, stackprinter, jsonpickle, copyreg, traceback, logging, optparse, contextlib
+import sys, os, io, linecache, collections, inspect, threading, stackprinter, jsonpickle, copyreg, traceback, logging, optparse
 import dill as pickle
 from pickle import PicklingError
 # dill.Pickler.dispatch
@@ -51,21 +51,6 @@ def c(s,arg=None):
     if arg == 'line': return _c(s,modifier=2,intensity=3,color=0)
     if arg == 'return': return _c(s,modifier=1,intensity=9,color=3)
     if arg == 'exception': return _c(s,modifier=1,intensity=9,color=1)
-
-def funk_works(funk,arg):
-  try: return funk(arg)
-  except: return None
-
-def apply_funcs(funcs,arg):
-  """return the first working func"""
-  for func in funcs:
-    try:
-      rv = func(arg)
-      pickle.pickles(rv)
-      return rv
-    except:
-      pass
-  raise
 
 def write_file(obj,filename,mode='w'):
   with open(filename,mode) as f:
@@ -193,22 +178,10 @@ def safer_repr(obj):
 
 def pickleable_dict(d):
   try:
-    if pickle.pickles(d): return d
-    raise
+    pickle.pickles(d)
+    return d
   except:
-    d2 = {}
-    funclist = [jsonpickle.encode, lambda v: getattr(v,'__class__.__name__')]
-    for k,v in d.items():
-      try:
-        pickleable = apply_funcs(funclist,v)
-        pickle.pickles(pickleable)
-        d2[k] = pickleable
-      except:
-        with open('logs/tracer.pickleable_dict.log','a') as f:
-          f.write(f"{k=}: {type(v)=}\n\n")
-          f.write(stackprinter.format())
-        raise
-    return d2
+    {pickleable_dispatch(v) for k,v in d.items()}
 
 class State:
   SYS_PREFIX_PATHS = set((

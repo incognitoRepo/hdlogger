@@ -209,23 +209,14 @@ def pickleable_simple(s):
 
 
 class PickleableEnviron:
-  def __init__(self, kwds):
-    d = {}
-    for k,v in kwds.items():
-      setattr(self, k, kwds[k])
+  def __init__(self):
 
 def pickle_environ(env):
   kwds = {}
-  return unpickle_environ, (kwds,)
+  return unpickle_environ, (kws,)
 
 def unpickle_environ(kwds):
-  return PickleableEnviron(kwds)
 
-class PickleableGenerator:
-  def __init__(self, state, locals, id):
-    self.state = state
-    self.locals = locals
-    self.id = id
 
 def pickle_generator(gen):
   kwds = {
@@ -545,10 +536,10 @@ class HiDefTracer:
     self.dataframe = None
     initialize_copyreg()
 
-  def ensure_pickleable(self):
+  def make_dataframe(self):
     if bool(self.dataframe): return self.dataframe
     states = self.history
-    attrs = ['frame',
+    fields = ['frame',
       'event',
       # 'arg',
       'pickleable_arg',
@@ -572,14 +563,6 @@ class HiDefTracer:
       # TODO: each "state" in `states` is len=17, for the 17 fields (len(fields))
     pickleable_states = [] # len 1279
     for state in states:
-      for attr in attrs:
-        try:
-          pickle.loads(pickle.dumps(state[attr]))
-          wf('','a')
-        except:
-          wf('logs/pickling_attrs.tracer.log','a')
-          raise
-
       try:
         field_values = operator.attrgetter(*fields)
         _pickleable_state = dict(zip(fields, field_values(state)))

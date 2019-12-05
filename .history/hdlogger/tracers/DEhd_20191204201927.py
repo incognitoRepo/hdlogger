@@ -109,15 +109,6 @@ def pickleable_dispatch(obj):
   else:
     return pickleable_simple(obj)
 
-def pickleable_environ(env):
-  envd = dict(env)
-  try:
-    return pickleable_dict(envd)
-  except:
-    with open('logs/pickleable_env.tracer.log','a') as f:
-      f.write(stackprinter.format(sys.exc_info()))
-    raise
-
 def pickleable_frame(frm):
   try:
     return pickle.loads(pickle.dumps(frm))
@@ -207,25 +198,6 @@ def pickleable_simple(s):
       f.write(stackprinter.format(sys.exc_info()))
     raise SystemExit
 
-
-class PickleableEnviron:
-  def __init__(self, kwds):
-    d = {}
-    for k,v in kwds.items():
-      setattr(self, k, kwds[k])
-
-def pickle_environ(env):
-  kwds = {}
-  return unpickle_environ, (kwds,)
-
-def unpickle_environ(kwds):
-  return PickleableEnviron(kwds)
-
-class PickleableGenerator:
-  def __init__(self, state, locals, id):
-    self.state = state
-    self.locals = locals
-    self.id = id
 
 def pickle_generator(gen):
   kwds = {
@@ -322,11 +294,10 @@ def unpickle_optparse_option(kwds):
 
 def initialize_copyreg():
   special_cases = [
-    (GeneratorType, pickle_generator),
-    (FrameType, pickle_frame),
-    (TracebackType, pickle_traceback),
-    (optparse.Option, pickle_optparse_option),
-    (os._Environ, pickle_environ),
+    (GeneratorType,pickle_generator),
+    (FrameType,pickle_frame),
+    (TracebackType,pickle_traceback),
+    (optparse.Option,pickle_optparse_option),
   ]
   for special_case in special_cases:
     copyreg.pickle(*special_case)
@@ -545,10 +516,10 @@ class HiDefTracer:
     self.dataframe = None
     initialize_copyreg()
 
-  def ensure_pickleable(self):
+  def make_dataframe(self):
     if bool(self.dataframe): return self.dataframe
     states = self.history
-    attrs = ['frame',
+    fields = ['frame',
       'event',
       # 'arg',
       'pickleable_arg',
@@ -559,37 +530,31 @@ class HiDefTracer:
       'index',
       # 'globals',
       'function',
-      # 'function_object',
+      'function_object',
       'module',
       'filename',
       'lineno',
-      # 'code',
+      'code',
       'stdlib',
       'source',
       'format_filename',
       # 'formatter'
       ]
       # TODO: each "state" in `states` is len=17, for the 17 fields (len(fields))
-    pickleable_states = [] # len 1279
+    pickleable_states = []
     for state in states:
-      for attr in attrs:
-        try:
-          pickle.loads(pickle.dumps(state[attr]))
-          wf('','a')
-        except:
-          wf('logs/pickling_attrs.tracer.log','a')
-          raise
-
+      field_values = operator.attrgetter(*fields)
+      pickleable_state = dict(zip(fields, field_values(state)))
+      assert bool(pickle.pickles(pickleable_state)), f"{bool(pickle.pickles(pickleable_state))}"
+      pickleable_states.append(pickleable_state)
+    assert all([pickle.loads(pickle.dumps(pst)) for pst in pickleable_states]), f"{pickleable_states=}"
+    for i,r in enumerate(pickleable_states):
       try:
-        field_values = operator.attrgetter(*fields)
-        _pickleable_state = dict(zip(fields, field_values(state)))
-        pickleable_state = pickle.loads(pickle.dumps(_pickleable_state))
-        pickleable_states.append(pickleable_state)
+        pickleable_state = pickle.loads(pickle.dumps(r))
       except:
-        with open('logs/make_dataframe.err.log','a') as f:
+        with open('logs/make_dataframe.rowerr.log','a') as f:
           f.write(stackprinter.format(sys.exc_info()))
         raise SystemExit
-    # TODO: type(ose) = <class 'os._Environ'>
     df = pd.DataFrame(pickleable_states,columns=fields)
     self.dataframe = df
     df_pkl_pth = Path("logs/dataframe.tracer.pkl")
@@ -599,6 +564,7 @@ class HiDefTracer:
       # triangulate the edrror source
       r1 = df.iloc[0]
       r1d = dict(r1)
+      res = [check(elm) for elm in r1]
       raise
     # assert bool(pd.read_pickle(df_pkl_pth)), "can't pickle df"
     return df

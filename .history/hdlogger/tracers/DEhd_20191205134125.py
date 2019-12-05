@@ -545,10 +545,10 @@ class HiDefTracer:
     self.dataframe = None
     initialize_copyreg()
 
-  def ensure_pickleable(self):
+  def make_dataframe(self):
     if bool(self.dataframe): return self.dataframe
     states = self.history
-    attrs = ['frame',
+    fields = ['frame',
       'event',
       # 'arg',
       'pickleable_arg',
@@ -572,14 +572,6 @@ class HiDefTracer:
       # TODO: each "state" in `states` is len=17, for the 17 fields (len(fields))
     pickleable_states = [] # len 1279
     for state in states:
-      for attr in attrs:
-        try:
-          pickle.loads(pickle.dumps(state[attr]))
-          wf('','a')
-        except:
-          wf('logs/pickling_attrs.tracer.log','a')
-          raise
-
       try:
         field_values = operator.attrgetter(*fields)
         _pickleable_state = dict(zip(fields, field_values(state)))

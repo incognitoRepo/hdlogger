@@ -444,7 +444,7 @@ class State:
         "source": self.source,
         "format_filename": self.format_filename,
       }
-    pickleable_state = PickleableState(psd)
+    pickleable_state = PickleableState(**psd)
     if writefile:
       wf('logs/get_pickleable_state.state.log',pickleable_state,'w')
     return pickleable_state
@@ -643,14 +643,8 @@ class HiDefTracer:
     # assert bool(pd.read_pickle(df_pkl_pth)), "can't pickle df"
     return df
 
-  def save_history(self):
-    histpath = Path("logs/serialized_states.tracer.log")
-    for state in self.history:
-      _as_bytes = pickle.dumps(state)
-      _as_hex = _as_bytes.hex()
-      with open(histpath,'a') as f:
-        f.write(_as_hex + "\n")
-    assert histpath.exists()
+  def create_dataframe(self):
+
 
   def trace_dispatch(self, frame, event, arg):
     with open('logs/tracer.arg.log','a') as f:

@@ -8,11 +8,12 @@ from collections import namedtuple
 from itertools import count
 from functools import singledispatchmethod, cached_property
 from pathlib import Path
-from typing import Callable, Iterable, Mapping, Sequence
+from typing import Callable, Iterable, Mapping, Sequence, Any, Dict, List, Tuple
 from types import FunctionType, GeneratorType, FrameType, TracebackType
 from bdb import BdbQuit
 from hunter.const import SYS_PREFIX_PATHS
 from pydantic import ValidationError
+from dataclasses import dataclass
 from inspect import CO_GENERATOR, CO_COROUTINE, CO_ASYNC_GENERATOR
 from ..data_structures import (
   TraceHookCallbackCall, TraceHookCallbackLine, TraceHookCallbackReturn, TraceHookCallbackException,
@@ -21,18 +22,49 @@ from ..data_structures import (
 GENERATOR_AND_COROUTINE_FLAGS = CO_GENERATOR | CO_COROUTINE | CO_ASYNC_GENERATOR # 672
 WRITE = True
 
-def check(func,arg):
-  with contextlib.suppress(Exception):
-    return func(arg)
+state_attrs = [
+  'pickleable_frame',
+  'event',
+  # 'arg',
+  'pickleable_arg',
+  'serialized_arg',
+  # 'locals',
+  'pickleable_locals',
+  'serialized_locals',
+  'index',
+  # 'globals',
+  'function',
+  # 'function_object',
+  'module',
+  'filename',
+  'lineno',
+  # 'code',
+  'stdlib',
+  'source',
+  'format_filename',
+  # 'formatter'
+  ]
+
+def checkfuncs(funcs,arg):
+  def checkfunc(func,arg):
+    with contextlib.suppress(Exception):
+      return func(arg)
+  for func in funcs:
+    if funcres:= checkfunc(func) is not None:
+      return funcres
+    else:
+      return None
+  raise Exception("DEhd.checkfuncs: all funcs failed")
 
 def wf(filename,obj,mode="a"):
   with open(filename,mode) as f:
     f.write(obj)
 
-def ws(spaces=0,tabs=0):
+def whitespace(spaces=0,tabs=0): # ws
   indent_size = spaces + (tabs * 2)
   whitespace_character = " "
   return f"{whitespace_character * indent_size}"
+ws = whitespace
 
 def _c(s,modifier=0,intensity=3,color=0):
   """
@@ -61,21 +93,6 @@ def c(s,arg=None):
     if arg == 'return': return _c(s,modifier=1,intensity=9,color=3)
     if arg == 'exception': return _c(s,modifier=1,intensity=9,color=1)
 
-def funk_works(funk,arg):
-  try: return funk(arg)
-  except: return None
-
-def apply_funcs(funcs,arg):
-  """return the first working func"""
-  for func in funcs:
-    try:
-      rv = func(arg)
-      pickle.pickles(rv)
-      return rv
-    except:
-      pass
-  raise
-
 def write_file(obj,filename,mode='w'):
   with open(filename,mode) as f:
     f.write(obj)
@@ -93,21 +110,26 @@ def first_true(iterable, default=False, pred=None):
     # first_true([a,b], x, f) --> a if f(a) else b if f(b) else x
     return next(filter(pred, iterable), default)
 
+def make_state_dict():
+  dict(zip(attrs,map(attrgetter,attrs)))
 
 def pickleable_dispatch(obj):
-  if isinstance(obj,Iterable) and not isinstance(obj,str):
-    if isinstance(obj, Mapping):
-      return pickleable_dict(obj)
-    elif isinstance(obj, Sequence):
-      return pickleable_list(obj)
+  try:
+    return pickle.loads(pickle.dumps(obj))
+  except:
+    if isinstance(obj,Iterable) and not isinstance(obj,str):
+      if isinstance(obj, Mapping):
+        return pickleable_dict(obj)
+      elif isinstance(obj, Sequence):
+        return pickleable_list(obj)
+      else:
+        with open('logs/models.pickleable_dispatch.log','w') as f:
+          f.write(stackprinter.format(sys.exc_info()))
+        raise
+    elif isinstance(obj,FrameType):
+      return pickleable_frame(obj)
     else:
-      with open('logs/models.pickleable_dispatch.log','w') as f:
-        f.write(stackprinter.format(sys.exc_info()))
-      raise
-  elif isinstance(obj,FrameType):
-    return pickleable_frame(obj)
-  else:
-    return pickleable_simple(obj)
+      return pickleable_simple(obj)
 
 def pickleable_environ(env):
   envd = dict(env)
@@ -126,27 +148,22 @@ def pickleable_frame(frm):
     raise
 
 def pickleable_dict(d):
-  def check(func,arg):
-    with contextlib.suppress(Exception):
-      return func(arg)
-
-  try:
-    return pickle.loads(pickle.dumps(d))
-  except:
-    print(2)
-    d2 = {}
-    funclist = [lambda v: pickle.loads(pickle.dumps(v)), lambda v: jsonpickle.encode(v),lambda v: getattr(v,'__class__.__name__')]
-    for k,v in d.items():
-      try:
-        checked = [check(func,v) for func in funclist]
-        pickleable = next(filter(None,checked))
-        d2[k] = pickleable
-      except:
-        with open('logs/tracer.pickleable_dict.log','a') as f:
-          f.write(f"{k=}: {type(v)=}\n\n")
-          f.write(stackprinter.format())
-        raise
-    return d2
+  funclist = [
+    lambda v: pickle.loads(pickle.dumps(v)),
+    lambda v: jsonpickle.encode(v),
+    lambda v: getattr(v,'__class__.__name__')
+  ]
+  d2 = {}
+  for k,v in d.items():
+    try:
+      checked = checkfuncs(funclist,v)
+      pickleable = next(filter(None,checked))
+      d2[k] = pickleable
+    except:
+      s = stackprinter.format(sys.exc_info())
+      wf('logs/pickleable_dict.tracers.log', s,mode="a")
+      raise SystemExit(f"unable to pickle {d} due to:\n{k=}\n{v=}")
+  return d2
 
 def pickleable_globals(g):
   cp = g.copy()
@@ -207,6 +224,34 @@ def pickleable_simple(s):
       f.write(stackprinter.format(sys.exc_info()))
     raise SystemExit
 
+class StateFormatter:
+  def __init__(
+    self,
+    index, filename, lineno, event, indent, symbol,
+    function=None, arg=None, source=None):
+    self.index = f"{index:>5}"
+    self.filename = filename
+    self.lineno = f"{lineno:<5}"
+    self.event = f"{event:9} "
+    self.indent = indent
+    self.symbol = f"{symbol} "
+    self.function = function
+    self.arg = arg
+    self.source = source
+
+  def __str__(self,color=False):
+    if self.source:
+      line = self.source
+    else:
+      line = self.function + str(self.arg)
+
+    s = (
+      f"{self.index}|{self.filename}:{self.lineno}|{self.event}|"
+      f"{self.indent}|{self.symbol}|"
+      f"{line.rstrip()}|"
+    )
+
+    return s
 
 class PickleableEnviron:
   def __init__(self, kwds):
@@ -214,29 +259,11 @@ class PickleableEnviron:
     for k,v in kwds.items():
       setattr(self, k, kwds[k])
 
-def pickle_environ(env):
-  kwds = {}
-  return unpickle_environ, (kwds,)
-
-def unpickle_environ(kwds):
-  return PickleableEnviron(kwds)
-
 class PickleableGenerator:
   def __init__(self, state, locals, id):
     self.state = state
     self.locals = locals
     self.id = id
-
-def pickle_generator(gen):
-  kwds = {
-    'state': inspect.getgeneratorstate(gen),
-    'locals': inspect.getgeneratorlocals(gen),
-    'id': hex(id(gen))
-  }
-  return unpickle_generator, (kwds,)
-
-def unpickle_generator(kwds):
-  return Unpickleable(**kwds)
 
 class PickleableFrame:
   def __init__(self, filename, lineno, function, local_vars, code_context, index):
@@ -249,6 +276,41 @@ class PickleableFrame:
 
   def __str__(self,color=False):
     return pformat(self.__dict__)
+
+class PickleableTraceback:
+  def __init__(self,lasti,lineno):
+    self.lasti = lasti
+    self.lineno = lineno
+
+class PickleableOptparseOption:
+  def __init__(self,module,classname):
+    self.module = module
+    self.classname = classname
+    self.id = id(self)  #  0x%x:
+
+  def __str__(self):
+    # s = f"{obj.__module__}.{obj.__class__.__name__}"
+    s = f"{self.module}.{self.classname}"
+    return s
+
+
+def pickle_environ(env):
+  kwds = {}
+  return unpickle_environ, (kwds,)
+
+def unpickle_environ(kwds):
+  return PickleableEnviron(kwds)
+
+def pickle_generator(gen):
+  kwds = {
+    'state': inspect.getgeneratorstate(gen),
+    'locals': inspect.getgeneratorlocals(gen),
+    'id': hex(id(gen))
+  }
+  return unpickle_generator, (kwds,)
+
+def unpickle_generator(kwds):
+  return Unpickleable(**kwds)
 
 def getcodecontext(frame,lineno,context=2):
   if context > 0:
@@ -279,11 +341,6 @@ def pickle_frame(frame):
 def unpickle_frame(kwds):
   return PickleableFrame(**kwds)
 
-class PickleableTraceback:
-  def __init__(self,lasti,lineno):
-    self.lasti = lasti
-    self.lineno = lineno
-
 def pickle_traceback(tb):
   kwds = {
     'lasti': tb.tb_lasti,
@@ -293,21 +350,6 @@ def pickle_traceback(tb):
 
 def unpickle_traceback(kwds):
   return PickleableTraceback(**kwds)
-
-def unpickle(kwds):
-  Unpickleable = type('Unpickleable',(), dict.fromkeys(kwds))
-  return Unpickleable(**kwds)
-
-class PickleableOptparseOption:
-  def __init__(self,module,classname):
-    self.module = module
-    self.classname = classname
-    self.id = id(self)  #  0x%x:
-
-  def __str__(self):
-    # s = f"{obj.__module__}.{obj.__class__.__name__}"
-    s = f"{self.module}.{self.classname}"
-    return s
 
 def pickle_optparse_option(optopt):
   """str(pickle.loads(pickle.dumps(self)))"""
@@ -330,35 +372,6 @@ def initialize_copyreg():
   ]
   for special_case in special_cases:
     copyreg.pickle(*special_case)
-
-class StateFormatter:
-  def __init__(
-    self,
-    index, filename, lineno, event, indent, symbol,
-    function=None, arg=None, source=None):
-    self.index = f"{index:>5}"
-    self.filename = filename
-    self.lineno = f"{lineno:<5}"
-    self.event = f"{event:9} "
-    self.indent = indent
-    self.symbol = f"{symbol} "
-    self.function = function
-    self.arg = arg
-    self.source = source
-
-  def __str__(self,color=False):
-    if self.source:
-      line = self.source
-    else:
-      line = self.function + str(self.arg)
-
-    s = (
-      f"{self.index}|{self.filename}:{self.lineno}|{self.event}|"
-      f"{self.indent}|{self.symbol}|"
-      f"{line.rstrip()}|"
-    )
-
-    return s
 
 def safer_repr(obj):
   try:
@@ -384,23 +397,57 @@ def util():
   dispatch_table = copyreg.dispatch_table
   pickle_func = dispatch_table[type(f_locals)]
 
+@dataclass
+class PickleableState:
+  frame: PickleableFrame
+  event: str
+  arg: Any
+  locals: Dict
+  index: int
+  function: str
+  module: str
+  filename: str
+  lineno: int
+  stdlib: bool
+  source: str
+  format_filename: str
+
 class State:
   SYS_PREFIX_PATHS = set((
     sys.prefix,
     sys.exec_prefix,
     os.path.dirname(os.__file__),
-    os.path.dirname(collections.__file__),
-  ))
+    os.path.dirname(collections.__file__),))
   counter = count(0)
 
   def __init__(self, frame, event, arg):
-    with open('logs/state.raw_arg.log','w') as f:
+    with open('logs/init_arg.state.log','a') as f:
       f.write(repr(arg)+"\n")
     self.frame = frame
     self.event = event
-    self.arg = arg if arg else ""
+    self.arg = arg
     self.index = next(State.counter)
     self.initialize()
+
+  def get_pickleable_state(self, writefile=False) -> PickleableState:
+    psd = {
+        "frame": self.pickleable_frame,
+        "event": self.event,
+        "arg": self.pickleable_arg,
+        "locals": self.pickleable_locals,
+        "index": self.index,
+        "function": self.function,
+        "module": self.module,
+        "filename": self.filename,
+        "lineno": self.lineno,
+        "stdlib": self.stdlib,
+        "source": self.source,
+        "format_filename": self.format_filename,
+      }
+    pickleable_state = PickleableState(psd)
+    if writefile:
+      wf('logs/get_pickleable_state.state.log',pickleable_state,'w')
+    return pickleable_state
 
   def initialize(self):
     self.locals = self.frame.f_locals
@@ -422,15 +469,15 @@ class State:
     initialize_copyreg()
     self.pickleable_locals = pickleable_dict(self.frame.f_locals)
     self.pickleable_arg = pickleable_dispatch(self.arg)
-    self.pickleable_frame = pickleable_dispatch(self.frame)
     self.serialized_locals = self.serialize_locals()
     self.serialized_arg = self.serialize_arg()
+    self.pickleable_frame = pickleable_dispatch(self.frame)
 
   def serialize_arg(self):
     if self._serialized_arg: return self._serialized_arg
     _as_bytes = pickle.dumps(self.pickleable_arg)
     _as_hex = _as_bytes.hex()
-    with open('logs/serialized_arg.state.log','w') as f:
+    with open('logs/serialized_arg.state.log','a') as f:
       f.write(_as_hex+"\n")
     self._serialized_arg = _as_hex
     return self._serialized_arg
@@ -443,10 +490,10 @@ class State:
     return pvs
 
   def serialize_locals(self):
-    if self._serialized_locals: return sekf._serialized_locals
+    if self._serialized_locals: return self._serialized_locals
     _as_bytes = pickle.dumps(self.pickleable_locals)
     _as_hex = _as_bytes.hex()
-    with open('logs/tracer.serialized_locals.log','w') as f:
+    with open('logs/serialized_locals.tracer.log','a') as f:
       f.write(_as_hex+"\n")
     self._serialized_locals = _as_hex
     return self._serialized_locals
@@ -543,54 +590,47 @@ class HiDefTracer:
     self.state = None
     self.history = []
     self.dataframe = None
-    initialize_copyreg()
+    self.initialize()
 
-  def ensure_pickleable(self):
-    if bool(self.dataframe): return self.dataframe
-    states = self.history
-    attrs = ['frame',
-      'event',
-      # 'arg',
-      'pickleable_arg',
-      'serialized_arg',
-      # 'locals',
-      'pickleable_locals',
-      'serialized_locals',
-      'index',
-      # 'globals',
-      'function',
-      # 'function_object',
-      'module',
-      'filename',
-      'lineno',
-      # 'code',
-      'stdlib',
-      'source',
-      'format_filename',
-      # 'formatter'
-      ]
+  def initialize(self):
+    initialize_copyreg()
+    pickleable = self.get_pickleable_state()
+    df = self.make_dataframe(pickleable)
+    from ipdb import set_trace as st; st()
+
+  def ensure_pickleable(self) -> Tuple[List,List]:
+    if self.dataframe is not None and not self.dataframe.empty: return self.dataframe
+    states, attrs = self.history, state_attrs
       # TODO: each "state" in `states` is len=17, for the 17 fields (len(fields))
+      # TODO: make a `PickleableState` class
+      # TODO: `pickle_state` takes attributes from a "state" and creates an instance of `PickleableState`
     pickleable_states = [] # len 1279
     for state in states:
-      for attr in attrs:
-        try:
-          pickle.loads(pickle.dumps(state[attr]))
-          wf('','a')
-        except:
-          wf('logs/pickling_attrs.tracer.log','a')
-          raise
-
       try:
-        field_values = operator.attrgetter(*fields)
-        _pickleable_state = dict(zip(fields, field_values(state)))
-        pickleable_state = pickle.loads(pickle.dumps(_pickleable_state))
-        pickleable_states.append(pickleable_state)
+        pickleable_states.append(self.process_state(state))
       except:
-        with open('logs/make_dataframe.err.log','a') as f:
-          f.write(stackprinter.format(sys.exc_info()))
-        raise SystemExit
-    # TODO: type(ose) = <class 'os._Environ'>
-    df = pd.DataFrame(pickleable_states,columns=fields)
+        _pickleable_state = {}
+        for attr in attrs:
+          try:
+            pickleable = pickle.loads(pickle.dumps(getattr(state,attr)))
+            _pickleable_state.update({attr: pickleable})
+            wf('logs/ensure_pickleable.tracer.log',str(pickleable),'a')
+          except:
+            wf('logs/ensure_pickleable.tracer.err.log',getattr(state,attr),'a')
+            raise
+        pickleable_states.append(_pickleable_state)
+    return (attrs, pickleable_states)
+
+  def process_state(self,state):
+    pickleable_state_dict = {}
+    for attr in state_attrs:
+      pickleable_state_dict.update({attr:getattr(state,attr,"failed2serialize")})
+    return pickleable_state_dict
+
+  def make_dataframe(self,header_and_pickleable_states):
+    headers,pickleable_states = header_and_pickleable_states[0:1],header_and_pickleable_states[1:]
+    df = pd.DataFrame(pickleable_states,columns=headers)
+    pickle.loads(pickle.dumps(df))
     self.dataframe = df
     df_pkl_pth = Path("logs/dataframe.tracer.pkl")
     try:
@@ -612,21 +652,11 @@ class HiDefTracer:
         f.write(_as_hex + "\n")
     assert histpath.exists()
 
-  def load_history(self):
-    states = []
-    with open("logs/serialized_states.tracer.log",'r') as f:
-      lines = f.readlines()
-    _as_bytes = [bytes.fromhex(line) for line in lines]
-    _as_obj = [pickle.loads(_bytes) for _bytes in _as_bytes]
-    return _as_obj
-
   def trace_dispatch(self, frame, event, arg):
     with open('logs/tracer.arg.log','a') as f:
       f.write(repr(arg)+'\n')
-    self.state = State(frame,event,arg)
-    pre = len(self.history)
+    self.state = State(frame,event,arg).get_pickleable_state(writefile=True)
     self.history.append(self.state)
-    assert len(self.history)-1 == pre, "!"*8
     # if self.quitting:
       # return # None
     if event == 'line':

@@ -7,7 +7,7 @@ from prettyprinter import pformat, cpprint
 from collections import namedtuple
 from itertools import count
 from functools import singledispatchmethod, cached_property
-from pathlib import Path, mkdir
+from pathlib import Path
 from typing import Callable, Iterable, Mapping, Sequence, Any, Dict, List, Tuple
 from types import FunctionType, GeneratorType, FrameType, TracebackType, FunctionType
 from bdb import BdbQuit

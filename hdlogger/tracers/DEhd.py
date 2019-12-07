@@ -651,8 +651,8 @@ class HiDefTracer:
       self.dataframe.to_pickle('logs/tracers.dataframe.pkl')
     _state(frame, event, arg)
     _dataframe()
-    from ipdb import set_trace as st; st()
-    self.dataframe.to_pickle('logs/tracer.dataframe.pkl')
+
+    # self.dataframe.to_pickle('logs/tracer.dataframe.pkl')
     wf( pickle.dumps(self.dataframe).hex(),'logs/initialize_df.tracers.log','w')
 
   def trace_dispatch(self, frame, event, arg):

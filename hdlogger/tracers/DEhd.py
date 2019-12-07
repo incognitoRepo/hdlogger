@@ -7,9 +7,9 @@ from prettyprinter import pformat, cpprint
 from collections import namedtuple
 from itertools import count
 from functools import singledispatchmethod, cached_property
-from pathlib import Path
+from pathlib import Path, mkdir
 from typing import Callable, Iterable, Mapping, Sequence, Any, Dict, List, Tuple
-from types import FunctionType, GeneratorType, FrameType, TracebackType
+from types import FunctionType, GeneratorType, FrameType, TracebackType, FunctionType
 from bdb import BdbQuit
 from hunter.const import SYS_PREFIX_PATHS
 from pydantic import ValidationError
@@ -50,13 +50,18 @@ def checkfuncs(funcs,arg):
     with contextlib.suppress(Exception):
       return func(arg)
   for func in funcs:
-    if funcres:= checkfunc(func) is not None:
+    if funcres:= checkfunc(func,arg) is not None:
       return funcres
     else:
       return None
   raise Exception("DEhd.checkfuncs: all funcs failed")
 
 def wf(filename,obj,mode="a"):
+  path = Path(filename)
+  if not path.exists():
+    path.mkdir(parents=True, exist_ok=True)
+  if not isinstance(obj, str): obj = str(obj)
+  if mode == "a" and not obj.endswith("\n"): obj = f"{obj}\n"
   with open(filename,mode) as f:
     f.write(obj)
 
@@ -130,6 +135,10 @@ def pickleable_dispatch(obj):
       return pickleable_frame(obj)
     else:
       return pickleable_simple(obj)
+    s = stackprinter.format(sys.exc_info())
+    print(s)
+    from ipdb import set_trace as st; st()
+    raise SystemExit(f"failure in pickleable_dispatch: cannot pickle {obj}")
 
 def pickleable_environ(env):
   envd = dict(env)
@@ -162,6 +171,7 @@ def pickleable_dict(d):
     except:
       s = stackprinter.format(sys.exc_info())
       wf('logs/pickleable_dict.tracers.log', s,mode="a")
+
       raise SystemExit(f"unable to pickle {d} due to:\n{k=}\n{v=}")
   return d2
 
@@ -223,6 +233,7 @@ def pickleable_simple(s):
     with open('logs/models.unpickleable.log','a') as f:
       f.write(stackprinter.format(sys.exc_info()))
     raise SystemExit
+
 
 class StateFormatter:
   def __init__(
@@ -293,6 +304,35 @@ class PickleableOptparseOption:
     s = f"{self.module}.{self.classname}"
     return s
 
+def pickle_function(fnc):
+  sig = inspect.signature(fnc)
+  inspect.Signature(sig.parameters.values())
+  kwds = sig.parameters
+  return unpickle_function, (kwds,)
+
+def unpickle_function(kwds):
+  sig = inspect.Signature(kwds)
+  return
+
+def pickle_state(st):
+  kwds = {
+      "frame": st.pickleable_frame,
+      "event": st.event,
+      "arg": st.pickleable_arg,
+      "locals": st.pickleable_locals,
+      "index": st.index,
+      "function": st.function,
+      "module": st.module,
+      "filename": st.filename,
+      "lineno": st.lineno,
+      "stdlib": st.stdlib,
+      "source": st.source,
+      "format_filename": st.format_filename,
+  }
+  return unpickle_state, (kwds,)
+
+def unpickle_state(kwds):
+  PickleableState(**kwds)
 
 def pickle_environ(env):
   kwds = {}
@@ -369,6 +409,8 @@ def initialize_copyreg():
     (TracebackType, pickle_traceback),
     (optparse.Option, pickle_optparse_option),
     (os._Environ, pickle_environ),
+    (State, pickle_state),
+    (FunctionType, pickle_function),
   ]
   for special_case in special_cases:
     copyreg.pickle(*special_case)
@@ -446,7 +488,7 @@ class State:
       }
     pickleable_state = PickleableState(**psd)
     if writefile:
-      wf('logs/get_pickleable_state.state.log',pickleable_state,'w')
+      wf('logs/get_pickleable_state.state.log',pickleable_state,'a')
     return pickleable_state
 
   def initialize(self):
@@ -467,7 +509,7 @@ class State:
     self._serialized_arg = None
     self._serialized_locals = None
     initialize_copyreg()
-    self.pickleable_locals = pickleable_dict(self.frame.f_locals)
+    self.pickleable_locals = pickleable_dispatch(self.frame.f_locals)
     self.pickleable_arg = pickleable_dispatch(self.arg)
     self.serialized_locals = self.serialize_locals()
     self.serialized_arg = self.serialize_arg()
@@ -588,69 +630,28 @@ class HiDefTracer:
 
   def __init__(self):
     self.state = None
-    self.history = []
+    self.pickleable_state = None
+    self.pickleable_states = []
     self.dataframe = None
-    self.initialize()
 
-  def initialize(self):
+  def initialize(self, frame, event, arg):
     initialize_copyreg()
-    pickleable = self.get_pickleable_state()
-    df = self.make_dataframe(pickleable)
+    self.state = State(frame,event,arg)
+    self.pickleable_state = self.state.get_pickleable_state(writefile=True)
+    self.pickleable_states.append(self.pickleable_state)
+    wf('logs/initialize_pksts.tracers.log', self.pickleable_states,'w')
+    _state_as_dict = [self.pickleable_state.__dict__]
+    self.dataframe = pd.DataFrame(_state_as_dict)
+    sys.settrace(None)
     from ipdb import set_trace as st; st()
-
-  def ensure_pickleable(self) -> Tuple[List,List]:
-    if self.dataframe is not None and not self.dataframe.empty: return self.dataframe
-    states, attrs = self.history, state_attrs
-      # TODO: each "state" in `states` is len=17, for the 17 fields (len(fields))
-      # TODO: make a `PickleableState` class
-      # TODO: `pickle_state` takes attributes from a "state" and creates an instance of `PickleableState`
-    pickleable_states = [] # len 1279
-    for state in states:
-      try:
-        pickleable_states.append(self.process_state(state))
-      except:
-        _pickleable_state = {}
-        for attr in attrs:
-          try:
-            pickleable = pickle.loads(pickle.dumps(getattr(state,attr)))
-            _pickleable_state.update({attr: pickleable})
-            wf('logs/ensure_pickleable.tracer.log',str(pickleable),'a')
-          except:
-            wf('logs/ensure_pickleable.tracer.err.log',getattr(state,attr),'a')
-            raise
-        pickleable_states.append(_pickleable_state)
-    return (attrs, pickleable_states)
-
-  def process_state(self,state):
-    pickleable_state_dict = {}
-    for attr in state_attrs:
-      pickleable_state_dict.update({attr:getattr(state,attr,"failed2serialize")})
-    return pickleable_state_dict
-
-  def make_dataframe(self,header_and_pickleable_states):
-    headers,pickleable_states = header_and_pickleable_states[0:1],header_and_pickleable_states[1:]
-    df = pd.DataFrame(pickleable_states,columns=headers)
-    pickle.loads(pickle.dumps(df))
-    self.dataframe = df
-    df_pkl_pth = Path("logs/dataframe.tracer.pkl")
-    try:
-      df.to_pickle(str(df_pkl_pth)) # df works here
-    except:
-      # triangulate the edrror source
-      r1 = df.iloc[0]
-      r1d = dict(r1)
-      raise
-    # assert bool(pd.read_pickle(df_pkl_pth)), "can't pickle df"
-    return df
-
-  def create_dataframe(self):
-
+    self.dataframe.to_pickle('logs/initialize.tracer.log')
+    wf('logs/initialize_df.tracers.log', pickle.dumps(self.dataframe).hex(),'w')
 
   def trace_dispatch(self, frame, event, arg):
-    with open('logs/tracer.arg.log','a') as f:
+    """this is the entry point for this class"""
+    with open('logs/tracer.dispatch_arg.log','a') as f:
       f.write(repr(arg)+'\n')
-    self.state = State(frame,event,arg).get_pickleable_state(writefile=True)
-    self.history.append(self.state)
+    self.initialize(frame, event, arg)
     # if self.quitting:
       # return # None
     if event == 'line':

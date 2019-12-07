@@ -58,11 +58,11 @@ def checkfuncs(funcs,arg):
 
 def wf(filename,obj,mode="a"):
   path = Path(filename)
-  if not path.exists():
+  if not path.parent.exists():
     path.mkdir(parents=True, exist_ok=True)
   if not isinstance(obj, str): obj = str(obj)
   if mode == "a" and not obj.endswith("\n"): obj = f"{obj}\n"
-  with open(filename,mode) as f:
+  with path.open(mode,encoding="utf-8") as f:
     f.write(obj)
 
 def whitespace(spaces=0,tabs=0): # ws
@@ -99,8 +99,7 @@ def c(s,arg=None):
     if arg == 'exception': return _c(s,modifier=1,intensity=9,color=1)
 
 def write_file(obj,filename,mode='w'):
-  with open(filename,mode) as f:
-    f.write(obj)
+  return wf(filename,obj,mode)
 
 def first_true(iterable, default=False, pred=None):
     """Returns the first true value in the iterable.
@@ -128,8 +127,7 @@ def pickleable_dispatch(obj):
       elif isinstance(obj, Sequence):
         return pickleable_list(obj)
       else:
-        with open('logs/models.pickleable_dispatch.log','w') as f:
-          f.write(stackprinter.format(sys.exc_info()))
+        wf('logs/models.pickleable_dispatch.log', stackprinter.format(sys.exc_info()),'a')
         raise
     elif isinstance(obj,FrameType):
       return pickleable_frame(obj)
@@ -145,8 +143,7 @@ def pickleable_environ(env):
   try:
     return pickleable_dict(envd)
   except:
-    with open('logs/pickleable_env.tracer.log','a') as f:
-      f.write(stackprinter.format(sys.exc_info()))
+    wf('logs/pickleable_env.tracer.log', stackprinter.format(sys.exc_info()), 'a')
     raise
 
 def pickleable_frame(frm):
@@ -206,8 +203,7 @@ def pickleable_list(l):
               assert pickle.loads(dde), f"cant load pickle.dumps(dde)={dde}"
               l2.append(dde)
             except: pass
-          with open('logs/models.unpickleable.log','a') as f:
-            f.write(stackprinter.format(sys.exc_info()))
+          wf('logs/models.unpickleable.log', stackprinter.format(sys.exc_info()), 'a')
           raise SystemExit
       return l2
 
@@ -230,8 +226,7 @@ def pickleable_simple(s):
         return dds
       except:
         pass
-    with open('logs/models.unpickleable.log','a') as f:
-      f.write(stackprinter.format(sys.exc_info()))
+    wf('logs/models.unpickleable.log', stackprinter.format(sys.exc_info()), 'a')
     raise SystemExit
 
 
@@ -463,8 +458,7 @@ class State:
   counter = count(0)
 
   def __init__(self, frame, event, arg):
-    with open('logs/init_arg.state.log','a') as f:
-      f.write(repr(arg)+"\n")
+    wf('logs/init_arg.state.log', repr(arg)+"\n", 'a')
     self.frame = frame
     self.event = event
     self.arg = arg
@@ -519,8 +513,7 @@ class State:
     if self._serialized_arg: return self._serialized_arg
     _as_bytes = pickle.dumps(self.pickleable_arg)
     _as_hex = _as_bytes.hex()
-    with open('logs/serialized_arg.state.log','a') as f:
-      f.write(_as_hex+"\n")
+    wf('logs/serialized_arg.state.log', _as_hex+"\n", 'a')
     self._serialized_arg = _as_hex
     return self._serialized_arg
 
@@ -535,8 +528,7 @@ class State:
     if self._serialized_locals: return self._serialized_locals
     _as_bytes = pickle.dumps(self.pickleable_locals)
     _as_hex = _as_bytes.hex()
-    with open('logs/serialized_locals.tracer.log','a') as f:
-      f.write(_as_hex+"\n")
+    wf('logs/serialized_locals.tracer.log', _as_hex+"\n", 'a')
     self._serialized_locals = _as_hex
     return self._serialized_locals
 
@@ -649,8 +641,7 @@ class HiDefTracer:
 
   def trace_dispatch(self, frame, event, arg):
     """this is the entry point for this class"""
-    with open('logs/tracer.dispatch_arg.log','a') as f:
-      f.write(repr(arg)+'\n')
+    wf('logs/tracer.dispatch_arg.log', repr(arg)+'\n', 'a')
     self.initialize(frame, event, arg)
     # if self.quitting:
       # return # None
@@ -676,8 +667,7 @@ class HiDefTracer:
     try:
       pickleable = self.state.pickleable_locals
     except ValidationError as e:
-      with open('logs/tracer.dispatch_call.log','a') as f:
-        f.write(stackprinter.format(sys.exc_info()))
+      wf('logs/tracer.dispatch_call.log', stackprinter.format(sys.exc_info()), 'a')
       raise
 
     self.user_call(frame, pickleable)
@@ -688,8 +678,7 @@ class HiDefTracer:
     try:
       pickleable = self.state.pickleable_locals
     except ValidationError as e:
-      with open('logs/tracer.dispatch_line.log','a') as f:
-        f.write(stackprinter.format(sys.exc_info()))
+      wf('logs/tracer.dispatch_line.log', stackprinter.format(sys.exc_info()), 'a')
       raise
 
     self.user_line(frame, pickleable)
@@ -701,8 +690,7 @@ class HiDefTracer:
     try:
       pickleable = self.state.pickleable_arg
     except ValidationError as e:
-      with open('logs/tracer.dispatch_line.log','a') as f:
-        f.write(stackprinter.format(sys.exc_info()))
+      wf('logs/tracer.dispatch_line.log', stackprinter.format(sys.exc_info()), 'a')
       raise
 
     self.user_return(frame, pickleable)
@@ -713,8 +701,7 @@ class HiDefTracer:
     try:
       pickleable = self.state.pickleable_arg
     except ValidationError as e:
-      with open('logs/tracer.dispatch_exc.log','a') as f:
-        f.write(stackprinter.format(sys.exc_info()))
+      wf('logs/tracer.dispatch_exc.log', stackprinter.format(sys.exc_info()), 'a')
       raise
 
     self.user_exception(frame, pickleable)

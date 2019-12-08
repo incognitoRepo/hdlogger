@@ -630,6 +630,20 @@ class TraceProcessor:
     self.pickled_states_as_bytes = []
     self.dataframe = []
 
+  def initialize(self,pickled_states):
+    path = Path(pickled_states)
+    lines = rf(path,"r").readlines()
+    self.pickled_states_as_hex = lines
+    self.pickled_states = self.hex2bytes()
+
+  def hex2bytes(self):
+    hexlines = self.pickled_states_as_hex.copy()
+
+    for line in hexlines:
+      self.pickled_state_as_bytes.append(bytes.fromhex(line))
+      self.pickleable_states.append(pickle.loads(line))
+
+
 class HiDefTracer:
 
   def __init__(self):
@@ -668,8 +682,8 @@ class HiDefTracer:
   def trace_dispatch(self, frame, event, arg):
     """this is the entry point for this class"""
     self.initialize(frame, event, arg)
-    # if self.quitting:
-      # return # None
+    if self.quitting:
+      return # None
     if event == 'line':
       return self.dispatch_line(frame, arg)
     if event == 'call':

@@ -37,8 +37,6 @@ class HiDefTracer:
     # TODO
     pass
 
-
-
 class PickleableFunction:
   def __init__(self, lineno):
     self.lineno = lineno
@@ -49,3 +47,14 @@ def pickle_function(function):
 
 def unpickle_function(kwds):
   return PickleableFunction(**kwds)
+
+def trest():
+  df = pd.DataFrame(columns=["a","bee","c"])
+  d = {"a":325,"bee":['d','r'],"c": 3}
+  l = [d]
+  df.append(l)
+  df2 = df.append(l)
+  df3 = df2.append(l)
+  l2 = []
+  d2 = {"bee":['rt'],"c":435,"a":4}
+  df3.append(l2.append(d2))

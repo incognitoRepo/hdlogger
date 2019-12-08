@@ -97,7 +97,7 @@ class Event:
       print(cf.f_locals['self'].frame.f_locals.keys())
       print(list(self.frame.f_locals['rv']))
       self.frame.f_locals['rv2'] = [333]
-      import ipdb; ipdb.set_trace()
+      # import ipdb; ipdb.set_trace()
       print(self.frame.f_locals.keys())
       print(list(self.frame.f_locals['rv2']))
       fl = list(self.frame.f_locals['rv2'])
@@ -119,7 +119,7 @@ class Event:
       print(cf.f_globals['self'].frame.f_globals.keys())
       print(list(self.frame.f_globals['rv']))
       self.frame.f_globals['rv2'] = [333]
-      import ipdb; ipdb.set_trace()
+      # import ipdb; ipdb.set_trace()
       print(self.frame.f_globals.keys())
       print(list(self.frame.f_globals['rv2']))
       fl = list(self.frame.f_globals['rv2'])

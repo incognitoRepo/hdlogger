@@ -70,6 +70,11 @@ def wf(obj,filename,mode="a"):
   with path.open(mode,encoding="utf-8") as f:
     f.write(str(obj))
 
+def rf(filename, mode="r"):
+  path = Path(filename)
+  with open(path, mode) as f:
+    lines = f.readlines()
+  return lines
 
 def whitespace(spaces=0,tabs=0): # ws
   indent_size = spaces + (tabs * 2)
@@ -124,13 +129,14 @@ def pickleable_dispatch(obj):
   try:
     return pickle.loads(pickle.dumps(obj))
   except:
+    if isinstance(obj, bytes): obj = str(obj)
     if isinstance(obj,Iterable) and not isinstance(obj,str):
       if isinstance(obj, Mapping):
         return pickleable_dict(obj)
       elif isinstance(obj, Sequence):
         return pickleable_list(obj)
       else:
-        wf( stackprinter.format(sys.exc_info()),'logs/models.pickleable_dispatch.log','a')
+        wf(stackprinter.format(sys.exc_info()),'logs/models.pickleable_dispatch.log','a')
         raise
     elif isinstance(obj,FrameType):
       return pickleable_frame(obj)
@@ -138,7 +144,6 @@ def pickleable_dispatch(obj):
       return pickleable_simple(obj)
     s = stackprinter.format(sys.exc_info())
     print(s)
-    from ipdb import set_trace as st; st()
     raise SystemExit(f"failure in pickleable_dispatch: cannot pickle {obj}")
 
 def pickleable_environ(env):
@@ -286,10 +291,36 @@ class PickleableFrame:
   def __str__(self,color=False):
     return pformat(self.__dict__)
 
+@dataclass
+class PickleableState:
+  frame: PickleableFrame
+  event: str
+  arg: Any
+  locals: Dict
+  index: int
+  function: str
+  module: str
+  filename: str
+  lineno: int
+  stdlib: bool
+  source: str
+  format_filename: str
+
+  def __str__(self):
+    l = []
+    attrs = self.__annotations__.keys()
+    for attr in attrs:
+      l.append(f"{attr}={getattr(self,attr,'None')}")
+    s = "\n".join(l)
+    return s
+
 class PickleableTraceback:
   def __init__(self,lasti,lineno):
     self.lasti = lasti
     self.lineno = lineno
+
+class GenericPickleableMapping:
+  pass
 
 class PickleableOptparseOption:
   def __init__(self,module,classname):
@@ -298,8 +329,10 @@ class PickleableOptparseOption:
     self.id = id(self)  #  0x%x:
 
   def __str__(self):
-    # s = f"{obj.__module__}.{obj.__class__.__name__}"
-    s = f"{self.module}.{self.classname}"
+    l = []
+    for k,v in self.__dict__.items():
+      l.append(f"{k}={v}")
+    s = f"{self.module}.{self.classname}, {id=}"
     return s
 
 def pickle_function(fnc):
@@ -309,8 +342,7 @@ def pickle_function(fnc):
   return unpickle_function, (kwds,)
 
 def unpickle_function(kwds):
-  sig = inspect.Signature(kwds)
-  return
+  return inspect.Signature(kwds)
 
 def pickle_state(st):
   kwds = {
@@ -330,14 +362,7 @@ def pickle_state(st):
   return unpickle_state, (kwds,)
 
 def unpickle_state(kwds):
-  PickleableState(**kwds)
-
-def pickle_environ(env):
-  kwds = {}
-  return unpickle_environ, (kwds,)
-
-def unpickle_environ(kwds):
-  return PickleableEnviron(kwds)
+  return PickleableState(**kwds)
 
 def pickle_generator(gen):
   kwds = {
@@ -348,7 +373,7 @@ def pickle_generator(gen):
   return unpickle_generator, (kwds,)
 
 def unpickle_generator(kwds):
-  return Unpickleable(**kwds)
+  return PickableGenerator(**kwds)
 
 def getcodecontext(frame,lineno,context=2):
   if context > 0:
@@ -406,9 +431,9 @@ def initialize_copyreg():
     (FrameType, pickle_frame),
     (TracebackType, pickle_traceback),
     (optparse.Option, pickle_optparse_option),
-    (os._Environ, pickle_environ),
     (State, pickle_state),
     (FunctionType, pickle_function),
+    (Mapping, pickleable_dict)
   ]
   for special_case in special_cases:
     copyreg.pickle(*special_case)
@@ -437,29 +462,6 @@ def util():
   dispatch_table = copyreg.dispatch_table
   pickle_func = dispatch_table[type(f_locals)]
 
-@dataclass
-class PickleableState:
-  frame: PickleableFrame
-  event: str
-  arg: Any
-  locals: Dict
-  index: int
-  function: str
-  module: str
-  filename: str
-  lineno: int
-  stdlib: bool
-  source: str
-  format_filename: str
-
-  def __str__(self):
-    attrs = PickleableState.__annotations__.keys()
-    l = []
-    for attr in attrs:
-      l.append(f"{attr}={getattr(self,attr,'None')}")
-    s = "\n".join(l)
-    return s
-
 class State:
   SYS_PREFIX_PATHS = set((
     sys.prefix,
@@ -469,14 +471,14 @@ class State:
   counter = count(0)
 
   def __init__(self, frame, event, arg):
-    wf( repr(arg)+"\n",'logs/init_arg.state.log', 'a')
+    wf(repr(arg)+"\n",'logs/01.initial_arg.state.log', 'a')
     self.frame = frame
     self.event = event
     self.arg = arg
     self.index = next(State.counter)
     self.initialize()
 
-  def get_pickleable_state(self, writefile=False) -> PickleableState:
+  def get_pickleable_state(self) -> PickleableState:
     psd = {
         "frame": self.pickleable_frame,
         "event": self.event,
@@ -492,8 +494,6 @@ class State:
         "format_filename": self.format_filename,
       }
     pickleable_state = PickleableState(**psd)
-    if writefile:
-      wf(str(pickleable_state),'logs/get_pickleable_state.state.log','a')
     return pickleable_state
 
   def initialize(self):
@@ -520,41 +520,12 @@ class State:
     self.serialized_arg = self.serialize_arg()
     self.pickleable_frame = pickleable_dispatch(self.frame)
 
-  def serialize_arg(self):
-    if self._serialized_arg: return self._serialized_arg
-    _as_bytes = pickle.dumps(self.pickleable_arg)
-    _as_hex = _as_bytes.hex()
-    wf( _as_hex+"\n",'logs/serialized_arg.state.log', 'a')
-    self._serialized_arg = _as_hex
-    return self._serialized_arg
-
-  @property
-  def pickleable_vars(self):
-    """provide a commin interace for the event kinds"""
-    PickleableVars = namedtuple('PickleableVars', 'arg locals')
-    pvs = PickleableVars(self.pickleable_arg, self.pickleable_locals)
-    return pvs
-
-  def serialize_locals(self):
-    if self._serialized_locals: return self._serialized_locals
-    _as_bytes = pickle.dumps(self.pickleable_locals)
-    _as_hex = _as_bytes.hex()
-    wf( _as_hex+"\n",'logs/serialized_locals.tracer.log', 'a')
-    self._serialized_locals = _as_hex
-    return self._serialized_locals
-
   @cached_property
   def format_filename(self):
     if not isinstance(self.filename,Path):
       filename = Path(self.filename)
     stem = f"{filename.stem:>10.10}"
     return stem
-
-  @property
-  def pickleable_vars(self):
-    d = {'locals': self.pickleable_locals,
-    'arg': self.pickleable_arg}
-    return d
 
   stack = []
   @property
@@ -635,29 +606,34 @@ class HiDefTracer:
     self.state = None
     self.pickleable_state = None
     self.pickleable_states = []
+    self.pickled_state_as_bytes = []
+    self.pickled_state_as_hex = []
+
     self.dataframe = None
 
   def initialize(self, frame, event, arg):
-    # sys.settrace(None)
     initialize_copyreg()
     def _state(f, e, a):
       self.state = State(f,e,a)
-      self.pickleable_state = self.state.get_pickleable_state(writefile=True)
+      self.pickleable_state = self.state.get_pickleable_state()
+      _as_bytes = pickle.dumps(self.pickleable_state)
+      _as_hexad = _as_bytes.hex()
+      wf(pformat(self.pickleable_state)+"\n",'logs/02.pickleable_states.tracer.log', 'a')
+      wf(_as_hexad+"\n","logs/03.pickled_states_hex.tracer.log","a")
       self.pickleable_states.append(self.pickleable_state)
-      wf( self.pickleable_states,'logs/tracers.pickled_states.dat','w')
     def _dataframe():
       _state_as_dict = [self.pickleable_state.__dict__]
-      self.dataframe = pd.DataFrame(_state_as_dict)
-      self.dataframe.to_pickle('logs/tracers.dataframe.pkl')
+      self.dataframe = pd.DataFrame(_state_as_dict,columns=_state_as_dict[0].keys())
+      try:
+        self.dataframe.to_string('logs/dataframe.tracers.txt')
+        self.dataframe.to_pickle('logs/dataframe.tracers.pkl')
+      except:
+        wf(self.dataframe, 'logs/tracers.dataframe.err.log', 'a')
     _state(frame, event, arg)
     _dataframe()
 
-    # self.dataframe.to_pickle('logs/tracer.dataframe.pkl')
-    wf( pickle.dumps(self.dataframe).hex(),'logs/initialize_df.tracers.log','w')
-
   def trace_dispatch(self, frame, event, arg):
     """this is the entry point for this class"""
-    wf( repr(arg)+'\n','logs/tracer.dispatch_arg.log', 'a')
     self.initialize(frame, event, arg)
     # if self.quitting:
       # return # None
@@ -790,6 +766,13 @@ class HiDefTracer:
     self.botframe = None
     # self._set_stopinfo(None, None)
 
+def unserialize_file(filename, mode):
+  path = Path('/Users/alberthan/VSCodeProjects/HDLogger/youtube-dl/logs/tracers.pickled_states.dat')
+  with open(path, mode) as f:
+    lines = f.readlines()
+  _as_bytes = [bytes.fromhex(line) for line in lines]
+  _as_pyobj = [pickle.loads(bites) for bites in _as_bytes]
+
 
 def main():
   from tester.helpers import final_selector
@@ -802,3 +785,10 @@ if __name__ == '__main__':
 
 
 
+# with open('/Users/alberthan/VSCodeProjects/HDLogger/youtube-dl/logs/initialize_df.tracers.log','r') as f:
+#   idf = f.read()
+
+# idfb = bytes.fromhex(idf)
+# pyobj = pickle.loads(idfb)
+
+# pd.read_pickle(idf)

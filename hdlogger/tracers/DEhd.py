@@ -291,29 +291,6 @@ class PickleableFrame:
   def __str__(self,color=False):
     return pformat(self.__dict__)
 
-@dataclass
-class PickleableState:
-  frame: PickleableFrame
-  event: str
-  arg: Any
-  locals: Dict
-  index: int
-  function: str
-  module: str
-  filename: str
-  lineno: int
-  stdlib: bool
-  source: str
-  format_filename: str
-
-  def __str__(self):
-    l = []
-    attrs = self.__annotations__.keys()
-    for attr in attrs:
-      l.append(f"{attr}={getattr(self,attr,'None')}")
-    s = "\n".join(l)
-    return s
-
 class PickleableTraceback:
   def __init__(self,lasti,lineno):
     self.lasti = lasti
@@ -455,12 +432,64 @@ def print_attrs(obj):
   return d
 
 
-def util():
-  f_locals = self.frame.f_locals
-  f_code = self.frame.f_code
-  keys = f_locals.keys()
-  dispatch_table = copyreg.dispatch_table
-  pickle_func = dispatch_table[type(f_locals)]
+@dataclass
+class PickleableState:
+  frame: PickleableFrame
+  event: str
+  arg: Any
+  locals: Dict
+  index: int
+  function: str
+  module: str
+  filename: str
+  lineno: int
+  stdlib: bool
+  source: str
+  format_filename: str
+
+  def __str__(self):
+    l = []
+    attrs = self.__annotations__.keys()
+    for attr in attrs:
+      l.append(f"{attr}={getattr(self,attr,'None')}")
+    s = "\n".join(l)
+    return s
+
+  stack = []
+  @cached_property
+  def format_call(self):
+    PickleableState.stack.append(f"{self.module}.{self.function}")
+    self.formatter = StateFormatter(
+      self.index, self.format_filename, self.lineno,
+      self.event, "\u0020" * (len(PickleableState.stack)-1), "=>",
+      function=self.function, arg=self.locals)
+    return str(self.formatter)
+
+  @cached_property
+  def format_line(self):
+    self.formatter = StateFormatter(
+      self.index, self.format_filename, self.lineno,
+      self.event, "\u0020" * len(PickleableState.stack), "  ",
+      source=self.source)
+    return str(self.formatter)
+
+  @cached_property
+  def format_return(self):
+    self.formatter = StateFormatter(
+      self.index, self.format_filename, self.lineno,
+      self.event, "\u0020" * (len(PickleableState.stack)-1), "<=",
+      function=f"{self.function}: ", arg=self.arg)
+    if PickleableState.stack and PickleableState.stack[-1] == f"{self.module}.{self.function}":
+      PickleableState.stack.pop()
+    return str(self.formatter)
+
+  @cached_property
+  def format_exception(self):
+    self.formatter = StateFormatter(
+      self.index, self.format_filename, self.lineno,
+      self.event, "\u0020" * (len(PickleableState.stack)-1), " !",
+      function=f"{self.function}: ", arg=self.arg)
+    return str(self.formatter)
 
 class State:
   SYS_PREFIX_PATHS = set((
@@ -480,10 +509,10 @@ class State:
 
   def get_pickleable_state(self) -> PickleableState:
     psd = {
-        "frame": self.pickleable_frame,
+        "frame": pickleable_dispatch(self.frame),
         "event": self.event,
-        "arg": self.pickleable_arg,
-        "locals": self.pickleable_locals,
+        "arg": pickleable_dispatch(self.arg),
+        "locals": pickleable_dispatch(self.frame.f_locals),
         "index": self.index,
         "function": self.function,
         "module": self.module,
@@ -513,12 +542,6 @@ class State:
     self._exception = None
     self._serialized_arg = None
     self._serialized_locals = None
-    initialize_copyreg()
-    self.pickleable_locals = pickleable_dispatch(self.frame.f_locals)
-    self.pickleable_arg = pickleable_dispatch(self.arg)
-    self.serialized_locals = self.serialize_locals()
-    self.serialized_arg = self.serialize_arg()
-    self.pickleable_frame = pickleable_dispatch(self.frame)
 
   @cached_property
   def format_filename(self):
@@ -600,6 +623,13 @@ class StateCollection:
     self._df = df
     return df
 
+class TraceProcessor:
+  def __init__(self):
+    self.pickleable_states = []
+    self.pickled_states_as_hex = []
+    self.pickled_states_as_bytes = []
+    self.dataframe = []
+
 class HiDefTracer:
 
   def __init__(self):
@@ -608,7 +638,6 @@ class HiDefTracer:
     self.pickleable_states = []
     self.pickled_state_as_bytes = []
     self.pickled_state_as_hex = []
-
     self.dataframe = None
 
   def initialize(self, frame, event, arg):
@@ -623,12 +652,16 @@ class HiDefTracer:
       self.pickleable_states.append(self.pickleable_state)
     def _dataframe():
       _state_as_dict = [self.pickleable_state.__dict__]
-      self.dataframe = pd.DataFrame(_state_as_dict,columns=_state_as_dict[0].keys())
+      self.dataframe = pd.DataFrame(_state_as_dict)
       try:
         self.dataframe.to_string('logs/dataframe.tracers.txt')
         self.dataframe.to_pickle('logs/dataframe.tracers.pkl')
+        pd.Dataframe.read_pickle('logs/dataframe.tracers.pkl')
       except:
-        wf(self.dataframe, 'logs/tracers.dataframe.err.log', 'a')
+        pdd = pickle.dumps(self.dataframe)
+        pld = pickle.loads(pdd)
+        wf(self.dataframe, 'logs/dataframe.ERROR.log', 'a')
+
     _state(frame, event, arg)
     _dataframe()
 
@@ -657,7 +690,7 @@ class HiDefTracer:
   def dispatch_call(self, frame, arg):
     assert arg is None, f"dispatch_call: {(arg is None)=}"
     try:
-      pickleable = self.state.pickleable_locals
+      pickleable = self.pickleable_state.locals
     except ValidationError as e:
       wf( stackprinter.format(sys.exc_info()),'logs/tracer.dispatch_call.log', 'a')
       raise
@@ -668,7 +701,7 @@ class HiDefTracer:
   def dispatch_line(self, frame, arg):
     assert arg is None, f"dispatch_line: {(arg is None)=}"
     try:
-      pickleable = self.state.pickleable_locals
+      pickleable = self.pickleable_state.locals
     except ValidationError as e:
       wf( stackprinter.format(sys.exc_info()),'logs/tracer.dispatch_line.log', 'a')
       raise
@@ -680,7 +713,7 @@ class HiDefTracer:
     """note: there are a few `special cases` wrt `arg`"""
     if arg is None: return ""
     try:
-      pickleable = self.state.pickleable_arg
+      pickleable = self.pickleable_state.arg
     except ValidationError as e:
       wf( stackprinter.format(sys.exc_info()),'logs/tracer.dispatch_line.log', 'a')
       raise
@@ -691,7 +724,7 @@ class HiDefTracer:
   def dispatch_exception(self, frame, arg):
     if arg is None: return ""
     try:
-      pickleable = self.state.pickleable_arg
+      pickleable = self.pickleable_state.arg
     except ValidationError as e:
       wf( stackprinter.format(sys.exc_info()),'logs/tracer.dispatch_exc.log', 'a')
       raise
@@ -701,21 +734,21 @@ class HiDefTracer:
 
   def user_call(self, frame, argument_list):
     logging.debug('user_call')
-    print(self.state.format_call)
+    print(self.pickleable_state.format_call)
     return self.trace_dispatch
 
   def user_line(self, frame, pickleable):
     logging.debug('user_line')
-    print(self.state.format_line)
+    print(self.pickleable_state.format_line)
     return self.trace_dispatch
 
   def user_return(self, frame, return_value):
     logging.debug('user_return')
-    print(self.state.format_return)
+    print(self.pickleable_state.format_return)
 
   def user_exception(self, frame, exc_info):
     logging.debug('user_exception')
-    print(self.state.format_exception)
+    print(self.pickleable_state.format_exception)
     return self.trace_dispatch
 
   @singledispatchmethod

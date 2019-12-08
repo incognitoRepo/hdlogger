@@ -662,8 +662,6 @@ class HiDefTracer:
   def trace_dispatch(self, frame, event, arg):
     """this is the entry point for this class"""
     self.initialize(frame, event, arg)
-    if self.quitting:
-      return # None
     if event == 'line':
       return self.dispatch_line(frame, arg)
     if event == 'call':

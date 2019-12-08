@@ -623,26 +623,6 @@ class StateCollection:
     self._df = df
     return df
 
-class TraceProcessor:
-  def __init__(self):
-    self.pickleable_states = []
-    self.pickled_states_as_hex = []
-    self.pickled_states_as_bytes = []
-    self.dataframe = []
-
-  def initialize(self,pickled_states):
-    path = Path(pickled_states)
-    lines = rf(path,"r").readlines()
-    self.pickled_states_as_hex = lines
-    self.pickled_states = self.hex2bytes()
-
-  def hex2bytes(self):
-    hexlines = self.pickled_states_as_hex.copy()
-
-    for line in hexlines:
-      self.pickled_state_as_bytes.append(bytes.fromhex(line))
-      self.pickleable_states.append(pickle.loads(line))
-
 
 class HiDefTracer:
 

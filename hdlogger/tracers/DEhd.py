@@ -15,9 +15,6 @@ from hunter.const import SYS_PREFIX_PATHS
 from pydantic import ValidationError
 from dataclasses import dataclass
 from inspect import CO_GENERATOR, CO_COROUTINE, CO_ASYNC_GENERATOR
-from ..data_structures import (
-  TraceHookCallbackCall, TraceHookCallbackLine, TraceHookCallbackReturn, TraceHookCallbackException,
-)
 
 GENERATOR_AND_COROUTINE_FLAGS = CO_GENERATOR | CO_COROUTINE | CO_ASYNC_GENERATOR # 672
 WRITE = True
@@ -31,7 +28,7 @@ state_attrs = [
   # 'locals',
   'pickleable_locals',
   'serialized_locals',
-  'index',
+  'count',
   # 'globals',
   'function',
   # 'function_object',
@@ -72,7 +69,7 @@ def wf(obj,filename,mode="a"):
 
 def rf(filename, mode="r"):
   path = Path(filename)
-  with open(path, mode) as f:
+  with path.open(mode) as f:
     lines = f.readlines()
   return lines
 
@@ -177,7 +174,14 @@ def pickleable_dict(d):
       s = stackprinter.format(sys.exc_info())
       wf( s,'logs/pickleable_dict.tracers.log',mode="a")
 
-      raise SystemExit(f"unable to pickle {d} due to:\n{k=}\n{v=}")
+      wf((
+        f"unable to pickle {d} due to:\n{k=}\n{v=}"
+        f"{isinstance(v,GeneratorType)=}\n{pickle.loads(pickle.dumps(v))}"
+      ),"a")
+      raise SystemExit(
+        f"unable to pickle {d} due to:\n{k=}\n{v=}"
+        f"{isinstance(v,GeneratorType)=}\n{pickle.loads(pickle.dumps(v))}"
+      )
   return d2
 
 def pickleable_globals(g):
@@ -238,58 +242,11 @@ def pickleable_simple(s):
     raise SystemExit
 
 
-class StateFormatter:
-  def __init__(
-    self,
-    index, filename, lineno, event, indent, symbol,
-    function=None, arg=None, source=None):
-    self.index = f"{index:>5}"
-    self.filename = filename
-    self.lineno = f"{lineno:<5}"
-    self.event = f"{event:9} "
-    self.indent = indent
-    self.symbol = f"{symbol} "
-    self.function = function
-    self.arg = arg
-    self.source = source
-
-  def __str__(self,color=False):
-    if self.source:
-      line = self.source
-    else:
-      line = self.function + str(self.arg)
-
-    s = (
-      f"{self.index}|{self.filename}:{self.lineno}|{self.event}|"
-      f"{self.indent}|{self.symbol}|"
-      f"{line.rstrip()}|"
-    )
-
-    return s
-
 class PickleableEnviron:
   def __init__(self, kwds):
     d = {}
     for k,v in kwds.items():
       setattr(self, k, kwds[k])
-
-class PickleableGenerator:
-  def __init__(self, state, locals, id):
-    self.state = state
-    self.locals = locals
-    self.id = id
-
-class PickleableFrame:
-  def __init__(self, filename, lineno, function, local_vars, code_context, index):
-    self.filename = filename
-    self.lineno = lineno
-    self.function = function
-    self.local_vars = local_vars
-    self.code_context = code_context
-    self.index = index
-
-  def __str__(self,color=False):
-    return pformat(self.__dict__)
 
 class PickleableTraceback:
   def __init__(self,lasti,lineno):
@@ -327,7 +284,7 @@ def pickle_state(st):
       "event": st.event,
       "arg": st.pickleable_arg,
       "locals": st.pickleable_locals,
-      "index": st.index,
+      "count": st.count,
       "function": st.function,
       "module": st.module,
       "filename": st.filename,
@@ -341,16 +298,27 @@ def pickle_state(st):
 def unpickle_state(kwds):
   return PickleableState(**kwds)
 
+class PickleableGenerator:
+  def __init__(self,state,f_locals,pid):
+    self.state = state
+    self.locals = f_locals
+    self.pid = pid
+
+  def __str__(self):
+    state, f_locals, pid = self.state, self.locals, self.pid
+    s = f"<generator object: state={state}, locals={f_locals}, id={pid}>"
+    return s
+
 def pickle_generator(gen):
   kwds = {
     'state': inspect.getgeneratorstate(gen),
-    'locals': inspect.getgeneratorlocals(gen),
-    'id': hex(id(gen))
+    'f_locals': inspect.getgeneratorlocals(gen),
+    'pid': hex(id(gen))
   }
   return unpickle_generator, (kwds,)
 
 def unpickle_generator(kwds):
-  return PickableGenerator(**kwds)
+  return PickleableGenerator(**kwds)
 
 def getcodecontext(frame,lineno,context=2):
   if context > 0:
@@ -358,14 +326,14 @@ def getcodecontext(frame,lineno,context=2):
     try:
       lines, lnum = inspect.findsource(frame)
     except OSError:
-      lines = index = None
+      lines = count = None
     else:
       start = max(0, min(start, len(lines) - context))
       lines = lines[start:start+context]
-      index = lineno - 1 - start
+      count = lineno - 1 - start
   else:
-    lines = index = None
-  return lines, index
+    lines = count = None
+  return lines, count
 
 def pickle_frame(frame):
   kwds = {
@@ -374,12 +342,12 @@ def pickle_frame(frame):
     "function": frame.f_code.co_name,
     "local_vars": frame.f_code.co_names,
     "code_context": getcodecontext(frame,frame.f_lineno)[0],
-    "index": getcodecontext(frame,frame.f_lineno)[1],
+    "count": getcodecontext(frame,frame.f_lineno)[1],
   }
   return unpickle_frame, (kwds,)
 
 def unpickle_frame(kwds):
-  return PickleableFrame(**kwds)
+  return PickleableFrame(kwds)
 
 def pickle_traceback(tb):
   kwds = {
@@ -431,65 +399,152 @@ def print_attrs(obj):
   cpprint(d)
   return d
 
+class StateFormatter:
+  def __init__(
+    self,
+    count, filename, lineno, event, indent, symbol,
+    function=None, arg=None, source=None):
+    self.count = f"{count:>5}"
+    self.filename = filename
+    self.lineno = f"{lineno:<5}"
+    self.event = f"{event:9} "
+    self.indent = indent
+    self.symbol = f"{symbol} "
+    self.function = function
+    self.arg = arg
+    self.source = source
 
-@dataclass
+  def __str__(self,color=False):
+    if self.source:
+      line = self.source
+    else:
+      line = self.function + str(self.arg)
+    s = (
+      f"{self.count}|{self.filename}:{self.lineno}|{self.event}|"
+      f"{self.indent}|{self.symbol}|"
+      f"{line.rstrip()}|"
+    )
+    return s
+
+class PickleableFrame:
+  def __init__(self, kwds):
+    self.filename = kwds['filename']
+    self.lineno = kwds['lineno']
+    self.function = kwds['function']
+    self.local_vars = kwds['local_vars']
+    self.code_context = kwds['code_context']
+    self.count = kwds['count']
+
+  def __str__(self,color=False):
+    return pformat(self.__dict__)
+
 class PickleableState:
-  frame: PickleableFrame
-  event: str
-  arg: Any
-  locals: Dict
-  index: int
-  function: str
-  module: str
-  filename: str
-  lineno: int
-  stdlib: bool
-  source: str
-  format_filename: str
+  def __init__(self, kwds):
+    self.attrs = list(kwds.keys())
+    self.frame: PickleableFrame = kwds['frame']
+    self.event: str = kwds['event']
+    self.arg: Any = kwds['arg']
+    self.f_locals: Dict = kwds['f_locals']
+    self.count: int = kwds['count']
+    self.function: str = kwds['function']
+    self.module: str = kwds['module']
+    self.filename: str = kwds['format_filename']
+    self.lineno: int = kwds['lineno']
+    self.stdlib: bool = kwds['stdlib']
+    self.source: str = kwds['source']
 
   def __str__(self):
     l = []
-    attrs = self.__annotations__.keys()
-    for attr in attrs:
+    for attr in self.attrs:
       l.append(f"{attr}={getattr(self,attr,'None')}")
     s = "\n".join(l)
     return s
 
+  def asdict(self):
+    return self.__dict__
+
+  @property
+  def indent(self):
+    idt = '\u0020' * (len(PickleableState.stack)-1)
+    return idt
+
   stack = []
   @cached_property
   def format_call(self):
+    symbol = "=>"
     PickleableState.stack.append(f"{self.module}.{self.function}")
-    self.formatter = StateFormatter(
-      self.index, self.format_filename, self.lineno,
-      self.event, "\u0020" * (len(PickleableState.stack)-1), "=>",
-      function=self.function, arg=self.locals)
-    return str(self.formatter)
+    self.formatter1 = ( # default formatter
+      f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
+      f"{self.indent}|{symbol}|{self.function}|{self.f_locals}"
+    )
+    self.formatter2 = ( # indented formatter
+      f"{self.indent}|{symbol}|{self.function}|{self.f_locals}|"
+      f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
+    )
+    return self.formatter2
 
   @cached_property
   def format_line(self):
-    self.formatter = StateFormatter(
-      self.index, self.format_filename, self.lineno,
-      self.event, "\u0020" * len(PickleableState.stack), "  ",
-      source=self.source)
-    return str(self.formatter)
+    symbol = "  "
+    self.formatter1 = ( # default formatter
+      f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
+      f"{self.indent} |{symbol}|{self.source}|"
+    )
+    self.formatter2 = ( # indented formatter
+      f"{self.indent} |{symbol}|{self.source}|"
+      f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
+    )
+    return self.formatter2
 
   @cached_property
   def format_return(self):
-    self.formatter = StateFormatter(
-      self.index, self.format_filename, self.lineno,
-      self.event, "\u0020" * (len(PickleableState.stack)-1), "<=",
-      function=f"{self.function}: ", arg=self.arg)
+    symbol = "<="
+    self.formatter1 = ( # default formatter
+      f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
+      f"{self.indent}|{symbol}|{self.function}|{self.arg}"
+    )
+    self.formatter2 = ( # indented formatter
+      f"{self.indent}|{symbol}|{self.function}|{self.arg}|"
+      f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
+    )
     if PickleableState.stack and PickleableState.stack[-1] == f"{self.module}.{self.function}":
       PickleableState.stack.pop()
-    return str(self.formatter)
+    return self.formatter2
 
   @cached_property
   def format_exception(self):
-    self.formatter = StateFormatter(
-      self.index, self.format_filename, self.lineno,
-      self.event, "\u0020" * (len(PickleableState.stack)-1), " !",
-      function=f"{self.function}: ", arg=self.arg)
-    return str(self.formatter)
+    symbol = " !"
+    self.formatter1 = ( # default formatter
+      f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
+      f"{self.indent}|{symbol}|{self.function}|{self.arg}"
+    )
+    self.formatter2 = ( # indented formatter
+      f"{self.indent}|{symbol}|{self.function}|{self.arg}|"
+      f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
+    )
+    return self.formatter2
+
+
+def get_pickleable_state(state) -> PickleableState:
+  kwds = {
+      "frame": pickleable_dispatch(state.frame),
+      "event": state.event,
+      "arg": pickleable_dispatch(state.arg),
+      "f_locals": pickleable_dispatch(state.frame.f_locals),
+      "count": state.count,
+      "function": state.function,
+      "module": state.module,
+      "format_filename": state.format_filename,
+      "lineno": state.lineno,
+      "stdlib": state.stdlib,
+      "source": state.source,
+    }
+  try:
+    pickleable_state = PickleableState(kwds)
+  except:
+    wf(stackprinter.format(sys.exc_info()),'logs/get_pickleable_state.log','a')
+    raise SystemExit
+  return pickleable_state
 
 class State:
   SYS_PREFIX_PATHS = set((
@@ -504,26 +559,8 @@ class State:
     self.frame = frame
     self.event = event
     self.arg = arg
-    self.index = next(State.counter)
+    self.count = next(State.counter)
     self.initialize()
-
-  def get_pickleable_state(self) -> PickleableState:
-    psd = {
-        "frame": pickleable_dispatch(self.frame),
-        "event": self.event,
-        "arg": pickleable_dispatch(self.arg),
-        "locals": pickleable_dispatch(self.frame.f_locals),
-        "index": self.index,
-        "function": self.function,
-        "module": self.module,
-        "filename": self.filename,
-        "lineno": self.lineno,
-        "stdlib": self.stdlib,
-        "source": self.source,
-        "format_filename": self.format_filename,
-      }
-    pickleable_state = PickleableState(**psd)
-    return pickleable_state
 
   def initialize(self):
     self.locals = self.frame.f_locals
@@ -553,76 +590,19 @@ class State:
   stack = []
   @property
   def format_call(self):
-    if self._call: return self._call
-    State.stack.append(f"{self.module}.{self.function}")
-    self.formatter = StateFormatter(
-      self.index, self.format_filename, self.lineno,
-      self.event, "\u0020" * (len(State.stack)-1), "=>",
-      function=self.function, arg=self.pickleable_locals)
-    self._call = str(self.formatter)
-    return self._call
+    raise NotImplementedError("Must implement PickleableState.format_call")
 
   @property
   def format_line(self):
-    if self._line: return self._line
-    self.formatter = StateFormatter(
-      self.index, self.format_filename, self.lineno,
-      self.event, "\u0020" * len(State.stack), "  ",
-      source=self.source)
-    self._line = str(self.formatter)
-    return self._line
+    raise NotImplementedError("Must implement PickleableState.format_line")
 
   @property
   def format_return(self):
-    if self._return: return self._return
-    self.formatter = StateFormatter(
-      self.index, self.format_filename, self.lineno,
-      self.event, "\u0020" * (len(State.stack)-1), "<=",
-      function=f"{self.function}: ", arg=self.pickleable_arg)
-    self._return = str(self.formatter)
-    if State.stack and State.stack[-1] == f"{self.module}.{self.function}":
-      State.stack.pop()
-    return self._return
+    raise NotImplementedError("Must implement PickleableState.format_return")
 
   @property
   def format_exception(self):
-    if self._return: return self._return
-    self.formatter = StateFormatter(
-      self.index, self.format_filename, self.lineno,
-      self.event, "\u0020" * (len(State.stack)-1), " !",
-      function=f"{self.function}: ", arg=self.pickleable_arg)
-    self._return = str(self.formatter)
-    return self._return
-
-class StateCollection:
-  def __init__(self,states):
-    self._df = None
-    self.initialize_states_data()
-    self.states_path = (
-      Path('~/VSCodeProjects')
-      .expanduser()
-      .joinpath('vytd/src/youtube-dl')
-    )
-    self.states = self.states_path.read_text()
-    print(self.states)
-
-  def df(self):
-    if self._df: return self._df
-    Row = namedtuple(
-      'Row',
-      'index filename lineno event indent symbol function arg source',
-      defaults = (None, None, None),
-    )
-    list_of_rows = []
-    for st in self.states:
-      f = st.formatter
-      row = Row(f.index, f.filename, f.lineno, f.event, f.indent, f.symbol, f.function, f.arg, f.source)
-      list_of_rows.append(row)
-    df = pd.DataFrame((row._as_dict() for row in list_of_rows))
-    print(df)
-    self._df = df
-    return df
-
+    raise NotImplementedError("Must implement PickleableState.format_exception")
 
 class HiDefTracer:
 
@@ -638,26 +618,13 @@ class HiDefTracer:
     initialize_copyreg()
     def _state(f, e, a):
       self.state = State(f,e,a)
-      self.pickleable_state = self.state.get_pickleable_state()
+      self.pickleable_state = get_pickleable_state(self.state)
       _as_bytes = pickle.dumps(self.pickleable_state)
       _as_hexad = _as_bytes.hex()
       wf(pformat(self.pickleable_state)+"\n",'logs/02.pickleable_states.tracer.log', 'a')
       wf(_as_hexad+"\n","logs/03.pickled_states_hex.tracer.log","a")
       self.pickleable_states.append(self.pickleable_state)
-    def _dataframe():
-      _state_as_dict = [self.pickleable_state.__dict__]
-      self.dataframe = pd.DataFrame(_state_as_dict)
-      try:
-        self.dataframe.to_string('logs/dataframe.tracers.txt')
-        self.dataframe.to_pickle('logs/dataframe.tracers.pkl')
-        pd.Dataframe.read_pickle('logs/dataframe.tracers.pkl')
-      except:
-        pdd = pickle.dumps(self.dataframe)
-        pld = pickle.loads(pdd)
-        wf(self.dataframe, 'logs/dataframe.ERROR.log', 'a')
-
     _state(frame, event, arg)
-    _dataframe()
 
   def trace_dispatch(self, frame, event, arg):
     """this is the entry point for this class"""
@@ -682,7 +649,7 @@ class HiDefTracer:
   def dispatch_call(self, frame, arg):
     assert arg is None, f"dispatch_call: {(arg is None)=}"
     try:
-      pickleable = self.pickleable_state.locals
+      pickleable = self.pickleable_state.f_locals
     except ValidationError as e:
       wf( stackprinter.format(sys.exc_info()),'logs/tracer.dispatch_call.log', 'a')
       raise
@@ -693,7 +660,7 @@ class HiDefTracer:
   def dispatch_line(self, frame, arg):
     assert arg is None, f"dispatch_line: {(arg is None)=}"
     try:
-      pickleable = self.pickleable_state.locals
+      pickleable = self.pickleable_state.f_locals
     except ValidationError as e:
       wf( stackprinter.format(sys.exc_info()),'logs/tracer.dispatch_line.log', 'a')
       raise
@@ -726,7 +693,12 @@ class HiDefTracer:
 
   def user_call(self, frame, argument_list):
     logging.debug('user_call')
-    print(self.pickleable_state.format_call)
+    try:
+      print(self.pickleable_state.format_call)
+    except:
+      sys.settrace(None)
+      wf(stackprinter.format(sys.exc_info()),'logs/tracer.user_call.log','a')
+      from ipdb import set_trace as st; st()
     return self.trace_dispatch
 
   def user_line(self, frame, pickleable):
@@ -817,3 +789,85 @@ if __name__ == '__main__':
 # pyobj = pickle.loads(idfb)
 
 # pd.read_pickle(idf)
+
+
+def make_pickleable_frame(frame):
+  kwds = {
+    "filename": frame.f_code.co_filename,
+    "lineno": frame.f_lineno,
+    "function": frame.f_code.co_name,
+    "local_vars": frame.f_code.co_names,
+    "code_context": getcodecontext(frame,frame.f_lineno)[0],
+    "count": getcodecontext(frame,frame.f_lineno)[1],
+  }
+  return PickleableFrame(kwds)
+
+def make_pickleable_state(self) -> PickleableState:
+  kwds = {
+      "frame": pickleable_dispatch(self.frame),
+      "event": self.event,
+      "arg": pickleable_dispatch(self.arg),
+      "f_locals": pickleable_dispatch(self.frame.f_locals),
+      "count": self.count,
+      "function": self.function,
+      "module": self.module,
+      "format_filename": self.format_filename,
+      "lineno": self.lineno,
+      "stdlib": self.stdlib,
+      "source": self.source,
+    }
+  try:
+    pickleable_state = PickleableState(**kwds)
+  except:
+    wf(stackprinter.format(sys.exc_info()),'logs/get_pickleable_state.log','a')
+    raise SystemExit
+  return pickleable_state
+
+
+def getcodecontext(frame,lineno,context=2):
+  if context > 0:
+    start = lineno - 1 - context//2
+    try:
+      lines, lnum = inspect.findsource(frame)
+    except OSError:
+      lines = count = None
+    else:
+      start = max(0, min(start, len(lines) - context))
+      lines = lines[start:start+context]
+      count = lineno - 1 - start
+  else:
+    lines = count = None
+  return lines, count
+
+class PickleableFrame:
+  def __init__(self, kwds):
+    self.filename = kwds['filename']
+    self.lineno = kwds['lineno']
+    self.function = kwds['function']
+    self.local_vars = kwds['local_vars']
+    self.code_context = kwds['code_context']
+    self.count = kwds['count']
+
+  def __str__(self,color=False):
+    return pformat(self.__dict__)
+
+f = inspect.currentframe()
+pf = make_pickleable_frame(f)
+kwds = dict(
+    frame=pf,
+    event='call',
+    arg=None,
+    f_locals={'a':12},
+    count=43,
+    function="wefa",
+    module="mod",
+    format_filename="wetwfge",
+    lineno=43,
+    stdlib=False,
+    source='f = inspect.currentframe()\n',
+)
+pst = PickleableState(kwds)
+print(pst)
+
+
+

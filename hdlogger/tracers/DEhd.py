@@ -464,12 +464,12 @@ class HiDefTracer:
     self.dataframe = None
 
   def initialize(self, frame, event, arg):
-    def debug():
+    def debug_pickleable_state(state):
       ps = self.pickleable_state
-      psd = ps.__dict__
+      psd = state.__dict__
       psg = ((k,psd.get(k,"nope")) for k in psd)
-      for item in psg:
-        try: pickle.loads(pickle.dumps(item))
+      for k,v in psg:
+        try: pickle.loads(pickle.dumps(v))
         except:
           sys.settrace(None)
           s = stackprinter.format(sys.exc_info())
@@ -479,20 +479,25 @@ class HiDefTracer:
       # ((k,v) for k,v in psd.items())
     initialize_copyreg()
     self.state = State(frame,event,arg)
-    self.pickleable_state = get_pickleable_state(self.state)
-    _as_dict = self.pickleable_state.asdict()
-    _as_bytes = pickle.dumps(self.pickleable_state)
-    _as_hexad = _as_bytes.hex()
     try:
+      self.pickleable_state = get_pickleable_state(self.state)
+      _as_dict = self.pickleable_state.asdict()
+      _as_bytes = pickle.dumps(self.pickleable_state)
+      _as_hexad = _as_bytes.hex()
       wf(pformat(_as_dict)+"\n",'logs/02.pickleable_states.tracer.log', 'a')
     except:
-      sys.settrace(None)
-      s = stackprinter.format(sys.exc_info())
-      with open(f"logs/{__name__}.log",'a') as f:
-        f.write(s)
-      import IPython
-      IPython.embed()  # spawns a shell within the current context
-      raise SystemExit("msg")
+      debug_pickleable_state()
+
+    # try:
+    #   wf(pformat(_as_dict)+"\n",'logs/02.pickleable_states.tracer.log', 'a')
+    # except:
+    #   sys.settrace(None)
+    #   s = stackprinter.format(sys.exc_info())
+    #   with open(f"logs/{__name__}.log",'a') as f:
+    #     f.write(s)
+    #   import IPython
+    #   IPython.embed()  # spawns a shell within the current context
+    #   raise SystemExit("msg")
     # wf(json.dumps(_as_dict),'logs/02.pickleable_states.tracer.json', 'a')
     wf(_as_hexad+"\n","logs/03.pickled_states_hex.tracer.log","a")
     self.pickleable_states.append(self.pickleable_state)

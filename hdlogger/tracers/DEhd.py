@@ -104,7 +104,7 @@ def pickle_state(st):
       "lineno": st.lineno,
       "stdlib": st.stdlib,
       "source": st.source,
-      "format_filename": st.format_filename,`
+      "format_filename": st.format_filename,
   }
   return unpickle_state, (kwds,)
 

@@ -1,4 +1,4 @@
-import sys, os, io, linecache, collections, inspect, threading, stackprinter, jsonpickle, copyreg, traceback, logging, optparse, contextlib, operator
+import sys, os, io, linecache, collections, inspect, threading, stackprinter, jsonpickle, copyreg, traceback, logging, optparse, contextlib, operator, json
 import dill as pickle
 import pandas as pd
 from pickle import PicklingError
@@ -15,6 +15,8 @@ from hunter.const import SYS_PREFIX_PATHS
 from pydantic import ValidationError
 from dataclasses import dataclass
 from inspect import CO_GENERATOR, CO_COROUTINE, CO_ASYNC_GENERATOR
+from hdlogger.serializers import pickleable_dispatch
+from hdlogger.utils import *
 
 GENERATOR_AND_COROUTINE_FLAGS = CO_GENERATOR | CO_COROUTINE | CO_ASYNC_GENERATOR # 672
 WRITE = True
@@ -53,195 +55,6 @@ def checkfuncs(funcs,arg):
       return None
   raise Exception("DEhd.checkfuncs: all funcs failed")
 
-def wf(obj,filename,mode="a"):
-  path = Path(filename)
-  if not path.parent.exists():
-    path.mkdir(parents=True, exist_ok=True)
-  if isinstance(obj, bytes):
-    obj = str(obj)
-  elif isinstance(obj, Iterable):
-    if isinstance(obj, str):
-      pass
-    else:
-      obj = "\n".join(str(obj)) + "\n"
-  with path.open(mode,encoding="utf-8") as f:
-    f.write(str(obj))
-
-def rf(filename, mode="r"):
-  path = Path(filename)
-  with path.open(mode) as f:
-    lines = f.readlines()
-  return lines
-
-def whitespace(spaces=0,tabs=0): # ws
-  indent_size = spaces + (tabs * 2)
-  whitespace_character = " "
-  return f"{whitespace_character * indent_size}"
-ws = whitespace
-
-def _c(s,modifier=0,intensity=3,color=0):
-  """
-  mod      ::= 0(reset)|1(bold)|2(faint)|3(italic)|4(underline)
-  int      ::= 9(intense fg) | 3(normal bg)
-  clr      ::= 0(blk)|1(red)|2(grn)|3(ylw)|4(blu)|5(mag)|6(cyn)|7(wht)
-  """
-  escape = "\x1b["
-  reset_modifier = 0
-  ns = f"{escape}{modifier};{intensity}{color}m{s}{escape}{reset_modifier}m"
-  return ns
-
-def c(s,arg=None):
-  if WRITE is True: return s
-  """apply color to a string"""
-  if s == 'call': return _c(s,modifier=1,intensity=9,color=2)
-  if s == 'line': return _c(s,modifier=2,intensity=3,color=0)
-  if s == 'return': return _c(s,modifier=1,intensity=9,color=3)
-  if s == 'exception': return _c(s,modifier=1,intensity=9,color=1)
-
-  if arg:
-    if arg == 'vars': return _c(s,modifier=0,intensity=9,color=5)
-    # symbols
-    if arg == 'call': return _c(s,modifier=1,intensity=9,color=2)
-    if arg == 'line': return _c(s,modifier=2,intensity=3,color=0)
-    if arg == 'return': return _c(s,modifier=1,intensity=9,color=3)
-    if arg == 'exception': return _c(s,modifier=1,intensity=9,color=1)
-
-def first_true(iterable, default=False, pred=None):
-    """Returns the first true value in the iterable.
-
-    If no true value is found, returns *default*
-
-    If *pred* is not None, returns the first item
-    for which pred(item) is true.
-
-    """
-    # first_true([a,b,c], x) --> a or b or c or x
-    # first_true([a,b], x, f) --> a if f(a) else b if f(b) else x
-    return next(filter(pred, iterable), default)
-
-def make_state_dict():
-  dict(zip(attrs,map(attrgetter,attrs)))
-
-def pickleable_dispatch(obj):
-  try:
-    return pickle.loads(pickle.dumps(obj))
-  except:
-    if isinstance(obj, bytes): obj = str(obj)
-    if isinstance(obj,Iterable) and not isinstance(obj,str):
-      if isinstance(obj, Mapping):
-        return pickleable_dict(obj)
-      elif isinstance(obj, Sequence):
-        return pickleable_list(obj)
-      else:
-        wf(stackprinter.format(sys.exc_info()),'logs/models.pickleable_dispatch.log','a')
-        raise
-    elif isinstance(obj,FrameType):
-      return pickleable_frame(obj)
-    else:
-      return pickleable_simple(obj)
-    s = stackprinter.format(sys.exc_info())
-    print(s)
-    raise SystemExit(f"failure in pickleable_dispatch: cannot pickle {obj}")
-
-def pickleable_environ(env):
-  envd = dict(env)
-  try:
-    return pickleable_dict(envd)
-  except:
-    wf( stackprinter.format(sys.exc_info()),'logs/pickleable_env.tracer.log', 'a')
-    raise
-
-def pickleable_frame(frm):
-  try:
-    return pickle.loads(pickle.dumps(frm))
-  except:
-    wf('logs/pickleable_frame.tracer.log', stackprinter.format(sys.exc_info()))
-    raise
-
-def pickleable_dict(d):
-  funclist = [
-    lambda v: pickle.loads(pickle.dumps(v)),
-    lambda v: jsonpickle.encode(v),
-    lambda v: getattr(v,'__class__.__name__')
-  ]
-  d2 = {}
-  for k,v in d.items():
-    try:
-      checked = checkfuncs(funclist,v)
-      pickleable = next(filter(None,checked))
-      d2[k] = pickleable
-    except:
-      s = stackprinter.format(sys.exc_info())
-      wf( s,'logs/pickleable_dict.tracers.log',mode="a")
-
-      wf((
-        f"unable to pickle {d} due to:\n{k=}\n{v=}"
-        f"{isinstance(v,GeneratorType)=}\n{pickle.loads(pickle.dumps(v))}"
-      ),"a")
-      raise SystemExit(
-        f"unable to pickle {d} due to:\n{k=}\n{v=}"
-        f"{isinstance(v,GeneratorType)=}\n{pickle.loads(pickle.dumps(v))}"
-      )
-  return d2
-
-def pickleable_globals(g):
-  cp = g.copy()
-  cp['__builtins__'] = "-removed-"
-  g2 = pickleable_dict(cp)
-  return g2
-
-def pickleable_list(l):
-  if l == "": return ""
-  try:
-    ddl = pickle.dumps(l)
-    assert pickle.loads(ddl)
-    return l
-  except:
-      l2 = []
-      for elm in l:
-        try:
-          dde = pickle.dumps(elm)
-          assert pickle.loads(dde), f"cant load pickle.dumps(dde)={dde}"
-          l2.append(dde)
-        except:
-          for test in [
-            lambda: pickle.dumps(jsonpickle.encode(elm)),
-            lambda: pickle.dumps(repr(elm)),
-            lambda: pickle.dumps(str(elm)),
-            lambda: pickle.dumps(elm.__class__.__name__)
-            ]:
-            try:
-              dde = test()
-              assert pickle.loads(dde), f"cant load pickle.dumps(dde)={dde}"
-              l2.append(dde)
-            except: pass
-          wf( stackprinter.format(sys.exc_info()),'logs/models.unpickleable.log', 'a')
-          raise SystemExit
-      return l2
-
-def pickleable_simple(s):
-  if s == "": return ""
-  try:
-    dds = pickle.dumps(s)
-    assert pickle.loads(dds)
-    return s
-  except:
-    for test in [
-      lambda: pickle.dumps(jsonpickle.encode(s)),
-      lambda: pickle.dumps(repr(s)),
-      lambda: pickle.dumps(str(s)),
-      lambda: pickle.dumps(s.__class__.__name__)
-      ]:
-      try:
-        dds = test()
-        assert pickle.loads(dds), f"cant load pickle.dumps(dds)={dds}"
-        return dds
-      except:
-        pass
-    wf( stackprinter.format(sys.exc_info()),'logs/models.unpickleable.log', 'a')
-    raise SystemExit
-
-
 class PickleableEnviron:
   def __init__(self, kwds):
     d = {}
@@ -258,7 +71,7 @@ class GenericPickleableMapping:
 
 class PickleableOptparseOption:
   def __init__(self,module,classname):
-    self.module = module
+`    self.module = module
     self.classname = classname
     self.id = id(self)  #  0x%x:
 
@@ -291,7 +104,7 @@ def pickle_state(st):
       "lineno": st.lineno,
       "stdlib": st.stdlib,
       "source": st.source,
-      "format_filename": st.format_filename,
+      "format_filename": st.format_filename,`
   }
   return unpickle_state, (kwds,)
 
@@ -335,20 +148,6 @@ def getcodecontext(frame,lineno,context=2):
     lines = count = None
   return lines, count
 
-def pickle_frame(frame):
-  kwds = {
-    "filename": frame.f_code.co_filename,
-    "lineno": frame.f_lineno,
-    "function": frame.f_code.co_name,
-    "local_vars": frame.f_code.co_names,
-    "code_context": getcodecontext(frame,frame.f_lineno)[0],
-    "count": getcodecontext(frame,frame.f_lineno)[1],
-  }
-  return unpickle_frame, (kwds,)
-
-def unpickle_frame(kwds):
-  return PickleableFrame(kwds)
-
 def pickle_traceback(tb):
   kwds = {
     'lasti': tb.tb_lasti,
@@ -378,7 +177,7 @@ def initialize_copyreg():
     (optparse.Option, pickle_optparse_option),
     (State, pickle_state),
     (FunctionType, pickle_function),
-    (Mapping, pickleable_dict)
+    # (Mapping, pickleable_dict)
   ]
   for special_case in special_cases:
     copyreg.pickle(*special_case)
@@ -389,8 +188,6 @@ def safer_repr(obj):
   except:
     return f"{obj.__module__}.{obj.__class__.__name__}"
 
-
-import copyreg
 def print_attrs(obj):
   attrnames = [attr for attr in dir(obj) if not attr.startswith('_')]
   _ = operator.attrgetter(*attrnames)
@@ -426,6 +223,7 @@ class StateFormatter:
     )
     return s
 
+# TODO
 class PickleableFrame:
   def __init__(self, kwds):
     self.filename = kwds['filename']
@@ -437,6 +235,43 @@ class PickleableFrame:
 
   def __str__(self,color=False):
     return pformat(self.__dict__)
+
+class PickleableFrame:
+  def __init__(self, kwds):
+    self.filename = kwds['filename']
+    self.lineno = kwds['lineno']
+    self.function = kwds['function']
+    self.local_vars = kwds['local_vars']
+    self.code_context = kwds['code_context']
+    self.count = kwds['count']
+
+  def __str__(self,color=False):
+    return pformat(self.__dict__)
+
+def pickle_frame(frame):
+  kwds = {
+    "filename": frame.f_code.co_filename,
+    "lineno": frame.f_lineno,
+    "function": frame.f_code.co_name,
+    "local_vars": frame.f_code.co_names,
+    "code_context": getcodecontext(frame,frame.f_lineno)[0],
+    "count": getcodecontext(frame,frame.f_lineno)[1],
+  }
+  return unpickle_frame, (kwds,)
+
+def unpickle_frame(kwds):
+  return PickleableFrame(kwds)
+
+def make_pickleable_frame(frame):
+  kwds = {
+    "filename": frame.f_code.co_filename,
+    "lineno": frame.f_lineno,
+    "function": frame.f_code.co_name,
+    "local_vars": frame.f_code.co_names,
+    "code_context": getcodecontext(frame,frame.f_lineno)[0],
+    "count": getcodecontext(frame,frame.f_lineno)[1],
+  }
+  return PickleableFrame(kwds)
 
 class PickleableState:
   def __init__(self, kwds):
@@ -459,6 +294,9 @@ class PickleableState:
       l.append(f"{attr}={getattr(self,attr,'None')}")
     s = "\n".join(l)
     return s
+
+  def __iter__(self):
+    yield from self.asdict().items()
 
   def asdict(self):
     return self.__dict__
@@ -535,7 +373,27 @@ class PickleableState:
       f"{self.indent}|{symbol}|{self.function}|{self.arg}|"
     )
     return self.formatter3
-
+# TODO
+def make_pickleable_state(self) -> PickleableState:
+  kwds = {
+      "frame": pickleable_dispatch(self.frame),
+      "event": self.event,
+      "arg": pickleable_dispatch(self.arg),
+      "f_locals": pickleable_dispatch(self.frame.f_locals),
+      "count": self.count,
+      "function": self.function,
+      "module": self.module,
+      "format_filename": self.format_filename,
+      "lineno": self.lineno,
+      "stdlib": self.stdlib,
+      "source": self.source,
+    }
+  try:
+    pickleable_state = PickleableState(**kwds)
+  except:
+    wf(stackprinter.format(sys.exc_info()),'logs/get_pickleable_state.log','a')
+    raise SystemExit
+  return pickleable_state
 
 def get_pickleable_state(state) -> PickleableState:
   kwds = {
@@ -632,7 +490,8 @@ class HiDefTracer:
     self.pickleable_state = get_pickleable_state(self.state)
     _as_bytes = pickle.dumps(self.pickleable_state)
     _as_hexad = _as_bytes.hex()
-    wf(pformat(self.pickleable_state)+"\n",'logs/02.pickleable_states.tracer.log', 'a')
+    wf(pformat(self.pickleable_state.asdict())+"\n",'logs/02.pickleable_states.tracer.log', 'a')
+    wf(json.dumps(self.pickleable_state.asdict())+"\n",'logs/02.pickleable_states.tracer.json', 'a')
     wf(_as_hexad+"\n","logs/03.pickled_states_hex.tracer.log","a")
     self.pickleable_states.append(self.pickleable_state)
 
@@ -684,7 +543,7 @@ class HiDefTracer:
     try:
       pickleable = self.pickleable_state.arg
     except:
-      wf( stackprinter.format(sys.exc_info()),'logs/tracer.dispatch_line.log', 'a')
+      wf( stackprinter.format(sys.exc_info()),'logs/tracer.dispatch_return.log', 'a')
       raise
 
     self.user_return(frame, pickleable)
@@ -782,52 +641,6 @@ def main():
 if __name__ == '__main__':
   main()
 
-
-def make_pickleable_frame(frame):
-  kwds = {
-    "filename": frame.f_code.co_filename,
-    "lineno": frame.f_lineno,
-    "function": frame.f_code.co_name,
-    "local_vars": frame.f_code.co_names,
-    "code_context": getcodecontext(frame,frame.f_lineno)[0],
-    "count": getcodecontext(frame,frame.f_lineno)[1],
-  }
-  return PickleableFrame(kwds)
-
-def make_pickleable_state(self) -> PickleableState:
-  kwds = {
-      "frame": pickleable_dispatch(self.frame),
-      "event": self.event,
-      "arg": pickleable_dispatch(self.arg),
-      "f_locals": pickleable_dispatch(self.frame.f_locals),
-      "count": self.count,
-      "function": self.function,
-      "module": self.module,
-      "format_filename": self.format_filename,
-      "lineno": self.lineno,
-      "stdlib": self.stdlib,
-      "source": self.source,
-    }
-  try:
-    pickleable_state = PickleableState(**kwds)
-  except:
-    wf(stackprinter.format(sys.exc_info()),'logs/get_pickleable_state.log','a')
-    raise SystemExit
-  return pickleable_state
-
-class PickleableFrame:
-  def __init__(self, kwds):
-    self.filename = kwds['filename']
-    self.lineno = kwds['lineno']
-    self.function = kwds['function']
-    self.local_vars = kwds['local_vars']
-    self.code_context = kwds['code_context']
-    self.count = kwds['count']
-
-  def __str__(self,color=False):
-    return pformat(self.__dict__)
-
-
 f = inspect.currentframe()
 pf = make_pickleable_frame(f)
 kwds = dict(
@@ -846,5 +659,4 @@ kwds = dict(
 pst = PickleableState(kwds)
 print(pst)
 
-
-
+pst

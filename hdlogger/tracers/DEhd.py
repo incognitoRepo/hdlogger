@@ -71,7 +71,7 @@ class GenericPickleableMapping:
 
 class PickleableOptparseOption:
   def __init__(self,module,classname):
-`    self.module = module
+`   self.module = module
     self.classname = classname
     self.id = id(self)  #  0x%x:
 

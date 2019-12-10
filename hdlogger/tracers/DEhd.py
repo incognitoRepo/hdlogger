@@ -481,20 +481,26 @@ class PickleableState:
       f"{self.indent}|{symbol}|{self.function}|{self.f_locals}|"
       f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
     )
-    return self.formatter2
+    self.formatter3 = ( # just sauce
+      f"{self.indent}|{symbol}|{self.function}|{self.f_locals}|"
+    )
+    return self.formatter3
 
   @cached_property
   def format_line(self):
     symbol = "  "
     self.formatter1 = ( # default formatter
       f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
-      f"{self.indent} |{symbol}|{self.source}|"
+      f"{self.indent} |{symbol}|{self.source.rstrip()}|"
     )
     self.formatter2 = ( # indented formatter
-      f"{self.indent} |{symbol}|{self.source}|"
+      f"{self.indent} |{symbol}|{self.source.rstrip()}|"
       f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
     )
-    return self.formatter2
+    self.formatter3 = ( # just sauce
+      f"{self.indent} |{symbol}|{self.source.rstrip()}|"
+    )
+    return self.formatter3
 
   @cached_property
   def format_return(self):
@@ -507,9 +513,12 @@ class PickleableState:
       f"{self.indent}|{symbol}|{self.function}|{self.arg}|"
       f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
     )
+    self.formatter3 = ( # just savce
+      f"{self.indent}|{symbol}|{self.function}|{self.arg}|"
+    )
     if PickleableState.stack and PickleableState.stack[-1] == f"{self.module}.{self.function}":
       PickleableState.stack.pop()
-    return self.formatter2
+    return self.formatter3
 
   @cached_property
   def format_exception(self):
@@ -522,7 +531,10 @@ class PickleableState:
       f"{self.indent}|{symbol}|{self.function}|{self.arg}|"
       f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
     )
-    return self.formatter2
+    self.formatter3 = ( # just savce
+      f"{self.indent}|{symbol}|{self.function}|{self.arg}|"
+    )
+    return self.formatter3
 
 
 def get_pickleable_state(state) -> PickleableState:
@@ -616,15 +628,13 @@ class HiDefTracer:
 
   def initialize(self, frame, event, arg):
     initialize_copyreg()
-    def _state(f, e, a):
-      self.state = State(f,e,a)
-      self.pickleable_state = get_pickleable_state(self.state)
-      _as_bytes = pickle.dumps(self.pickleable_state)
-      _as_hexad = _as_bytes.hex()
-      wf(pformat(self.pickleable_state)+"\n",'logs/02.pickleable_states.tracer.log', 'a')
-      wf(_as_hexad+"\n","logs/03.pickled_states_hex.tracer.log","a")
-      self.pickleable_states.append(self.pickleable_state)
-    _state(frame, event, arg)
+    self.state = State(frame,event,arg)
+    self.pickleable_state = get_pickleable_state(self.state)
+    _as_bytes = pickle.dumps(self.pickleable_state)
+    _as_hexad = _as_bytes.hex()
+    wf(pformat(self.pickleable_state)+"\n",'logs/02.pickleable_states.tracer.log', 'a')
+    wf(_as_hexad+"\n","logs/03.pickled_states_hex.tracer.log","a")
+    self.pickleable_states.append(self.pickleable_state)
 
   def trace_dispatch(self, frame, event, arg):
     """this is the entry point for this class"""
@@ -650,7 +660,7 @@ class HiDefTracer:
     assert arg is None, f"dispatch_call: {(arg is None)=}"
     try:
       pickleable = self.pickleable_state.f_locals
-    except ValidationError as e:
+    except:
       wf( stackprinter.format(sys.exc_info()),'logs/tracer.dispatch_call.log', 'a')
       raise
 
@@ -661,7 +671,7 @@ class HiDefTracer:
     assert arg is None, f"dispatch_line: {(arg is None)=}"
     try:
       pickleable = self.pickleable_state.f_locals
-    except ValidationError as e:
+    except:
       wf( stackprinter.format(sys.exc_info()),'logs/tracer.dispatch_line.log', 'a')
       raise
 
@@ -673,7 +683,7 @@ class HiDefTracer:
     if arg is None: return ""
     try:
       pickleable = self.pickleable_state.arg
-    except ValidationError as e:
+    except:
       wf( stackprinter.format(sys.exc_info()),'logs/tracer.dispatch_line.log', 'a')
       raise
 
@@ -684,7 +694,7 @@ class HiDefTracer:
     if arg is None: return ""
     try:
       pickleable = self.pickleable_state.arg
-    except ValidationError as e:
+    except:
       wf( stackprinter.format(sys.exc_info()),'logs/tracer.dispatch_exc.log', 'a')
       raise
 
@@ -763,14 +773,6 @@ class HiDefTracer:
     self.botframe = None
     # self._set_stopinfo(None, None)
 
-def unserialize_file(filename, mode):
-  path = Path('/Users/alberthan/VSCodeProjects/HDLogger/youtube-dl/logs/tracers.pickled_states.dat')
-  with open(path, mode) as f:
-    lines = f.readlines()
-  _as_bytes = [bytes.fromhex(line) for line in lines]
-  _as_pyobj = [pickle.loads(bites) for bites in _as_bytes]
-
-
 def main():
   from tester.helpers import final_selector
   t = HiDefTracer()
@@ -779,16 +781,6 @@ def main():
 
 if __name__ == '__main__':
   main()
-
-
-
-# with open('/Users/alberthan/VSCodeProjects/HDLogger/youtube-dl/logs/initialize_df.tracers.log','r') as f:
-#   idf = f.read()
-
-# idfb = bytes.fromhex(idf)
-# pyobj = pickle.loads(idfb)
-
-# pd.read_pickle(idf)
 
 
 def make_pickleable_frame(frame):
@@ -823,22 +815,6 @@ def make_pickleable_state(self) -> PickleableState:
     raise SystemExit
   return pickleable_state
 
-
-def getcodecontext(frame,lineno,context=2):
-  if context > 0:
-    start = lineno - 1 - context//2
-    try:
-      lines, lnum = inspect.findsource(frame)
-    except OSError:
-      lines = count = None
-    else:
-      start = max(0, min(start, len(lines) - context))
-      lines = lines[start:start+context]
-      count = lineno - 1 - start
-  else:
-    lines = count = None
-  return lines, count
-
 class PickleableFrame:
   def __init__(self, kwds):
     self.filename = kwds['filename']
@@ -850,6 +826,7 @@ class PickleableFrame:
 
   def __str__(self,color=False):
     return pformat(self.__dict__)
+
 
 f = inspect.currentframe()
 pf = make_pickleable_frame(f)

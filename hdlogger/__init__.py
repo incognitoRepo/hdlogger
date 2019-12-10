@@ -11,7 +11,8 @@ from .core import (
   get_tracer_kill_pack,
 )
 from .tracers import (
-  traceTracer
+  traceTracer,
+  hdTracer
 )
 from .data_structures import (
   TraceHookCallbackException,

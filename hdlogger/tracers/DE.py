@@ -28,7 +28,6 @@ def rf(filepath, mode="r"):
     lines = f.readlines()
   return lines
 
-
 class TraceProcessor:
   def __init__(self,filepath):
     self.pickleable_states = []
@@ -132,14 +131,3 @@ class TraceFormatter:
       self.event, "\u0020" * (len(PickleableState.stack)-1), " !",
       function=f"{self.function}: ", arg=self.arg)
     return str(self.formatter)
-
-
-
-
-
-def test(x):
-  print(f"{x=}\n{type(x)=}\n{pdir(x)=}")
-  print(type(x))
-  print()
-
-df.apply(test,axis=1)

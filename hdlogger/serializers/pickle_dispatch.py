@@ -55,7 +55,6 @@ def pickleable_dict(d):
     except:
       s = stackprinter.format(sys.exc_info())
       wf( s,'logs/pickleable_dict.tracers.log',mode="a")
-
       wf((
         f"unable to pickle {d} due to:\n{k=}\n{v=}"
         f"{isinstance(v,GeneratorType)=}\n{pickle.loads(pickle.dumps(v))}"
@@ -122,3 +121,13 @@ def pickleable_simple(s):
         pass
     wf( stackprinter.format(sys.exc_info()),'logs/models.unpickleable.log', 'a')
     raise SystemExit
+
+
+
+# DELETE TODO
+for k,v in ps.__dict__.items():
+  print(k)
+  try: print(v)
+  except: print('!err', v.keys())
+  finally: print('--'*40)
+

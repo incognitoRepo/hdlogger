@@ -373,27 +373,6 @@ class PickleableState:
       f"{self.indent}|{symbol}|{self.function}|{self.arg}|"
     )
     return self.formatter3
-# TODO
-def make_pickleable_state(self) -> PickleableState:
-  kwds = {
-      "frame": pickleable_dispatch(self.frame),
-      "event": self.event,
-      "arg": pickleable_dispatch(self.arg),
-      "f_locals": pickleable_dispatch(self.frame.f_locals),
-      "count": self.count,
-      "function": self.function,
-      "module": self.module,
-      "format_filename": self.format_filename,
-      "lineno": self.lineno,
-      "stdlib": self.stdlib,
-      "source": self.source,
-    }
-  try:
-    pickleable_state = PickleableState(**kwds)
-  except:
-    wf(stackprinter.format(sys.exc_info()),'logs/get_pickleable_state.log','a')
-    raise SystemExit
-  return pickleable_state
 
 def get_pickleable_state(state) -> PickleableState:
   kwds = {
@@ -485,6 +464,19 @@ class HiDefTracer:
     self.dataframe = None
 
   def initialize(self, frame, event, arg):
+    def debug():
+      ps = self.pickleable_state
+      psd = ps.__dict__
+      psg = ((k,psd.get(k,"nope")) for k in psd)
+      for item in psg:
+        try: pickle.loads(pickle.dumps(item))
+        except:
+          sys.settrace(None)
+          s = stackprinter.format(sys.exc_info())
+          wf(s, f"logs/{__name__}.log",'a')
+          import IPython; IPython.embed()
+          raise SystemExit("msg")
+      # ((k,v) for k,v in psd.items())
     initialize_copyreg()
     self.state = State(frame,event,arg)
     self.pickleable_state = get_pickleable_state(self.state)
@@ -500,7 +492,6 @@ class HiDefTracer:
         f.write(s)
       import IPython
       IPython.embed()  # spawns a shell within the current context
-      from pdb import set_trace as st; st()
       raise SystemExit("msg")
     # wf(json.dumps(_as_dict),'logs/02.pickleable_states.tracer.json', 'a')
     wf(_as_hexad+"\n","logs/03.pickled_states_hex.tracer.log","a")
@@ -652,22 +643,22 @@ def main():
 if __name__ == '__main__':
   main()
 
-f = inspect.currentframe()
-pf = make_pickleable_frame(f)
-kwds = dict(
-    frame=pf,
-    event='call',
-    arg=None,
-    f_locals={'a':12},
-    count=43,
-    function="wefa",
-    module="mod",
-    format_filename="wetwfge",
-    lineno=43,
-    stdlib=False,
-    source='f = inspect.currentframe()\n',
-)
-pst = PickleableState(kwds)
-print(pst)
+# f = inspect.currentframe()
+# pf = make_pickleable_frame(f)
+# kwds = dict(
+#     frame=pf,
+#     event='call',
+#     arg=None,
+#     f_locals={'a':12},
+#     count=43,
+#     function="wefa",
+#     module="mod",
+#     format_filename="wetwfge",
+#     lineno=43,
+#     stdlib=False,
+#     source='f = inspect.currentframe()\n',
+# )
+# pst = PickleableState(kwds)
+# print(pst)
 
-pst
+# pst

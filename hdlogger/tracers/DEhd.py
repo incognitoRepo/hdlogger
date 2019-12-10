@@ -493,7 +493,6 @@ class HiDefTracer:
     _as_hexad = _as_bytes.hex()
     try:
       wf(pformat(_as_dict)+"\n",'logs/02.pickleable_states.tracer.log', 'a')
-      brilliant_code(awesome_arg)
     except:
       sys.settrace(None)
       s = stackprinter.format(sys.exc_info())

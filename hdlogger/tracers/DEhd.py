@@ -491,7 +491,18 @@ class HiDefTracer:
     _as_dict = self.pickleable_state.asdict()
     _as_bytes = pickle.dumps(self.pickleable_state)
     _as_hexad = _as_bytes.hex()
-    wf(pformat(_as_dict)+"\n",'logs/02.pickleable_states.tracer.log', 'a')
+    try:
+      wf(pformat(_as_dict)+"\n",'logs/02.pickleable_states.tracer.log', 'a')
+      brilliant_code(awesome_arg)
+    except:
+      sys.settrace(None)
+      s = stackprinter.format(sys.exc_info())
+      with open(f"logs/{__name__}.log",'a') as f:
+        f.write(s)
+      import IPython
+      IPython.embed()  # spawns a shell within the current context
+      from pdb import set_trace as st; st()
+      raise SystemExit("msg")
     # wf(json.dumps(_as_dict),'logs/02.pickleable_states.tracer.json', 'a')
     wf(_as_hexad+"\n","logs/03.pickled_states_hex.tracer.log","a")
     self.pickleable_states.append(self.pickleable_state)

@@ -124,10 +124,10 @@ def pickleable_simple(s):
 
 
 
-# DELETE TODO
-for k,v in ps.__dict__.items():
-  print(k)
-  try: print(v)
-  except: print('!err', v.keys())
-  finally: print('--'*40)
+# # DELETE TODO
+# for k,v in ps.__dict__.items():
+#   print(k)
+#   try: print(v)
+#   except: print('!err', v.keys())
+#   finally: print('--'*40)
 

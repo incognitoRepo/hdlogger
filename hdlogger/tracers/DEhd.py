@@ -492,7 +492,7 @@ class HiDefTracer:
     _as_bytes = pickle.dumps(self.pickleable_state)
     _as_hexad = _as_bytes.hex()
     wf(pformat(_as_dict)+"\n",'logs/02.pickleable_states.tracer.log', 'a')
-    wf(json.dumps(_as_dict),'logs/02.pickleable_states.tracer.json', 'a')
+    # wf(json.dumps(_as_dict),'logs/02.pickleable_states.tracer.json', 'a')
     wf(_as_hexad+"\n","logs/03.pickled_states_hex.tracer.log","a")
     self.pickleable_states.append(self.pickleable_state)
 

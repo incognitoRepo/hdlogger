@@ -475,7 +475,7 @@ class HiDefTracer:
           s = stackprinter.format(sys.exc_info())
           wf(s, f"logs/{__name__}.log",'a')
           import IPython; IPython.embed()
-          raise SystemExit("msg")
+          raise SystemExit(f"HiDefTracer.initialize.{__name__}")
       # ((k,v) for k,v in psd.items())
     initialize_copyreg()
     self.state = State(frame,event,arg)
@@ -487,18 +487,7 @@ class HiDefTracer:
       wf(pformat(_as_dict)+"\n",'logs/02.pickleable_states.tracer.log', 'a')
     except:
       debug_pickleable_state()
-
-    # try:
-    #   wf(pformat(_as_dict)+"\n",'logs/02.pickleable_states.tracer.log', 'a')
-    # except:
-    #   sys.settrace(None)
-    #   s = stackprinter.format(sys.exc_info())
-    #   with open(f"logs/{__name__}.log",'a') as f:
-    #     f.write(s)
-    #   import IPython
-    #   IPython.embed()  # spawns a shell within the current context
-    #   raise SystemExit("msg")
-    # wf(json.dumps(_as_dict),'logs/02.pickleable_states.tracer.json', 'a')
+      raise SystemExit("shouldnt be here")
     wf(_as_hexad+"\n","logs/03.pickled_states_hex.tracer.log","a")
     self.pickleable_states.append(self.pickleable_state)
 

@@ -5,6 +5,62 @@ from typing import Union, TypeVar
 from hunter.const import SYS_PREFIX_PATHS
 from hdlogger.utils import *
 
+class CallEvt:
+  def __init__(self, function=None, f_locals=None):
+    self.function = function
+    self.f_locals = f_locals
+    self.pid = id(self)
+
+  def __iter__(self):
+    return ((k,v) for k,v in self.__dict__.items())
+
+  def __str__(self):
+    function, f_locals, pid = self.function, self.f_locals, self.pid
+    s = f"<CallEvt object: function={function}, f_locals={f_locals}, id={pid}>"
+    return s
+
+class LineEvt:
+  def __init__(self, source=None):
+    self.source = source
+    self.pid = id(self)
+
+  def __iter__(self):
+    return ((k,v) for k,v in self.__dict__.items())
+
+  def __str__(self):
+    source, pid = self.source, self.pid
+    s = f"<LineEvt object: source={source}, id={pid}>"
+    return s
+
+class RetnEvt:
+  def __init__(self, function, arg):
+    self.function = function
+    self.arg = arg
+    self.id = id(self)
+
+  def __iter__(self):
+    return ((k,v) for k,v in self.__dict__.items())
+
+  def __str__(self):
+    function, arg, pid = self.function, self.arg, self.pid
+    s = f"<RetnEvt object: function={function}, arg={arg}, id={pid}>"
+    return s
+
+class ExcpEvt:
+  def __init__(self, function, arg):
+    self.function = function
+    self.arg = arg
+    self.id = id(self)
+
+  def __iter__(self):
+    return ((k,v) for k,v in self.__dict__.items())
+
+  def __str__(self):
+    function, arg, pid = self.function, self.arg, self.pid
+    s = f"<ExcpEvt object: function={function}, arg={arg}, id={pid}>"
+    return s
+
+
 class State:
   SYS_PREFIX_PATHS = set((
     sys.prefix,
@@ -116,18 +172,6 @@ class PickleableState:
     pseudo = f"{self.indent}|{symbol}"
     return pseudo_static
 
-  CallEvt, LineEvt, RetnEvt, ExcpEvt = (
-    type(ClassName, (), {})
-    for ClassName
-    in [
-        f"{Kind}Evt"
-        for Kind
-        in {"Call","Line","Retn","Excp"}
-      ]
-    )
-
-  CallEvt = TypeVar('CallEvt')
-
   @singledispatchmethod
   def non_static_str(self, arg):
     raise NotImplementedError("you must implement the non_static_str method")
@@ -156,12 +200,13 @@ class PickleableState:
     nonst = f"{function}|{arg}|"
     return nonst
 
-
   stack = []
   @cached_property
   def format_call(self):
     symbol = "=>"
     callevt = CallEvt()
+    d = {'function':self.function, 'f_locals':f_locals}
+    callevt = type('CallEvt', (), d)
     PickleableState.stack.append(f"{self.module}.{self.function}")
     self.formatter1 = ( # default formatter
       f"{self.static_str}"

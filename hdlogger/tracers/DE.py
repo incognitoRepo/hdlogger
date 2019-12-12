@@ -1,4 +1,4 @@
-import pickle, sys
+import pickle, sys, inspect
 import pandas as pd
 import pdir, stackprinter
 from hdlogger.utils import *

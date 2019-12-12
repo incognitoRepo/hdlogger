@@ -15,7 +15,7 @@ from hunter.const import SYS_PREFIX_PATHS
 from pydantic import ValidationError
 from dataclasses import dataclass
 from inspect import CO_GENERATOR, CO_COROUTINE, CO_ASYNC_GENERATOR
-from hdlogger.serializers import pickleable_dispatch, initialize_copyreg, State
+from hdlogger.serializers import pickleable_dispatch, initialize_copyreg, State, make_pickleable_state
 from hdlogger.utils import *
 
 GENERATOR_AND_COROUTINE_FLAGS = CO_GENERATOR | CO_COROUTINE | CO_ASYNC_GENERATOR # 672

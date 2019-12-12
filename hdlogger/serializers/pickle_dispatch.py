@@ -8,7 +8,7 @@ from types import GeneratorType, FrameType, TracebackType, FunctionType
 
 from hdlogger.utils import *
 
-from .classes import State
+from .classes import State, PickleableFrame
 
 def initialize_copyreg():
   special_cases = [

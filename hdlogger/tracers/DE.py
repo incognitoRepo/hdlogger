@@ -54,7 +54,7 @@ class TraceProcessor:
     self._dataframe = pd.DataFrame(data)
     return self._dataframe
 
-filepath = '/Users/alberthan/VSCodeProjects/HDLogger/youtube-dl/logs/03.pickled_states_hex.tracer.log'
-tp = TraceProcessor(filepath)
-df = tp.dataframe
-error_index = 1319
+if __name__ == '__main__':
+  filepath = '/Users/alberthan/VSCodeProjects/HDLogger/youtube-dl/logs/03.pickled_states_hex.tracer.log'
+  tp = TraceProcessor(filepath)
+  df = tp.dataframe

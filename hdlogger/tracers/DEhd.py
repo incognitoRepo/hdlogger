@@ -44,37 +44,6 @@ state_attrs = [
   # 'formatter'
   ]
 
-def checkfuncs(funcs,arg):
-  def checkfunc(func,arg):
-    with contextlib.suppress(Exception):
-      return func(arg)
-  for func in funcs:
-    if funcres:= checkfunc(func,arg) is not None:
-      return funcres
-    else:
-      return None
-  raise Exception("DEhd.checkfuncs: all funcs failed")
-
-def print_attrs(obj):
-  attrnames = [attr for attr in dir(obj) if not attr.startswith('_')]
-  _ = operator.attrgetter(*attrnames)
-  attrvals = [getattr(obj,name) for name in attrnames]
-  d = {k:v for k,v in zip(attrnames,attrvals)}
-  cpprint(d)
-  return d
-
-def make_pickleable_frame(frame):
-  kwds = {
-    "filename": frame.f_code.co_filename,
-    "lineno": frame.f_lineno,
-    "function": frame.f_code.co_name,
-    "local_vars": frame.f_code.co_names,
-    "code_context": getcodecontext(frame,frame.f_lineno)[0],
-    "count": getcodecontext(frame,frame.f_lineno)[1],
-  }
-  return PickleableFrame(kwds)
-
-
 class HiDefTracer:
 
   def __init__(self):

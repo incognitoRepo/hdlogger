@@ -52,3 +52,22 @@ def c(s,arg=None):
     if arg == 'line': return _c(s,modifier=2,intensity=3,color=0)
     if arg == 'return': return _c(s,modifier=1,intensity=9,color=3)
     if arg == 'exception': return _c(s,modifier=1,intensity=9,color=1)
+
+def checkfuncs(funcs,arg):
+  def checkfunc(func,arg):
+    with contextlib.suppress(Exception):
+      return func(arg)
+  for func in funcs:
+    if funcres:= checkfunc(func,arg) is not None:
+      return funcres
+    else:
+      return None
+  raise Exception("DEhd.checkfuncs: all funcs failed")
+
+def print_attrs(obj):
+  attrnames = [attr for attr in dir(obj) if not attr.startswith('_')]
+  _ = operator.attrgetter(*attrnames)
+  attrvals = [getattr(obj,name) for name in attrnames]
+  d = {k:v for k,v in zip(attrnames,attrvals)}
+  cpprint(d)
+  return d

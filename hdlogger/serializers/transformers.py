@@ -1,4 +1,21 @@
-from .classes import PickleableState
+import stackprinter, inspect, sys
+from .classes import PickleableState, PickleableFrame
+from .pickle_dispatch import pickleable_dispatch
+
+def getcodecontext(frame,lineno,context=2):
+  if context > 0:
+    start = lineno - 1 - context//2
+    try:
+      lines, lnum = inspect.findsource(frame)
+    except OSError:
+      lines = count = None
+    else:
+      start = max(0, min(start, len(lines) - context))
+      lines = lines[start:start+context]
+      count = lineno - 1 - start
+  else:
+    lines = count = None
+  return lines, count
 
 def make_pickleable_frame(frame):
   kwds = {
@@ -10,7 +27,6 @@ def make_pickleable_frame(frame):
     "count": getcodecontext(frame,frame.f_lineno)[1],
   }
   return PickleableFrame(kwds)
-
 
 def make_pickleable_state(state) -> PickleableState:
   kwds = {

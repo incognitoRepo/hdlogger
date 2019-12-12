@@ -1,5 +1,6 @@
 import sys, os, collections, linecache
 from functools import singledispatchmethod, cached_property
+from prettyprinter import pformat
 from itertools import count
 from typing import Union, TypeVar
 from hunter.const import SYS_PREFIX_PATHS
@@ -59,7 +60,6 @@ class ExcpEvt:
     function, arg, pid = self.function, self.arg, self.pid
     s = f"<ExcpEvt object: function={function}, arg={arg}, id={pid}>"
     return s
-
 
 class State:
   SYS_PREFIX_PATHS = set((
@@ -179,7 +179,7 @@ class PickleableState:
 
   @non_static_str.register
   def _(self, arg:CallEvt):
-    function, f_locals = arg
+    function, f_locals, *_ = arg
     nonst = f"{function}|{f_locals}|"
     return nonst
 

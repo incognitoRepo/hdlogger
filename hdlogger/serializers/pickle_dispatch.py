@@ -1,8 +1,27 @@
-from typing import Iterable, Mapping, Sequence
-from types import FrameType
-from hdlogger.utils import *
+import optparse, copyreg, inspect
+
 import stackprinter, sys
 import dill as pickle
+
+from typing import Iterable, Mapping, Sequence
+from types import GeneratorType, FrameType, TracebackType, FunctionType
+
+from hdlogger.utils import *
+
+from .classes import State
+
+def initialize_copyreg():
+  special_cases = [
+    (GeneratorType, pickle_generator),
+    (FrameType, pickle_frame),
+    (TracebackType, pickle_traceback),
+    (optparse.Option, pickle_optparse_option),
+    (State, pickle_state),
+    (FunctionType, pickle_function),
+    # (Mapping, pickleable_dict)
+  ]
+  for special_case in special_cases:
+    copyreg.pickle(*special_case)
 
 def pickleable_dispatch(obj):
   try:
@@ -122,4 +141,92 @@ def pickleable_simple(s):
     wf( stackprinter.format(sys.exc_info()),'logs/models.unpickleable.log', 'a')
     raise SystemExit
 
+def pickle_function(fnc):
+  sig = inspect.signature(fnc)
+  inspect.Signature(sig.parameters.values())
+  kwds = sig.parameters
+  return unpickle_function, (kwds,)
 
+def unpickle_function(kwds):
+  return inspect.Signature(kwds)
+
+def pickle_frame(frame):
+  kwds = {
+    "filename": frame.f_code.co_filename,
+    "lineno": frame.f_lineno,
+    "function": frame.f_code.co_name,
+    "local_vars": frame.f_code.co_names,
+    "code_context": getcodecontext(frame,frame.f_lineno)[0],
+    "count": getcodecontext(frame,frame.f_lineno)[1],
+  }
+  return unpickle_frame, (kwds,)
+
+def unpickle_frame(kwds):
+  return PickleableFrame(kwds)
+
+def pickle_state(st):
+  kwds = {
+      "frame": st.pickleable_frame,
+      "event": st.event,
+      "arg": st.pickleable_arg,
+      "locals": st.pickleable_locals,
+      "count": st.count,
+      "function": st.function,
+      "module": st.module,
+      "filename": st.filename,
+      "lineno": st.lineno,
+      "stdlib": st.stdlib,
+      "source": st.source,
+      "format_filename": st.format_filename,
+  }
+  return unpickle_state, (kwds,)
+
+def unpickle_state(kwds):
+  return PickleableState(**kwds)
+
+def pickle_generator(gen):
+  kwds = {
+    'state': inspect.getgeneratorstate(gen),
+    'f_locals': inspect.getgeneratorlocals(gen),
+    'pid': hex(id(gen))
+  }
+  return unpickle_generator, (kwds,)
+
+def unpickle_generator(kwds):
+  return PickleableGenerator(**kwds)
+
+def getcodecontext(frame,lineno,context=2):
+  if context > 0:
+    start = lineno - 1 - context//2
+    try:
+      lines, lnum = inspect.findsource(frame)
+    except OSError:
+      lines = count = None
+    else:
+      start = max(0, min(start, len(lines) - context))
+      lines = lines[start:start+context]
+      count = lineno - 1 - start
+  else:
+    lines = count = None
+  return lines, count
+
+def pickle_traceback(tb):
+  kwds = {
+    'lasti': tb.tb_lasti,
+    'lineno':tb.tb_lineno,
+  }
+  return unpickle_traceback, (kwds,)
+
+def unpickle_traceback(kwds):
+  return PickleableTraceback(**kwds)
+
+def pickle_optparse_option(optopt):
+  """str(pickle.loads(pickle.dumps(self)))"""
+  kwds = {
+    'module':optopt.__module__,
+    'classname':optopt.__class__.__name__,
+  }
+  return unpickle_optparse_option, (kwds,)
+
+def unpickle_optparse_option(kwds):
+  return PickleableOptparseOption(**kwds)

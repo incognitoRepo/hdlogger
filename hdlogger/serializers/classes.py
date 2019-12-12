@@ -164,20 +164,21 @@ class PickleableState:
     idt = '\u0020' * (len(PickleableState.stack)-1)
     return idt
 
+  @property
   def static_str(self):
     static = f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
     return static
 
   def pseudo_static_str(self,symbol):
     pseudo = f"{self.indent}|{symbol}"
-    return pseudo_static
+    return pseudo
 
   @singledispatchmethod
   def non_static_str(self, arg):
     raise NotImplementedError("you must implement the non_static_str method")
 
   @non_static_str.register
-  def _(self, arg:type("CallEvt",(),{})):
+  def _(self, arg:CallEvt):
     function, f_locals = arg
     nonst = f"{function}|{f_locals}|"
     return nonst
@@ -204,23 +205,21 @@ class PickleableState:
   @cached_property
   def format_call(self):
     symbol = "=>"
-    callevt = CallEvt()
-    d = {'function':self.function, 'f_locals':f_locals}
-    callevt = type('CallEvt', (), d)
+    callevt = CallEvt(self.function, self.f_locals)
     PickleableState.stack.append(f"{self.module}.{self.function}")
     self.formatter1 = ( # default formatter
       f"{self.static_str}"
       f"{self.pseudo_static_str(symbol)}"
-      f"{self.non_static_str(type('CallEvt',(),{'function':self.function,'f_locals':f_locals}))}"
+      f"{self.non_static_str(callevt)}"
     )
     self.formatter2 = ( # indented formatter
       f"{self.pseudo_static_str(symbol)}"
-      f"{self.non_static_str(type('CallEvt',(),{'function':self.function,'f_locals':f_locals}))}"
       f"{self.static_str}"
+      f"{self.non_static_str(callevt)}"
     )
     self.formatter3 = ( # just sauce
-      f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
-      f"{self.indent}|{symbol}|{self.function}|{self.f_locals}|"
+      f"{self.pseudo_static_str(symbol)}"
+      f"{self.non_static_str(callevt)}"
     )
     return self.formatter3
 

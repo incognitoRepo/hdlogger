@@ -67,7 +67,6 @@ class HiDefTracer:
           wf(s, f"logs/{__name__}.log",'a')
           import IPython; IPython.embed()
           raise SystemExit(f"HiDefTracer.initialize.{__name__}")
-      # ((k,v) for k,v in psd.items())
     initialize_copyreg()
     self.state = State(frame,event,arg)
     try:

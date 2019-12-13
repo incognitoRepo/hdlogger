@@ -1,5 +1,6 @@
 import sys, os, collections, linecache
 from functools import singledispatchmethod, cached_property
+from toolz.functoolz import compose_left
 from prettyprinter import pformat
 from itertools import count
 from typing import Union, TypeVar
@@ -16,7 +17,7 @@ class CallEvt:
     return ((k,v) for k,v in self.__dict__.items())
 
   def values(self):
-    return ((k,v) for k,v in self.__dict__.values())
+    return (v for k,v in self.__dict__.values())
 
   def __str__(self):
     function, f_locals, pid = self.function, self.f_locals, self.pid
@@ -32,7 +33,7 @@ class LineEvt:
     return ((k,v) for k,v in self.__dict__.items())
 
   def values(self):
-    return ((k,v) for k,v in self.__dict__.values())
+    return (v for k,v in self.__dict__.values())
 
   def __str__(self):
     source, pid = self.source, self.pid
@@ -49,7 +50,7 @@ class RetnEvt:
     return ((k,v) for k,v in self.__dict__.items())
 
   def values(self):
-    return ((k,v) for k,v in self.__dict__.values())
+    return (v for k,v in self.__dict__.values())
 
   def __str__(self):
     function, arg, pid = self.function, self.arg, self.pid
@@ -66,7 +67,7 @@ class ExcpEvt:
     return ((k,v) for k,v in self.__dict__.items())
 
   def values(self):
-    return ((k,v) for k,v in self.__dict__.values())
+    return (v for k,v in self.__dict__.values())
 
   def __str__(self):
     function, arg, pid = self.function, self.arg, self.pid
@@ -187,12 +188,20 @@ class PickleableState:
 
   @singledispatchmethod
   def non_static_str(self, arg):
+    """all non-str python objects are formatted as str _here_"""
     raise NotImplementedError("you must implement the non_static_str method")
 
   @non_static_str.register
   def _(self, arg:CallEvt):
     function, f_locals, pid = arg
-    nonst = f"{function}|{f_locals}|"
+    assert isinstance(f_locals, dict), f"{f_locals}, {type(f_locals)=}"
+    nonst = compose_left(
+      lambda func,floc: (func, pformat(floc)),`
+      lambda fun2,flo2: (fun2 + flo2)
+    )
+      # lambda fnc2,flc2: fnc2 + flc2,
+      # lambda catted = catted.splitlines("\n"),
+    # nonst = f"{function}|{f_locals}|"
     return nonst
 
   @non_static_str.register
@@ -210,7 +219,12 @@ class PickleableState:
   @non_static_str.register
   def _(self, arg:ExcpEvt):
     function, arg, pid = arg
-    nonst = f"{function}|{arg}|"
+    nonst = compose_left(
+      lambda func,farg: func, pformat(farg),
+      lambda fnc2,flc2: fnc2 + frg2,
+      lambda catted = catted.splitlines("\n"),
+    )(function, arg)
+    # nonst = f"{function}|{arg}|"
     return nonst
 
   stack = []

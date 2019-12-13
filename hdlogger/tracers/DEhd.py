@@ -226,23 +226,3 @@ def main():
 
 if __name__ == '__main__':
   main()
-
-# f = inspect.currentframe()
-# pf = make_pickleable_frame(f)
-# kwds = dict(
-#     frame=pf,
-#     event='call',
-#     arg=None,
-#     f_locals={'a':12},
-#     count=43,
-#     function="wefa",
-#     module="mod",
-#     format_filename="wetwfge",
-#     lineno=43,
-#     stdlib=False,
-#     source='f = inspect.currentframe()\n',
-# )
-# pst = PickleableState(kwds)
-# print(pst)
-
-# pst

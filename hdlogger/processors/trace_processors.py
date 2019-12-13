@@ -6,6 +6,8 @@ from functools import cached_property
 from collections import defaultdict
 from pathlib import Path
 from string import Template
+from typing import Any, Dict
+from ..serializers.classes import PickleableFrame
 from ipdb import set_trace as st
 
 columns = [
@@ -43,6 +45,13 @@ class TraceProcessor:
         from ipdb import set_trace as st; st()
         raise SystemExit(f"{line}")
       self.pickleable_states.append(pickleable_state)
+
+  def format0(self,Index:int,frame:PickleableFrame,event:str,arg:Any,f_locals:Dict,count:int,function:str,module:str,filename:str,lineno:int,stdlib:bool,source:str):
+    s = (
+      f"{Index} {frame} {event} {arg} {f_locals} {count} {function}"
+      f"{module} {filename} {lineno} {stdlib} {source}"
+    )
+    return s
 
   @property
   def dataframe(self):

@@ -15,6 +15,9 @@ class CallEvt:
   def __iter__(self):
     return ((k,v) for k,v in self.__dict__.items())
 
+  def values(self):
+    return ((k,v) for k,v in self.__dict__.values())
+
   def __str__(self):
     function, f_locals, pid = self.function, self.f_locals, self.pid
     s = f"<CallEvt object: function={function}, f_locals={f_locals}, id={pid}>"
@@ -27,6 +30,9 @@ class LineEvt:
 
   def __iter__(self):
     return ((k,v) for k,v in self.__dict__.items())
+
+  def values(self):
+    return ((k,v) for k,v in self.__dict__.values())
 
   def __str__(self):
     source, pid = self.source, self.pid
@@ -42,6 +48,9 @@ class RetnEvt:
   def __iter__(self):
     return ((k,v) for k,v in self.__dict__.items())
 
+  def values(self):
+    return ((k,v) for k,v in self.__dict__.values())
+
   def __str__(self):
     function, arg, pid = self.function, self.arg, self.pid
     s = f"<RetnEvt object: function={function}, arg={arg}, id={pid}>"
@@ -55,6 +64,9 @@ class ExcpEvt:
 
   def __iter__(self):
     return ((k,v) for k,v in self.__dict__.items())
+
+  def values(self):
+    return ((k,v) for k,v in self.__dict__.values())
 
   def __str__(self):
     function, arg, pid = self.function, self.arg, self.pid
@@ -154,7 +166,7 @@ class PickleableState:
     return s
 
   def __iter__(self):
-    yield from self.asdict().items()
+    return ((k,v) for k,v in self.asdict().items())
 
   def asdict(self):
     return self.__dict__
@@ -179,25 +191,25 @@ class PickleableState:
 
   @non_static_str.register
   def _(self, arg:CallEvt):
-    function, f_locals, *_ = arg
+    function, f_locals, pid = arg
     nonst = f"{function}|{f_locals}|"
     return nonst
 
   @non_static_str.register
   def _(self, arg:LineEvt):
-    source = arg
+    source, pid = arg
     nonst = f"{source}|"
     return nonst
 
   @non_static_str.register
   def _(self, arg:RetnEvt):
-    function, arg = arg
+    function, arg, pid = arg
     nonst = f"{function}|{arg}|"
     return nonst
 
   @non_static_str.register
   def _(self, arg:ExcpEvt):
-    function, arg = arg
+    function, arg, pid = arg
     nonst = f"{function}|{arg}|"
     return nonst
 
@@ -207,51 +219,59 @@ class PickleableState:
     symbol = "=>"
     callevt = CallEvt(self.function, self.f_locals)
     PickleableState.stack.append(f"{self.module}.{self.function}")
+    l = [self.static_str, self.pseudo_static_str(symbol), self.non_static_str(callevt)]
     self.formatter1 = ( # default formatter
-      f"{self.static_str}"
-      f"{self.pseudo_static_str(symbol)}"
-      f"{self.non_static_str(callevt)}"
+      '\n'.join([l[0],l[1],l[2]])
     )
     self.formatter2 = ( # indented formatter
-      f"{self.pseudo_static_str(symbol)}"
-      f"{self.static_str}"
-      f"{self.non_static_str(callevt)}"
+      '\n'.join([l[1],l[0],l[2]])
     )
     self.formatter3 = ( # just sauce
-      f"{self.pseudo_static_str(symbol)}"
-      f"{self.non_static_str(callevt)}"
+      '\n'.join([l[1],l[2]])
+      # f"{self.pseudo_static_str(symbol)}"
+      # f"{self.non_static_str(callevt)}"
     )
     return self.formatter3
 
   @cached_property
   def format_line(self):
     symbol = "  "
+    lineevt = LineEvt(self.source)
+    l = [self.static_str, self.pseudo_static_str(symbol), self.non_static_str(lineevt)]
     self.formatter1 = ( # default formatter
-      f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
-      f"{self.indent} |{symbol}|{self.source.rstrip()}|"
+      '\n'.join([l[0],l[1],l[2]])
+      # f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
+      # f"{self.indent} |{symbol}|{self.source.rstrip()}|"
     )
     self.formatter2 = ( # indented formatter
-      f"{self.indent} |{symbol}|{self.source.rstrip()}|"
-      f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
+      '\n'.join([l[1],l[2],l[0]])
+      # f"{self.indent} |{symbol}|{self.source.rstrip()}|"
+      # f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
     )
     self.formatter3 = ( # just sauce
-      f"{self.indent} |{symbol}|{self.source.rstrip()}|"
+      '\n'.join([l[1],l[2]])
+      # f"{self.indent} |{symbol}|{self.source.rstrip()}|"
     )
     return self.formatter3
 
   @cached_property
   def format_return(self):
     symbol = "<="
+    retnevt = RetnEvt(self.function, self.arg)
+    l = [self.static_str, self.pseudo_static_str(symbol), self.non_static_str(retnevt)]
     self.formatter1 = ( # default formatter
-      f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
-      f"{self.indent}|{symbol}|{self.function}|{self.arg}"
+      '\n'.join([l[0],l[1],l[2]])
+      # f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
+      # f"{self.indent}|{symbol}|{self.function}|{self.arg}"
     )
     self.formatter2 = ( # indented formatter
-      f"{self.indent}|{symbol}|{self.function}|{self.arg}|"
-      f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
+      '\n'.join([l[1],l[2],l[0]])
+      # f"{self.indent}|{symbol}|{self.function}|{self.arg}|"
+      # f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
     )
     self.formatter3 = ( # just savce
-      f"{self.indent}|{symbol}|{self.function}|{self.arg}|"
+      '\n'.join([l[1],l[2]])
+      # f"{self.indent}|{symbol}|{self.function}|{self.arg}|"
     )
     if PickleableState.stack and PickleableState.stack[-1] == f"{self.module}.{self.function}":
       PickleableState.stack.pop()
@@ -260,16 +280,21 @@ class PickleableState:
   @cached_property
   def format_exception(self):
     symbol = " !"
+    excpevt = ExcpEvt(self.function, self.arg)
+    l = [self.static_str, self.pseudo_static_str(symbol), self.non_static_str(excpevt)]
     self.formatter1 = ( # default formatter
-      f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
-      f"{self.indent}|{symbol}|{self.function}|{self.arg}"
+      '\n'.join([l[0],l[1],l[2]])
+      # f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
+      # f"{self.indent}|{symbol}|{self.function}|{self.arg}"
     )
     self.formatter2 = ( # indented formatter
-      f"{self.indent}|{symbol}|{self.function}|{self.arg}|"
-      f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
+      '\n'.join([l[2],l[1],l[0]])
+      # f"{self.indent}|{symbol}|{self.function}|{self.arg}|"
+      # f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
     )
     self.formatter3 = ( # just savce
-      f"{self.indent}|{symbol}|{self.function}|{self.arg}|"
+      '\n'.join([l[1],l[2]])
+      # f"{self.indent}|{symbol}|{self.function}|{self.arg}|"
     )
     return self.formatter3
 
@@ -303,6 +328,9 @@ class PickleableOptparseOption:
     self.module = module
     self.classname = classname
     self.id = id(self)  #  0x%x:
+
+  def __iter__(self):
+    return ((k,v) for k,v in self.__dict__.items())
 
   def __str__(self):
     l = []

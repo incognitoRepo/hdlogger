@@ -15,8 +15,9 @@ from hunter.const import SYS_PREFIX_PATHS
 from pydantic import ValidationError
 from dataclasses import dataclass
 from inspect import CO_GENERATOR, CO_COROUTINE, CO_ASYNC_GENERATOR
-from hdlogger.serializers import pickleable_dispatch, initialize_copyreg, State, make_pickleable_state
+from hdlogger.serializers import pickleable_dispatch, initialize_copyreg, State, make_pickleable_state, PickleableState
 from hdlogger.utils import *
+wf(str(make_pickleable_state),'logs/DEhd.imports.log','a')
 
 GENERATOR_AND_COROUTINE_FLAGS = CO_GENERATOR | CO_COROUTINE | CO_ASYNC_GENERATOR # 672
 WRITE = True
@@ -56,7 +57,11 @@ class HiDefTracer:
 
   def trace_dispatch(self, frame, event, arg):
     """this is the entry point for this class"""
-    self.initialize(frame, event, arg)
+    try:
+      assert self.initialize(frame, event, arg)
+    except:
+      wf( stackprinter.format(sys.exc_info()),'logs/tracer.dispatch.log', 'a')
+      raise
     if event == 'line':
       return self.dispatch_line(frame, arg)
     if event == 'call':
@@ -85,22 +90,27 @@ class HiDefTracer:
         except:
           sys.settrace(None)
           s = stackprinter.format(sys.exc_info())
-          wf(s, f"logs/debug.{__name__}.log",'a')
+          wf(s, f"logs/debug.log",'a')
           import IPython; IPython.embed()
-          raise SystemExit(f"HiDefTracer.initialize.{__name__}")
+          raise SystemExit(f"HiDefTracer.initialize_")
     initialize_copyreg()
     self.state = State(frame,event,arg)
     try:
-      self.pickleable_state = make_pickleable_state(self.state)
+      wf(inspect.getsourcefile(make_pickleable_state),'logs/inspect.getsourcefile.log','a')
+      self.pickleable_state = make_pickleable_state(self.state, PickleableState._stack)
+      wf(str(self.pickleable_state.stack),'logs/DEhd.96.log','a')
+      wf(str(PickleableState._stack),'logs/DEhd.97.log','a')
       _as_dict = self.pickleable_state.asdict()
       _as_bytes = pickle.dumps(self.pickleable_state)
       _as_hexad = _as_bytes.hex()
       wf(pformat(_as_dict)+"\n",'logs/02.pickleable_states.tracer.log', 'a')
     except:
+      wf( stackprinter.format(sys.exc_info()),'logs/cant.make.log', 'a')
       debug_pickleable_state(self.state)
       raise SystemExit("shouldnt be here")
     wf(_as_hexad+"\n","logs/03.pickled_states_hex.tracer.log","a")
     self.pickleable_states.append(self.pickleable_state)
+    return True
 
   def dispatch_call(self, frame, arg):
     assert arg is None, f"dispatch_call: {(arg is None)=}"

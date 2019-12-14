@@ -303,7 +303,7 @@ class PickleableState:
     return idt
 
   _stack = []
-  @cached_property
+  @property
   def format_call(self):
     callevt = CallEvt(self.function, self.f_locals, PickleableState._stack)
     PickleableState._stack.append(f"{self.module}.{self.function}")
@@ -311,14 +311,14 @@ class PickleableState:
     self.stack = [elm for elm in PickleableState._stack]
     return s
 
-  @cached_property
+  @property
   def format_line(self):
     lineevt = LineEvt(self.source, PickleableState._stack)
     s = lineevt.pformat(self.count,self.filename,self.lineno,self.event)
     self.stack = PickleableState._stack[:]
     return s
 
-  @cached_property
+  @property
   def format_return(self):
     retnevt = RetnEvt(self.function, self.arg, PickleableState._stack)
     s = retnevt.pformat(self.count,self.filename,self.lineno,self.event)
@@ -327,7 +327,7 @@ class PickleableState:
     self.stack = PickleableState._stack[:]
     return s
 
-  @cached_property
+  @property
   def format_exception(self):
     excpevt = ExcpEvt(self.function, self.arg, PickleableState._stack)
     s = excpevt.pformat(self.count,self.filename,self.lineno,self.event)

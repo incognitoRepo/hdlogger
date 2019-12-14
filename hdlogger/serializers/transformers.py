@@ -1,6 +1,7 @@
 import stackprinter, inspect, sys
 from .classes import PickleableState, PickleableFrame
 from .pickle_dispatch import pickleable_dispatch
+from hdlogger.utils import *
 
 def getcodecontext(frame,lineno,context=2):
   if context > 0:
@@ -28,8 +29,14 @@ def make_pickleable_frame(frame):
   }
   return PickleableFrame(kwds)
 
-def make_pickleable_state(state) -> PickleableState:
-  wf(f"{state.stack=}",'logs/state.stack.log','a')
+def make_pickleable_state(state,stack) -> PickleableState:
+  wf(f"{stack=}",'logs/state.stack.log','a')
+  with open('logs/state.stack2.log','a') as f:
+    f.write(
+      f"state.stack={str(getattr(state,'stack','noattr'))}\n"
+      f"state._stack={str(getattr(state,'_stack','noattr'))}\n"
+      f"PickleableState.stack={str(getattr(PickleableState,'stack','noattr'))}\n"
+      f"PickleableState._stack={str(getattr(PickleableState,'_stack','noattr'))}\n\n")
   sys.settrace(None)
   from ipdb import set_trace as st; st()
   kwds = {

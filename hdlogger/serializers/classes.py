@@ -308,7 +308,7 @@ class PickleableState:
     callevt = CallEvt(self.function, self.f_locals, PickleableState._stack)
     PickleableState._stack.append(f"{self.module}.{self.function}")
     s = callevt.pformat(self.count,self.filename,self.lineno,self.event)
-    self.stack = PickleableState._stack[:]
+    self.stack = [elm for elm in PickleableState._stack]
     return s
 
   @cached_property
@@ -381,31 +381,3 @@ class PickleableOptparseOption:
     return s
 
 
-class Te1:
-  def __init__(self):
-    self.x = 3
-    self.stack = None
-
-  _stack = []
-  @cached_property
-  def format_cell(self):
-    Te1._stack.append('1')
-    s = str(Te1._stack)
-    self.stack = [elm for elm in Te1._stack]
-    return s
-
-  @cached_property
-  def format_line(self):
-    self.stack = [elm for elm in Te1._stack]
-    return 'qewr'
-
-t1=Te1()
-pp(t1.format_cell)
-pp(t1._stack)
-t2=Te1()
-pp(t2._stack)
-pp(t2.format_cell)
-pp(t2._stack)
-pp(t1._stack)
-pp(t1.stack)
-len(t1.stack) < len(t1._stack)

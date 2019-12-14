@@ -30,6 +30,8 @@ def make_pickleable_frame(frame):
 
 def make_pickleable_state(state) -> PickleableState:
   wf(f"{state.stack=}",'logs/state.stack.log','a')
+  sys.settrace(None)
+  from ipdb import set_trace as st; st()
   kwds = {
       "frame": pickleable_dispatch(state.frame),
       "event": state.event,
@@ -42,7 +44,7 @@ def make_pickleable_state(state) -> PickleableState:
       "lineno": state.lineno,
       "stdlib": state.stdlib,
       "source": state.source,
-      "stack": state.stack[:]
+      "stack": [elm for elm in PickleableState._stack]
     }
   try:
     pickleable_state = PickleableState(kwds)

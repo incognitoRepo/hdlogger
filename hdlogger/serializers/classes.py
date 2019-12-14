@@ -26,9 +26,8 @@ class CallEvt:
     idt = '\u0020' * (len(self.stack)-1)
     return idt
 
-  @staticmethod
-  def static(static_vars):
-    s = f"{count}{filename}{lineno}{event}"
+  def static(self,static_vars):
+    s = ', '.join(map(str,static_vars))
     return s
 
   @property
@@ -53,11 +52,13 @@ class CallEvt:
 
   def pformat(self,count,filename,lineno,event):
     static_vars = (count,filename,lineno,event)
-    s = f"{static(static_var)}{self.pseudo_static}{self.nonstatic}"
-    return s
+    s = f"{self.static(static_vars)}{self.pseudo_static}{self.nonstatic}"
+    s2 = f"{self.pseudo_static}{self.nonstatic}"
+    return s2
 
 class LineEvt:
   def __init__(self, source=None, stack=None):
+    wf(source,'logs/LineEvt.source.log','a')
     self.source = source
     self.stack = stack
     self.pid = id(self)
@@ -75,9 +76,8 @@ class LineEvt:
     idt = '\u0020' * (len(self.stack)-1)
     return idt
 
-  @staticmethod
-  def static(static_vars):
-    s = f"{count}{filename}{lineno}{event}"
+  def static(self,static_vars):
+    s = ', '.join(map(str,static_vars))
     return s
 
   @property
@@ -89,11 +89,13 @@ class LineEvt:
   @property
   def nonstatic(self):
     nonst = self.source
+    return nonst
 
   def pformat(self,count,filename,lineno,event):
     static_vars = (count,filename,lineno,event)
-    s = f"{static(static_var)}{self.pseudo_static}{self.nonstatic}"
-    return s
+    s = f"{self.pseudo_static}{self.nonstatic}{self.static(static_vars)}"
+    s2 = f"{self.pseudo_static}{self.nonstatic}"
+    return s2
 
 class RetnEvt:
   def __init__(self, function, arg, stack=None):
@@ -115,9 +117,8 @@ class RetnEvt:
     idt = '\u0020' * (len(self.stack)-1)
     return idt
 
-  @staticmethod
-  def static(static_vars):
-    s = f"{count}{filename}{lineno}{event}"
+  def static(self,static_vars):
+    s = ', '.join(map(str,static_vars))
     return s
 
   @property
@@ -142,8 +143,9 @@ class RetnEvt:
 
   def pformat(self,count,filename,lineno,event):
     static_vars = (count,filename,lineno,event)
-    s = f"{static(static_var)}{self.pseudo_static}{self.nonstatic}"
-    return s
+    s = f"{self.static(static_vars)}{self.pseudo_static}{self.nonstatic}"
+    s2 = f"{self.pseudo_static}{self.nonstatic}"
+    return s2
 
 class ExcpEvt:
   def __init__(self, function, arg, stack=None):
@@ -165,9 +167,8 @@ class ExcpEvt:
     idt = '\u0020' * (len(self.stack)-1)
     return idt
 
-  @staticmethod
-  def static(static_vars):
-    s = f"{count}{filename}{lineno}{event}"
+  def static(self,static_vars):
+    s = ', '.join(map(str,static_vars))
     return s
 
   @property
@@ -192,8 +193,9 @@ class ExcpEvt:
 
   def pformat(self,count,filename,lineno,event):
     static_vars = (count,filename,lineno,event)
-    s = f"{static(static_var)}{self.pseudo_static}{self.nonstatic}"
-    return s
+    s = f"{self.static(static_vars)}{self.pseudo_static}{self.nonstatic}"
+    s2 = f"{self.pseudo_static}{self.nonstatic}"
+    return s2
 
 class State:
   SYS_PREFIX_PATHS = set((
@@ -222,6 +224,7 @@ class State:
     self.code = self.frame.f_code
     self.stdlib = True if self.filename.startswith(SYS_PREFIX_PATHS) else False
     self.source = linecache.getline(self.filename, self.lineno, self.frame.f_globals)
+    self.stack = None
     self._call = None
     self._line = None
     self._return = None
@@ -236,7 +239,7 @@ class State:
     stem = f"{filename.stem:>10.10}"
     return stem
 
-  stack = []
+  _stack = []
   @property
   def format_call(self):
     raise NotImplementedError("Must implement PickleableState.format_call")
@@ -279,6 +282,7 @@ class PickleableState:
     self.lineno: int = kwds['lineno']
     self.stdlib: bool = kwds['stdlib']
     self.source: str = kwds['source']
+    self.stack: List[str] = kwds['stack']
 
   def __str__(self):
     l = []
@@ -295,92 +299,36 @@ class PickleableState:
 
   @property
   def indent(self):
-    idt = '\u0020' * (len(PickleableState.stack)-1)
+    idt = '\u0020' * (len(PickleableState._stack)-1)
     return idt
 
-  stack = []
+  _stack = []
   @cached_property
   def format_call(self):
-    symbol = "=>"
-    callevt = CallEvt(self.function, self.f_locals, PickleableState.stack)
-    PickleableState.stack.append(f"{self.module}.{self.function}")
-    l = [
-      static:= callevt.static,
-      pseudo:= callevt.pseudo_static,
-      nonsta:= callevt.nonstatic,
-    ]
-    self.formatter1 = ( # default formatter
-      f"{static}\n{pseudo}{nonsta}\n"
-    )
-    self.formatter2 = ( # indented formatter
-      f"{static}\n{pseudo}{nonsta}\n"
-    )
-    self.formatter3 = ( # just sauce
-      f"{pseudo}{nonsta}\n"
-    )
-    return self.formatter3
+    callevt = CallEvt(self.function, self.f_locals, PickleableState._stack)
+    PickleableState._stack.append(f"{self.module}.{self.function}")
+    s = callevt.pformat(self.count,self.filename,self.lineno,self.event)
+    return s
 
-  @cached_property
+  @property
   def format_line(self):
-    symbol = "  "
-    lineevt = LineEvt(self.source, PickleableState.stack)
-    l = [
-      static:= lineevt.static,
-      pseudo:= lineevt.pseudo_static,
-      nonsta:= lineevt.nonstatic,
-    ]
-    self.formatter1 = ( # default formatter
-      f"{static}\n{pseudo}{nonsta}\n"
-    )
-    self.formatter2 = ( # indented formatter
-      f"{static}\n{pseudo}{nonsta}\n"
-    )
-    self.formatter3 = ( # just sauce
-      f"{pseudo}{nonsta}\n"
-    )
-    return self.formatter3
+    lineevt = LineEvt(self.source, PickleableState._stack)
+    s = lineevt.pformat(self.count,self.filename,self.lineno,self.event)
+    return s
 
   @cached_property
   def format_return(self):
-    symbol = "<="
-    retnevt = RetnEvt(self.function, self.arg, PickleableState.stack)
-    l = [
-      static:= retnevt.static,
-      pseudo:= retnevt.pseudo_static,
-      nonsta:= retnevt.nonstatic,
-    ]
-    self.formatter1 = ( # default formatter
-      f"{static}\n{pseudo}{nonsta}\n"
-    )
-    self.formatter2 = ( # indented formatter
-      f"{static}\n{pseudo}{nonsta}\n"
-    )
-    self.formatter3 = ( # just sauce
-      f"{pseudo}{nonsta}\n"
-    )
-    if PickleableState.stack and PickleableState.stack[-1] == f"{self.module}.{self.function}":
-      PickleableState.stack.pop()
-    return self.formatter3
+    retnevt = RetnEvt(self.function, self.arg, PickleableState._stack)
+    s = retnevt.pformat(self.count,self.filename,self.lineno,self.event)
+    if PickleableState._stack and PickleableState._stack[-1] == f"{self.module}.{self.function}":
+      PickleableState._stack.pop()
+    return s
 
   @cached_property
   def format_exception(self):
-    symbol = " !"
-    excpevt = ExcpEvt(self.function, self.arg, PickleableState.stack)
-    l = [
-      static:= excpevt.static,
-      pseudo:= excpevt.pseudo_static,
-      nonsta:= excpevt.nonstatic,
-    ]
-    self.formatter1 = ( # default formatter
-      f"{static}\n{pseudo}{nonsta}\n"
-    )
-    self.formatter2 = ( # indented formatter
-      f"{static}\n{pseudo}{nonsta}\n"
-    )
-    self.formatter3 = ( # just sauce
-      f"{pseudo}{nonsta}\n"
-    )
-    return self.formatter3
+    excpevt = ExcpEvt(self.function, self.arg, PickleableState._stack)
+    s = excpevt.pformat(self.count,self.filename,self.lineno,self.event)
+    return s
 
 class PickleableGenerator:
   def __init__(self,state,f_locals,pid):
@@ -427,3 +375,25 @@ class PickleableOptparseOption:
       l.append(f"{k}={v}")
     s = f"{self.module}.{self.classname}, {id=}"
     return s
+
+
+class Te1:
+  def __init__(self):
+    self.x = 3
+
+  _stack = []
+  @cached_property
+  def format_cell(self):
+    Te1._stack.append('1')
+    s = str(Te1._stack)
+    return s
+
+
+t1=Te1()
+t1.format_cell()
+t1._stack
+t2=Te2()
+t2._stack
+t2.format_cell()
+t2._stack
+t1._stack

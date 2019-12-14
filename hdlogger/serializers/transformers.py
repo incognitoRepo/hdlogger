@@ -29,6 +29,7 @@ def make_pickleable_frame(frame):
   return PickleableFrame(kwds)
 
 def make_pickleable_state(state) -> PickleableState:
+  wf(f"{state.stack=}",'logs/state.stack.log','a')
   kwds = {
       "frame": pickleable_dispatch(state.frame),
       "event": state.event,
@@ -41,6 +42,7 @@ def make_pickleable_state(state) -> PickleableState:
       "lineno": state.lineno,
       "stdlib": state.stdlib,
       "source": state.source,
+      "stack": state.stack[:]
     }
   try:
     pickleable_state = PickleableState(kwds)

@@ -6,7 +6,7 @@ from functools import cached_property
 from collections import defaultdict
 from pathlib import Path
 from string import Template
-from typing import Any, Dict
+from typing import Any, Dict, List
 from ..serializers.classes import PickleableFrame
 from ipdb import set_trace as st
 
@@ -23,6 +23,7 @@ columns = [
   'stdlib',
   'source',
   'format_filename'
+  'stack',
 ]
 
 class TraceProcessor:
@@ -46,10 +47,10 @@ class TraceProcessor:
         raise SystemExit(f"{line}")
       self.pickleable_states.append(pickleable_state)
 
-  def format0(self,Index:int,frame:PickleableFrame,event:str,arg:Any,f_locals:Dict,count:int,function:str,module:str,filename:str,lineno:int,stdlib:bool,source:str):
+  def format0(self,Index:int,frame:PickleableFrame,event:str,arg:Any,f_locals:Dict,count:int,function:str,module:str,filename:str,lineno:int,stdlib:bool,source:str,stack:List[str]):
     s = (
       f"{Index} {frame} {event} {arg} {f_locals} {count} {function}"
-      f"{module} {filename} {lineno} {stdlib} {source}"
+      f"{module} {filename} {lineno} {stdlib} {source} {stack}"
     )
     return s
 

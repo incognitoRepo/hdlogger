@@ -54,33 +54,6 @@ class HiDefTracer:
     self.pickled_state_as_hex = []
     self.dataframe = None
 
-  def initialize(self, frame, event, arg):
-    def debug_pickleable_state(state):
-      ps = self.pickleable_state
-      psd = state.__dict__
-      psg = ((k,psd.get(k,"nope")) for k in psd)
-      for k,v in psg:
-        try: pickle.loads(pickle.dumps(v))
-        except:
-          sys.settrace(None)
-          s = stackprinter.format(sys.exc_info())
-          wf(s, f"logs/{__name__}.log",'a')
-          import IPython; IPython.embed()
-          raise SystemExit(f"HiDefTracer.initialize.{__name__}")
-    initialize_copyreg()
-    self.state = State(frame,event,arg)
-    try:
-      self.pickleable_state = make_pickleable_state(self.state)
-      _as_dict = self.pickleable_state.asdict()
-      _as_bytes = pickle.dumps(self.pickleable_state)
-      _as_hexad = _as_bytes.hex()
-      wf(pformat(_as_dict)+"\n",'logs/02.pickleable_states.tracer.log', 'a')
-    except:
-      debug_pickleable_state(self.state)
-      raise SystemExit("shouldnt be here")
-    wf(_as_hexad+"\n","logs/03.pickled_states_hex.tracer.log","a")
-    self.pickleable_states.append(self.pickleable_state)
-
   def trace_dispatch(self, frame, event, arg):
     """this is the entry point for this class"""
     self.initialize(frame, event, arg)
@@ -101,6 +74,34 @@ class HiDefTracer:
     print('bdb.Bdb.dispatch: unknown debugging event:', repr(event))
     return self.trace_dispatch
 
+  def initialize(self, frame, event, arg):
+
+    def debug_pickleable_state(state):
+      ps = self.pickleable_state
+      psd = state.__dict__
+      psg = ((k,psd.get(k,"nope")) for k in psd)
+      for k,v in psg:
+        try: pickle.loads(pickle.dumps(v))
+        except:
+          sys.settrace(None)
+          s = stackprinter.format(sys.exc_info())
+          wf(s, f"logs/debug.{__name__}.log",'a')
+          import IPython; IPython.embed()
+          raise SystemExit(f"HiDefTracer.initialize.{__name__}")
+    initialize_copyreg()
+    self.state = State(frame,event,arg)
+    try:
+      self.pickleable_state = make_pickleable_state(self.state)
+      _as_dict = self.pickleable_state.asdict()
+      _as_bytes = pickle.dumps(self.pickleable_state)
+      _as_hexad = _as_bytes.hex()
+      wf(pformat(_as_dict)+"\n",'logs/02.pickleable_states.tracer.log', 'a')
+    except:
+      debug_pickleable_state(self.state)
+      raise SystemExit("shouldnt be here")
+    wf(_as_hexad+"\n","logs/03.pickled_states_hex.tracer.log","a")
+    self.pickleable_states.append(self.pickleable_state)
+
   def dispatch_call(self, frame, arg):
     assert arg is None, f"dispatch_call: {(arg is None)=}"
     try:
@@ -108,7 +109,6 @@ class HiDefTracer:
     except:
       wf( stackprinter.format(sys.exc_info()),'logs/tracer.dispatch_call.log', 'a')
       raise
-
     self.user_call(frame, pickleable)
     return self.trace_dispatch
 

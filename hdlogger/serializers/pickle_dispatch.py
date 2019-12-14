@@ -187,6 +187,7 @@ def pickle_state(st):
       "stdlib": st.stdlib,
       "source": st.source,
       "format_filename": st.format_filename,
+      "stack": st.stack,
   }
   return unpickle_state, (kwds,)
 

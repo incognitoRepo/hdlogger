@@ -147,7 +147,7 @@ def pickle_environ(e):
   kwds['data'] = kwds.pop('_data')
   return unpickle_environ, (kwds,)
 
-def unppickle_environ(kwds):
+def unpickle_environ(kwds):
   return os._Environ
 
 def pickle_function(fnc):

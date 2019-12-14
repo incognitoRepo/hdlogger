@@ -1,77 +1,198 @@
-import sys, os, collections, linecache
+import sys, os, collections, linecache, prettyprinter
 from functools import singledispatchmethod, cached_property
 from toolz.functoolz import compose_left
-from prettyprinter import pformat
 from itertools import count
 from typing import Union, TypeVar
 from hunter.const import SYS_PREFIX_PATHS
 from hdlogger.utils import *
 
 class CallEvt:
-  def __init__(self, function=None, f_locals=None):
+  def __init__(self, function=None, f_locals=None, stack=None):
     self.function = function
     self.f_locals = f_locals
+    self.stack = stack
     self.pid = id(self)
-
-  def __iter__(self):
-    return ((k,v) for k,v in self.__dict__.items())
-
-  def values(self):
-    return (v for k,v in self.__dict__.values())
 
   def __str__(self):
     function, f_locals, pid = self.function, self.f_locals, self.pid
     s = f"<CallEvt object: function={function}, f_locals={f_locals}, id={pid}>"
     return s
 
-class LineEvt:
-  def __init__(self, source=None):
-    self.source = source
-    self.pid = id(self)
-
   def __iter__(self):
     return ((k,v) for k,v in self.__dict__.items())
 
-  def values(self):
-    return (v for k,v in self.__dict__.values())
+  @property
+  def indent(self):
+    idt = '\u0020' * (len(self.stack)-1)
+    return idt
+
+  @staticmethod
+  def static(static_vars):
+    s = f"{count}{filename}{lineno}{event}"
+    return s
+
+  @property
+  def pseudo_static(self):
+    symbol = "=>"
+    pseudo = f"|{self.indent}{symbol}|"
+    return pseudo
+
+  @property
+  def nonstatic(self):
+    function, f_locals = self.function, self.f_locals
+    def recursive(l,first=True):
+      if not l: return ""
+      elm = l[0]
+      if first:
+        first = False
+        return f"{function}{elm}\n" + recursive(l[1:],first)
+      else:
+        return f"{len(function)*' '}{elm}\n" + recursive(l[1:],first)
+    nonst = recursive(prettyprinter.pformat(f_locals).splitlines())
+    return nonst
+
+  def pformat(self,count,filename,lineno,event):
+    static_vars = (count,filename,lineno,event)
+    s = f"{static(static_var)}{self.pseudo_static}{self.nonstatic}"
+    return s
+
+class LineEvt:
+  def __init__(self, source=None, stack=None):
+    self.source = source
+    self.stack = stack
+    self.pid = id(self)
 
   def __str__(self):
     source, pid = self.source, self.pid
     s = f"<LineEvt object: source={source}, id={pid}>"
     return s
 
-class RetnEvt:
-  def __init__(self, function, arg):
-    self.function = function
-    self.arg = arg
-    self.id = id(self)
-
   def __iter__(self):
     return ((k,v) for k,v in self.__dict__.items())
 
-  def values(self):
-    return (v for k,v in self.__dict__.values())
+  @property
+  def indent(self):
+    idt = '\u0020' * (len(self.stack)-1)
+    return idt
+
+  @staticmethod
+  def static(static_vars):
+    s = f"{count}{filename}{lineno}{event}"
+    return s
+
+  @property
+  def pseudo_static(self):
+    symbol = " -"
+    pseudo = f"|{self.indent}{symbol}|"
+    return pseudo
+
+  @property
+  def nonstatic(self):
+    nonst = self.source
+
+  def pformat(self,count,filename,lineno,event):
+    static_vars = (count,filename,lineno,event)
+    s = f"{static(static_var)}{self.pseudo_static}{self.nonstatic}"
+    return s
+
+class RetnEvt:
+  def __init__(self, function, arg, stack=None):
+    self.function = function
+    self.arg = arg
+    self.stack = stack
+    self.id = id(self)
 
   def __str__(self):
     function, arg, pid = self.function, self.arg, self.pid
     s = f"<RetnEvt object: function={function}, arg={arg}, id={pid}>"
     return s
 
-class ExcpEvt:
-  def __init__(self, function, arg):
-    self.function = function
-    self.arg = arg
-    self.id = id(self)
-
   def __iter__(self):
     return ((k,v) for k,v in self.__dict__.items())
 
-  def values(self):
-    return (v for k,v in self.__dict__.values())
+  @property
+  def indent(self):
+    idt = '\u0020' * (len(self.stack)-1)
+    return idt
+
+  @staticmethod
+  def static(static_vars):
+    s = f"{count}{filename}{lineno}{event}"
+    return s
+
+  @property
+  def pseudo_static(self):
+    symbol = "<="
+    pseudo = f"|{self.indent}{symbol}|"
+    return pseudo
+
+  @property
+  def nonstatic(self):
+    function, arg = self.function, self.arg
+    def recursive(l,first=True):
+      if not l: return ""
+      elm = l[0]
+      if first:
+        first = False
+        return f"{function}{elm}\n" + recursive(l[1:],first)
+      else:
+        return f"{len(function)*' '}{elm}\n" + recursive(l[1:],first)
+    nonst = recursive(prettyprinter.pformat(arg).splitlines())
+    return nonst
+
+  def pformat(self,count,filename,lineno,event):
+    static_vars = (count,filename,lineno,event)
+    s = f"{static(static_var)}{self.pseudo_static}{self.nonstatic}"
+    return s
+
+class ExcpEvt:
+  def __init__(self, function, arg, stack=None):
+    self.function = function
+    self.arg = arg
+    self.stack = stack
+    self.id = id(self)
 
   def __str__(self):
     function, arg, pid = self.function, self.arg, self.pid
     s = f"<ExcpEvt object: function={function}, arg={arg}, id={pid}>"
+    return s
+
+  def __iter__(self):
+    return ((k,v) for k,v in self.__dict__.items())
+
+  @property
+  def indent(self):
+    idt = '\u0020' * (len(self.stack)-1)
+    return idt
+
+  @staticmethod
+  def static(static_vars):
+    s = f"{count}{filename}{lineno}{event}"
+    return s
+
+  @property
+  def pseudo_static(self):
+    symbol = " !"
+    pseudo = f"|{self.indent}{symbol}|"
+    return pseudo
+
+  @property
+  def nonstatic(self):
+    function, arg = self.function, self.arg
+    def recursive(l,first=True):
+      if not l: return ""
+      elm = l[0]
+      if first:
+        first = False
+        return f"{function}{elm}\n" + recursive(l[1:],first)
+      else:
+        return f"{len(function)*' '}{elm}\n" + recursive(l[1:],first)
+    nonst = recursive(prettyprinter.pformat(arg).splitlines())
+    return nonst
+
+  def pformat(self,count,filename,lineno,event):
+    static_vars = (count,filename,lineno,event)
+    s = f"{static(static_var)}{self.pseudo_static}{self.nonstatic}"
     return s
 
 class State:
@@ -142,7 +263,7 @@ class PickleableFrame:
     self.count = kwds['count']
 
   def __str__(self,color=False):
-    return pformat(self.__dict__)
+    return prettyprinter.pformat(self.__dict__)
 
 class PickleableState:
   def __init__(self, kwds):
@@ -177,115 +298,65 @@ class PickleableState:
     idt = '\u0020' * (len(PickleableState.stack)-1)
     return idt
 
-  @property
-  def static_str(self):
-    static = f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
-    return static
-
-  def pseudo_static_str(self,symbol):
-    pseudo = f"{self.indent}|{symbol}"
-    return pseudo
-
-  @singledispatchmethod
-  def non_static_str(self, arg):
-    """all non-str python objects are formatted as str _here_"""
-    raise NotImplementedError("you must implement the non_static_str method")
-
-  @non_static_str.register
-  def _(self, arg:CallEvt):
-    function, f_locals, pid = arg
-    assert isinstance(f_locals, dict), f"{f_locals}, {type(f_locals)=}"
-    nonst = compose_left(
-      lambda func,floc: (func, pformat(floc)),`
-      lambda fun2,flo2: (fun2 + flo2)
-    )
-      # lambda fnc2,flc2: fnc2 + flc2,
-      # lambda catted = catted.splitlines("\n"),
-    # nonst = f"{function}|{f_locals}|"
-    return nonst
-
-  @non_static_str.register
-  def _(self, arg:LineEvt):
-    source, pid = arg
-    nonst = f"{source}|"
-    return nonst
-
-  @non_static_str.register
-  def _(self, arg:RetnEvt):
-    function, arg, pid = arg
-    nonst = f"{function}|{arg}|"
-    return nonst
-
-  @non_static_str.register
-  def _(self, arg:ExcpEvt):
-    function, arg, pid = arg
-    nonst = compose_left(
-      lambda func,farg: func, pformat(farg),
-      lambda fnc2,flc2: fnc2 + frg2,
-      lambda catted = catted.splitlines("\n"),
-    )(function, arg)
-    # nonst = f"{function}|{arg}|"
-    return nonst
-
   stack = []
   @cached_property
   def format_call(self):
     symbol = "=>"
-    callevt = CallEvt(self.function, self.f_locals)
+    callevt = CallEvt(self.function, self.f_locals, PickleableState.stack)
     PickleableState.stack.append(f"{self.module}.{self.function}")
-    l = [self.static_str, self.pseudo_static_str(symbol), self.non_static_str(callevt)]
+    l = [
+      static:= callevt.static,
+      pseudo:= callevt.pseudo_static,
+      nonsta:= callevt.nonstatic,
+    ]
     self.formatter1 = ( # default formatter
-      '\n'.join([l[0],l[1],l[2]])
+      f"{static}\n{pseudo}{nonsta}\n"
     )
     self.formatter2 = ( # indented formatter
-      '\n'.join([l[1],l[0],l[2]])
+      f"{static}\n{pseudo}{nonsta}\n"
     )
     self.formatter3 = ( # just sauce
-      '\n'.join([l[1],l[2]])
-      # f"{self.pseudo_static_str(symbol)}"
-      # f"{self.non_static_str(callevt)}"
+      f"{pseudo}{nonsta}\n"
     )
     return self.formatter3
 
   @cached_property
   def format_line(self):
     symbol = "  "
-    lineevt = LineEvt(self.source)
-    l = [self.static_str, self.pseudo_static_str(symbol), self.non_static_str(lineevt)]
+    lineevt = LineEvt(self.source, PickleableState.stack)
+    l = [
+      static:= lineevt.static,
+      pseudo:= lineevt.pseudo_static,
+      nonsta:= lineevt.nonstatic,
+    ]
     self.formatter1 = ( # default formatter
-      '\n'.join([l[0],l[1],l[2]])
-      # f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
-      # f"{self.indent} |{symbol}|{self.source.rstrip()}|"
+      f"{static}\n{pseudo}{nonsta}\n"
     )
     self.formatter2 = ( # indented formatter
-      '\n'.join([l[1],l[2],l[0]])
-      # f"{self.indent} |{symbol}|{self.source.rstrip()}|"
-      # f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
+      f"{static}\n{pseudo}{nonsta}\n"
     )
     self.formatter3 = ( # just sauce
-      '\n'.join([l[1],l[2]])
-      # f"{self.indent} |{symbol}|{self.source.rstrip()}|"
+      f"{pseudo}{nonsta}\n"
     )
     return self.formatter3
 
   @cached_property
   def format_return(self):
     symbol = "<="
-    retnevt = RetnEvt(self.function, self.arg)
-    l = [self.static_str, self.pseudo_static_str(symbol), self.non_static_str(retnevt)]
+    retnevt = RetnEvt(self.function, self.arg, PickleableState.stack)
+    l = [
+      static:= retnevt.static,
+      pseudo:= retnevt.pseudo_static,
+      nonsta:= retnevt.nonstatic,
+    ]
     self.formatter1 = ( # default formatter
-      '\n'.join([l[0],l[1],l[2]])
-      # f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
-      # f"{self.indent}|{symbol}|{self.function}|{self.arg}"
+      f"{static}\n{pseudo}{nonsta}\n"
     )
     self.formatter2 = ( # indented formatter
-      '\n'.join([l[1],l[2],l[0]])
-      # f"{self.indent}|{symbol}|{self.function}|{self.arg}|"
-      # f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
+      f"{static}\n{pseudo}{nonsta}\n"
     )
-    self.formatter3 = ( # just savce
-      '\n'.join([l[1],l[2]])
-      # f"{self.indent}|{symbol}|{self.function}|{self.arg}|"
+    self.formatter3 = ( # just sauce
+      f"{pseudo}{nonsta}\n"
     )
     if PickleableState.stack and PickleableState.stack[-1] == f"{self.module}.{self.function}":
       PickleableState.stack.pop()
@@ -294,21 +365,20 @@ class PickleableState:
   @cached_property
   def format_exception(self):
     symbol = " !"
-    excpevt = ExcpEvt(self.function, self.arg)
-    l = [self.static_str, self.pseudo_static_str(symbol), self.non_static_str(excpevt)]
+    excpevt = ExcpEvt(self.function, self.arg, PickleableState.stack)
+    l = [
+      static:= excpevt.static,
+      pseudo:= excpevt.pseudo_static,
+      nonsta:= excpevt.nonstatic,
+    ]
     self.formatter1 = ( # default formatter
-      '\n'.join([l[0],l[1],l[2]])
-      # f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
-      # f"{self.indent}|{symbol}|{self.function}|{self.arg}"
+      f"{static}\n{pseudo}{nonsta}\n"
     )
     self.formatter2 = ( # indented formatter
-      '\n'.join([l[2],l[1],l[0]])
-      # f"{self.indent}|{symbol}|{self.function}|{self.arg}|"
-      # f"{self.count:>5}|{self.filename}:{self.lineno:<5}|{self.event:9}|"
+      f"{static}\n{pseudo}{nonsta}\n"
     )
-    self.formatter3 = ( # just savce
-      '\n'.join([l[1],l[2]])
-      # f"{self.indent}|{symbol}|{self.function}|{self.arg}|"
+    self.formatter3 = ( # just sauce
+      f"{pseudo}{nonsta}\n"
     )
     return self.formatter3
 
@@ -327,7 +397,12 @@ class PickleableEnviron:
   def __init__(self, kwds):
     d = {}
     for k,v in kwds.items():
+      if ':' in v: v = prettyprinter.pformat(v.split(':'))
+      # if k == "LS_COLORS": v = prettyprinter.pformat(v.split(':'))
       setattr(self, k, kwds[k])
+
+  def __str__(self,color=False):
+    return prettyprinter.pformat(self.__dict__)
 
 class PickleableTraceback:
   def __init__(self,lasti,lineno):

@@ -1,4 +1,4 @@
-import optparse, copyreg, inspect
+import optparse, copyreg, inspect, os
 
 import stackprinter, sys
 import dill as pickle
@@ -18,6 +18,7 @@ def initialize_copyreg():
     (optparse.Option, pickle_optparse_option),
     (State, pickle_state),
     (FunctionType, pickle_function),
+    (os._Environ, pickle_environ),
     # (Mapping, pickleable_dict)
   ]
   for special_case in special_cases:
@@ -140,6 +141,14 @@ def pickleable_simple(s):
         pass
     wf( stackprinter.format(sys.exc_info()),'logs/models.unpickleable.log', 'a')
     raise SystemExit
+
+def pickle_environ(e):
+  kwds = e.__dict__.copy()
+  kwds['data'] = kwds.pop('_data')
+  return unpickle_environ, (kwds,)
+
+def unppickle_environ(kwds):
+  return os._Environ
 
 def pickle_function(fnc):
   sig = inspect.signature(fnc)

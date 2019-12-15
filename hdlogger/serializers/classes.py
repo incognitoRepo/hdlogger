@@ -6,7 +6,20 @@ from typing import Union, TypeVar
 from hunter.const import SYS_PREFIX_PATHS
 from hdlogger.utils import *
 
-class CallEvt:
+class BaseEvt:
+
+  def static(self,static_vars):
+    count,filename,lineno,event = static_vars
+    s = f"├i:{count:<4} ☰:{len(self.stack)}, {event}{filename}.{lineno:<4}┤"
+    return s
+
+  @property
+  def indent(self):
+    idt = '\u0020' * (len(self.stack)-1)
+    idt = '-' * (len(self.stack)-1)
+    return idt
+
+class CallEvt(BaseEvt):
   def __init__(self, function=None, f_locals=None, stack=None):
     self.function = function
     self.f_locals = f_locals
@@ -20,16 +33,6 @@ class CallEvt:
 
   def __iter__(self):
     return ((k,v) for k,v in self.__dict__.items())
-
-  @property
-  def indent(self):
-    idt = '\u0020' * (len(self.stack)-1)
-    idt = '*' * (len(self.stack)-1)
-    return idt
-
-  def static(self,static_vars):
-    s = ', '.join(map(str,static_vars))
-    return s
 
   @property
   def pseudo_static(self):
@@ -66,7 +69,7 @@ class CallEvt:
     s2 = f"{self.pseudo_static}{self.nonstatic}"
     return s2
 
-class LineEvt:
+class LineEvt(BaseEvt):
   def __init__(self, source=None, stack=None):
     wf(source,'logs/LineEvt.source.log','a')
     self.source = source
@@ -80,15 +83,6 @@ class LineEvt:
 
   def __iter__(self):
     return ((k,v) for k,v in self.__dict__.items())
-
-  @property
-  def indent(self):
-    idt = '\u0020' * (len(self.stack)-1)
-    return idt
-
-  def static(self,static_vars):
-    s = ', '.join(map(str,static_vars))
-    return s
 
   @property
   def pseudo_static(self):
@@ -116,7 +110,7 @@ class LineEvt:
     s2 = f"{self.pseudo_static}{self.nonstatic}"
     return s2
 
-class RetnEvt:
+class RetnEvt(BaseEvt):
   def __init__(self, function, arg, stack=None):
     self.function = function
     self.arg = arg
@@ -130,15 +124,6 @@ class RetnEvt:
 
   def __iter__(self):
     return ((k,v) for k,v in self.__dict__.items())
-
-  @property
-  def indent(self):
-    idt = '\u0020' * (len(self.stack)-1)
-    return idt
-
-  def static(self,static_vars):
-    s = ', '.join(map(str,static_vars))
-    return s
 
   @property
   def pseudo_static(self):
@@ -175,7 +160,7 @@ class RetnEvt:
     s2 = f"{self.pseudo_static}{self.nonstatic}"
     return s2
 
-class ExcpEvt:
+class ExcpEvt(BaseEvt):
   def __init__(self, function, arg, stack=None):
     self.function = function
     self.arg = arg
@@ -189,15 +174,6 @@ class ExcpEvt:
 
   def __iter__(self):
     return ((k,v) for k,v in self.__dict__.items())
-
-  @property
-  def indent(self):
-    idt = '\u0020' * (len(self.stack)-1)
-    return idt
-
-  def static(self,static_vars):
-    s = ', '.join(map(str,static_vars))
-    return s
 
   @property
   def pseudo_static(self):
@@ -344,7 +320,7 @@ class PickleableState:
   def format_call(self):
     callevt = CallEvt(self.function, self.f_locals, PickleableState._stack)
     PickleableState._stack.append(f"{self.module}.{self.function}")
-    static_vars = (self.count,self.filename,self.lineno,self.event)
+    static_vars = (self.count,self.filename,f"{self.lineno:<5}",self.event)
     static,pseudo,nonsta = callevt.static(static_vars),callevt.pseudo_static,callevt.nonstatic
     self.stack = [elm for elm in PickleableState._stack]
     return static+pseudo+nonsta
@@ -352,7 +328,7 @@ class PickleableState:
   @property
   def format_line(self):
     lineevt = LineEvt(self.source, PickleableState._stack)
-    static_vars = (self.count,self.filename,self.lineno,self.event)
+    static_vars = (self.count,self.filename,f"{self.lineno:<5}",self.event)
     static,pseudo,nonsta = lineevt.static(static_vars),lineevt.pseudo_static,lineevt.nonstatic
     self.stack = PickleableState._stack[:]
     return static+pseudo+nonsta
@@ -360,9 +336,11 @@ class PickleableState:
   @property
   def format_return(self):
     retnevt = RetnEvt(self.function, self.arg, PickleableState._stack)
-    static_vars = (self.count,self.filename,self.lineno,self.event)
+    static_vars = (self.count,self.filename,f"{self.lineno:<5}",self.event)
     static,pseudo,nonsta = retnevt.static(static_vars),retnevt.pseudo_static,retnevt.nonstatic
-    if PickleableState._stack and PickleableState._stack[-1] == f"{self.module}.{self.function}":
+    # if PickleableState._stack and PickleableState._stack[-1] == f"{self.module}.{self.function}":
+      # PickleableState._stack.pop()
+    if PickleableState._stack:
       PickleableState._stack.pop()
     self.stack = PickleableState._stack[:]
     return static+pseudo+nonsta
@@ -370,7 +348,7 @@ class PickleableState:
   @property
   def format_exception(self):
     excpevt = ExcpEvt(self.function, self.arg, PickleableState._stack)
-    static_vars = (self.count,self.filename,self.lineno,self.event)
+    static_vars = (self.count,self.filename,f"{self.lineno:<5}",self.event)
     static,pseudo,nonsta = excpevt.static(static_vars),excpevt.pseudo_static,excpevt.nonstatic
     self.stack = PickleableState._stack[:]
     return static+pseudo+nonsta

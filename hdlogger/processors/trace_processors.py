@@ -71,7 +71,9 @@ class TraceProcessor:
   def level(self, n):
     df = self._dataframe.copy()
     df2 = df[df.stacklen.apply(lambda cell: cell <= n)]
-    return df2
+    s = self.formatter(df2)
+    wf(s, f'logs/level{n}.log','a')
+    return s
 
   @property
   def level1(self):
@@ -79,7 +81,6 @@ class TraceProcessor:
     df2 = df[df.stacklen.apply(lambda cell: cell <= 1)]
     s = self.formatter(df2)
     wf(s,'logs/level1.log','a')
-    print(s)
     return s
 
   @property

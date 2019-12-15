@@ -17,7 +17,6 @@ from dataclasses import dataclass
 from inspect import CO_GENERATOR, CO_COROUTINE, CO_ASYNC_GENERATOR
 from hdlogger.serializers import pickleable_dispatch, initialize_copyreg, State, make_pickleable_state, PickleableState
 from hdlogger.utils import *
-wf(str(make_pickleable_state),'logs/DEhd.imports.log','a')
 
 GENERATOR_AND_COROUTINE_FLAGS = CO_GENERATOR | CO_COROUTINE | CO_ASYNC_GENERATOR # 672
 WRITE = True
@@ -96,10 +95,7 @@ class HiDefTracer:
     initialize_copyreg()
     self.state = State(frame,event,arg)
     try:
-      wf(inspect.getsourcefile(make_pickleable_state),'logs/inspect.getsourcefile.log','a')
       self.pickleable_state = make_pickleable_state(self.state, PickleableState._stack)
-      wf(str(self.pickleable_state.stack),'logs/DEhd.96.log','a')
-      wf(str(PickleableState._stack),'logs/DEhd.97.log','a')
       _as_dict = self.pickleable_state.asdict()
       _as_bytes = pickle.dumps(self.pickleable_state)
       _as_hexad = _as_bytes.hex()

@@ -7,7 +7,7 @@ from collections import defaultdict
 from pathlib import Path
 from string import Template
 from typing import Any, Dict, List
-from ..serializers.classes import PickleableFrame
+from ..serializers.classes import PickleableFrame, CallEvt, LineEvt, RetnEvt, ExcpEvt
 from ipdb import set_trace as st
 
 columns = [
@@ -26,10 +26,24 @@ columns = [
   'stack',
 ]
 
+def formatter1(df):
+  l = []
+  for row in df.itertuples():
+    if row.event == 'call': evt = CallEvt(function=row.function,f_locals=row.f_locals,stack=row.stack)
+    if row.event == 'line': evt = LineEvt(source=row.source,stack=row.stack)
+    if row.event == 'return': evt = RetnEvt(function=row.function,arg=row.arg,stack=row.stack)
+    if row.event == 'exception': evt = ExcpEvt(function=row.function,arg=row.arg,stack=row.stack)
+    wf(repr(evt),'logs/formatter1.log','a')
+    l.append(evt.nonstatic_rightpad([row.count,row.filename,row.lineno,row.event]))
+  ljd = '\n'.join(l)
+  return ljd
+
 class TraceProcessor:
-  def __init__(self,filepath):
+  """holds pickleable states"""
+  def __init__(self,filepath,formatter=formatter1):
     self.pickleable_states = []
     self._dataframe = None
+    self.formatter = formatter
     self.initialize(filepath)
 
   def initialize(self,filepath):
@@ -54,6 +68,20 @@ class TraceProcessor:
     )
     return s
 
+  def level(self, n):
+    df = self._dataframe.copy()
+    df2 = df[df.stacklen.apply(lambda cell: cell <= n)]
+    return df2
+
+  @property
+  def level1(self):
+    df = self._dataframe
+    df2 = df[df.stacklen.apply(lambda cell: cell <= 1)]
+    s = self.formatter(df2)
+    wf(s,'logs/level1.log','a')
+    print(s)
+    return s
+
   @property
   def dataframe(self):
     if self._dataframe: return self._dataframe
@@ -62,6 +90,7 @@ class TraceProcessor:
       for k,v in state.__dict__.items():
         data[k].append(v)
     self._dataframe = pd.DataFrame(data)
+    self._dataframe['stacklen'] = self._dataframe['stack'].apply(lambda cell: len(cell))
     return self._dataframe
 
 if __name__ == '__main__':

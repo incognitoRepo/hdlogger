@@ -24,6 +24,7 @@ class CallEvt:
   @property
   def indent(self):
     idt = '\u0020' * (len(self.stack)-1)
+    idt = '*' * (len(self.stack)-1)
     return idt
 
   def static(self,static_vars):
@@ -33,7 +34,7 @@ class CallEvt:
   @property
   def pseudo_static(self):
     symbol = "=>"
-    pseudo = f"|{self.indent}{symbol}|"
+    pseudo = f"{self.indent}{symbol}|"
     return pseudo
 
   @property
@@ -49,6 +50,16 @@ class CallEvt:
         return f"{len(function)*' '}{elm}\n" + recursive(l[1:],first)
     nonst = recursive(prettyprinter.pformat(f_locals).splitlines())
     return nonst
+
+  @property
+  def nonstatic_rightpad(self,static_vars):
+    nonstls = self.nonstatic.splitlines()
+    _indented = [self.indent+elm+'|' for elm in nonstls]
+    _sectioned = [f"{elm:<80}" for elm in _indented]
+    _static = self.static(static_vars)
+    _metad = [f"{elm}{static}{self.pseudo_static}" for elm in _metad]
+    s = '\n'.join([self.indent+elm+'|' for elm in _metad])
+    return s
 
   def pformat(self,count,filename,lineno,event):
     static_vars = (count,filename,lineno,event)
@@ -83,13 +94,23 @@ class LineEvt:
   @property
   def pseudo_static(self):
     symbol = " -"
-    pseudo = f"|{self.indent}{symbol}|"
+    pseudo = f"{self.indent}{symbol}|"
     return pseudo
 
   @property
   def nonstatic(self):
     nonst = self.source
     return nonst
+
+  @property
+  def nonstatic_rightpad(self,static_vars):
+    nonstls = self.nonstatic.splitlines()
+    _indented = [self.indent+elm+'|' for elm in nonstls]
+    _sectioned = [f"{elm:<80}" for elm in _indented]
+    _static = self.static(static_vars)
+    _metad = [f"{elm}{static}{self.pseudo_static}" for elm in _metad]
+    s = '\n'.join([self.indent+elm+'|' for elm in _metad])
+    return s
 
   def pformat(self,count,filename,lineno,event):
     static_vars = (count,filename,lineno,event)
@@ -124,7 +145,7 @@ class RetnEvt:
   @property
   def pseudo_static(self):
     symbol = "<="
-    pseudo = f"|{self.indent}{symbol}|"
+    pseudo = f"{self.indent}{symbol}|"
     return pseudo
 
   @property
@@ -140,6 +161,16 @@ class RetnEvt:
         return f"{len(function)*' '}{elm}\n" + recursive(l[1:],first)
     nonst = recursive(prettyprinter.pformat(arg).splitlines())
     return nonst
+
+  @property
+  def nonstatic_rightpad(self,static_vars):
+    nonstls = self.nonstatic.splitlines()
+    _indented = [self.indent+elm+'|' for elm in nonstls]
+    _sectioned = [f"{elm:<80}" for elm in _indented]
+    _static = self.static(static_vars)
+    _metad = [f"{elm}{static}{self.pseudo_static}" for elm in _metad]
+    s = '\n'.join([self.indent+elm+'|' for elm in _metad])
+    return s
 
   def pformat(self,count,filename,lineno,event):
     static_vars = (count,filename,lineno,event)
@@ -174,7 +205,7 @@ class ExcpEvt:
   @property
   def pseudo_static(self):
     symbol = " !"
-    pseudo = f"|{self.indent}{symbol}|"
+    pseudo = f"{self.indent}{symbol}|"
     return pseudo
 
   @property
@@ -190,6 +221,16 @@ class ExcpEvt:
         return f"{len(function)*' '}{elm}\n" + recursive(l[1:],first)
     nonst = recursive(prettyprinter.pformat(arg).splitlines())
     return nonst
+
+  @property
+  def nonstatic_rightpad(self,static_vars):
+    nonstls = self.nonstatic.splitlines()
+    _indented = [self.indent+elm+'|' for elm in nonstls]
+    _sectioned = [f"{elm:<80}" for elm in _indented]
+    _static = self.static(static_vars)
+    _metad = [f"{elm}{static}{self.pseudo_static}" for elm in _metad]
+    s = '\n'.join([self.indent+elm+'|' for elm in _metad])
+    return s
 
   def pformat(self,count,filename,lineno,event):
     static_vars = (count,filename,lineno,event)
@@ -307,32 +348,36 @@ class PickleableState:
   def format_call(self):
     callevt = CallEvt(self.function, self.f_locals, PickleableState._stack)
     PickleableState._stack.append(f"{self.module}.{self.function}")
-    s = callevt.pformat(self.count,self.filename,self.lineno,self.event)
+    static_vars = (self.count,self.filename,self.lineno,self.event)
+    static,pseudo,nonsta = callevt.static(static_vars),callevt.pseudo_static,callevt.nonstatic
     self.stack = [elm for elm in PickleableState._stack]
-    return s
+    return static+pseudo+nonsta
 
   @property
   def format_line(self):
     lineevt = LineEvt(self.source, PickleableState._stack)
-    s = lineevt.pformat(self.count,self.filename,self.lineno,self.event)
+    static_vars = (self.count,self.filename,self.lineno,self.event)
+    static,pseudo,nonsta = lineevt.static(static_vars),lineevt.pseudo_static,lineevt.nonstatic
     self.stack = PickleableState._stack[:]
-    return s
+    return static+pseudo+nonsta
 
   @property
   def format_return(self):
     retnevt = RetnEvt(self.function, self.arg, PickleableState._stack)
-    s = retnevt.pformat(self.count,self.filename,self.lineno,self.event)
+    static_vars = (self.count,self.filename,self.lineno,self.event)
+    static,pseudo,nonsta = retnevt.static(static_vars),retnevt.pseudo_static,retnevt.nonstatic
     if PickleableState._stack and PickleableState._stack[-1] == f"{self.module}.{self.function}":
       PickleableState._stack.pop()
     self.stack = PickleableState._stack[:]
-    return s
+    return static+pseudo+nonsta
 
   @property
   def format_exception(self):
     excpevt = ExcpEvt(self.function, self.arg, PickleableState._stack)
-    s = excpevt.pformat(self.count,self.filename,self.lineno,self.event)
+    static_vars = (self.count,self.filename,self.lineno,self.event)
+    static,pseudo,nonsta = excpevt.static(static_vars),excpevt.pseudo_static,excpevt.nonstatic
     self.stack = PickleableState._stack[:]
-    return s
+    return static+pseudo+nonsta
 
 class PickleableGenerator:
   def __init__(self,state,f_locals,pid):

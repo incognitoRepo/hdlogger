@@ -340,8 +340,10 @@ class PickleableState:
     static,pseudo,nonsta = retnevt.static(static_vars),retnevt.pseudo_static,retnevt.nonstatic
     # if PickleableState._stack and PickleableState._stack[-1] == f"{self.module}.{self.function}":
       # PickleableState._stack.pop()
+    wf(f"1. {str(PickleableState._stack)}\n",'logs/retnevt.popstate.log','a')
     if PickleableState._stack:
       PickleableState._stack.pop()
+      wf(f"2. {str(PickleableState._stack)}\n",'logs/retnevt.popstate.log','a')
     self.stack = PickleableState._stack[:]
     return static+pseudo+nonsta
 

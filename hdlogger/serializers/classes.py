@@ -7,17 +7,26 @@ from hunter.const import SYS_PREFIX_PATHS
 from hdlogger.utils import *
 
 class BaseEvt:
-
-  def static(self,static_vars):
-    count,filename,lineno,event = static_vars
-    s = f"├i:{count:<4} ☰:{len(self.stack)}, {event}{filename}.{lineno:<4}┤"
-    return s
-
   @property
   def indent(self):
     idt = '\u0020' * (len(self.stack)-1)
     idt = '-' * (len(self.stack)-1)
     return idt
+
+  def static(self,static_vars):
+    count,filename,lineno,event = static_vars
+    s = f"i:{count:<4} ☰:{len(self.stack)}, {event}{filename}.{lineno:<4}"
+    return s
+
+  def nonstatic_rightpad(self,static_vars):
+    nonstls = self.nonstatic.splitlines()
+    _indented = [self.indent+elm for elm in nonstls]
+    _sectioned = [f"{elm:<80}" for elm in _indented]
+    _static = self.static(static_vars)
+    _metad = [f"├{self.pseudo_static}┤|{elm}|├{_static}┤" for elm in _sectioned]
+    s = 'n'.join(_metad)
+    return s
+
 
 class CallEvt(BaseEvt):
   def __init__(self, function=None, f_locals=None, stack=None):
@@ -54,15 +63,6 @@ class CallEvt(BaseEvt):
     nonst = recursive(prettyprinter.pformat(f_locals).splitlines())
     return nonst
 
-  def nonstatic_rightpad(self,static_vars):
-    nonstls = self.nonstatic.splitlines()
-    _indented = [self.indent+elm for elm in nonstls]
-    _sectioned = [f"{elm:<80}|" for elm in _indented]
-    _static = self.static(static_vars)
-    _metad = [f"{elm}{_static}{self.pseudo_static}" for elm in _sectioned]
-    s = 'n'.join(_metad)
-    return s
-
   def pformat(self,count,filename,lineno,event):
     static_vars = (count,filename,lineno,event)
     s = f"{self.static(static_vars)}{self.pseudo_static}{self.nonstatic}"
@@ -94,15 +94,6 @@ class LineEvt(BaseEvt):
   def nonstatic(self):
     nonst = self.source
     return nonst
-
-  def nonstatic_rightpad(self,static_vars):
-    nonstls = self.nonstatic.splitlines()
-    _indented = [self.indent+elm for elm in nonstls]
-    _sectioned = [f"{elm:<80}|" for elm in _indented]
-    _static = self.static(static_vars)
-    _metad = [f"{elm}{_static}{self.pseudo_static}" for elm in _sectioned]
-    s = 'n'.join(_metad)
-    return s
 
   def pformat(self,count,filename,lineno,event):
     static_vars = (count,filename,lineno,event)
@@ -145,15 +136,6 @@ class RetnEvt(BaseEvt):
     nonst = recursive(prettyprinter.pformat(arg).splitlines())
     return nonst
 
-  def nonstatic_rightpad(self,static_vars):
-    nonstls = self.nonstatic.splitlines()
-    _indented = [self.indent+elm for elm in nonstls]
-    _sectioned = [f"{elm:<80}|" for elm in _indented]
-    _static = self.static(static_vars)
-    _metad = [f"{elm}{_static}{self.pseudo_static}" for elm in _sectioned]
-    s = 'n'.join(_metad)
-    return s
-
   def pformat(self,count,filename,lineno,event):
     static_vars = (count,filename,lineno,event)
     s = f"{self.static(static_vars)}{self.pseudo_static}{self.nonstatic}"
@@ -194,15 +176,6 @@ class ExcpEvt(BaseEvt):
         return f"{len(function)*' '}{elm}\n" + recursive(l[1:],first)
     nonst = recursive(prettyprinter.pformat(arg).splitlines())
     return nonst
-
-  def nonstatic_rightpad(self,static_vars):
-    nonstls = self.nonstatic.splitlines()
-    _indented = [self.indent+elm for elm in nonstls]
-    _sectioned = [f"{elm:<80}|" for elm in _indented]
-    _static = self.static(static_vars)
-    _metad = [f"{elm}{_static}{self.pseudo_static}" for elm in _sectioned]
-    s = 'n'.join(_metad)
-    return s
 
   def pformat(self,count,filename,lineno,event):
     static_vars = (count,filename,lineno,event)
@@ -345,6 +318,7 @@ class PickleableState:
       PickleableState._stack.pop()
       wf(f"2. {str(PickleableState._stack)}\n",'logs/retnevt.popstate.log','a')
     self.stack = PickleableState._stack[:]
+    wf(f"3. {str(self.stack)}\n",'logs/retnevt.popstate.log','a')
     return static+pseudo+nonsta
 
   @property

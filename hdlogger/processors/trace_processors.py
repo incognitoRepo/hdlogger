@@ -1,4 +1,4 @@
-import pickle, sys, inspect
+import pickle, sys, inspect, prettyprinter
 import pandas as pd
 import pdir, stackprinter
 from hdlogger.utils import *
@@ -33,8 +33,8 @@ def formatter1(df):
     if row.event == 'line': evt = LineEvt(source=row.source,stack=row.stack)
     if row.event == 'return': evt = RetnEvt(function=row.function,arg=row.arg,stack=row.stack)
     if row.event == 'exception': evt = ExcpEvt(function=row.function,arg=row.arg,stack=row.stack)
-    wf(repr(evt),'logs/formatter1.log','a')
-    l.append(evt.nonstatic_rightpad([row.count,row.filename,row.lineno,row.event]))
+    static_vars = [row.count, row.filename, row.lineno, row.event]
+    l.append(evt.nonstatic_rightpad(static_vars))
   ljd = '\n'.join(l)
   return ljd
 

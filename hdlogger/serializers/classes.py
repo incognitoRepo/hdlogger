@@ -51,14 +51,13 @@ class CallEvt:
     nonst = recursive(prettyprinter.pformat(f_locals).splitlines())
     return nonst
 
-  @property
   def nonstatic_rightpad(self,static_vars):
     nonstls = self.nonstatic.splitlines()
-    _indented = [self.indent+elm+'|' for elm in nonstls]
-    _sectioned = [f"{elm:<80}" for elm in _indented]
+    _indented = [self.indent+elm for elm in nonstls]
+    _sectioned = [f"{elm:<80}|" for elm in _indented]
     _static = self.static(static_vars)
-    _metad = [f"{elm}{static}{self.pseudo_static}" for elm in _metad]
-    s = '\n'.join([self.indent+elm+'|' for elm in _metad])
+    _metad = [f"{elm}{_static}{self.pseudo_static}" for elm in _sectioned]
+    s = 'n'.join(_metad)
     return s
 
   def pformat(self,count,filename,lineno,event):
@@ -102,14 +101,13 @@ class LineEvt:
     nonst = self.source
     return nonst
 
-  @property
   def nonstatic_rightpad(self,static_vars):
     nonstls = self.nonstatic.splitlines()
-    _indented = [self.indent+elm+'|' for elm in nonstls]
-    _sectioned = [f"{elm:<80}" for elm in _indented]
+    _indented = [self.indent+elm for elm in nonstls]
+    _sectioned = [f"{elm:<80}|" for elm in _indented]
     _static = self.static(static_vars)
-    _metad = [f"{elm}{static}{self.pseudo_static}" for elm in _metad]
-    s = '\n'.join([self.indent+elm+'|' for elm in _metad])
+    _metad = [f"{elm}{_static}{self.pseudo_static}" for elm in _sectioned]
+    s = 'n'.join(_metad)
     return s
 
   def pformat(self,count,filename,lineno,event):
@@ -162,14 +160,13 @@ class RetnEvt:
     nonst = recursive(prettyprinter.pformat(arg).splitlines())
     return nonst
 
-  @property
   def nonstatic_rightpad(self,static_vars):
     nonstls = self.nonstatic.splitlines()
-    _indented = [self.indent+elm+'|' for elm in nonstls]
-    _sectioned = [f"{elm:<80}" for elm in _indented]
+    _indented = [self.indent+elm for elm in nonstls]
+    _sectioned = [f"{elm:<80}|" for elm in _indented]
     _static = self.static(static_vars)
-    _metad = [f"{elm}{static}{self.pseudo_static}" for elm in _metad]
-    s = '\n'.join([self.indent+elm+'|' for elm in _metad])
+    _metad = [f"{elm}{_static}{self.pseudo_static}" for elm in _sectioned]
+    s = 'n'.join(_metad)
     return s
 
   def pformat(self,count,filename,lineno,event):
@@ -222,14 +219,13 @@ class ExcpEvt:
     nonst = recursive(prettyprinter.pformat(arg).splitlines())
     return nonst
 
-  @property
   def nonstatic_rightpad(self,static_vars):
     nonstls = self.nonstatic.splitlines()
-    _indented = [self.indent+elm+'|' for elm in nonstls]
-    _sectioned = [f"{elm:<80}" for elm in _indented]
+    _indented = [self.indent+elm for elm in nonstls]
+    _sectioned = [f"{elm:<80}|" for elm in _indented]
     _static = self.static(static_vars)
-    _metad = [f"{elm}{static}{self.pseudo_static}" for elm in _metad]
-    s = '\n'.join([self.indent+elm+'|' for elm in _metad])
+    _metad = [f"{elm}{_static}{self.pseudo_static}" for elm in _sectioned]
+    s = 'n'.join(_metad)
     return s
 
   def pformat(self,count,filename,lineno,event):

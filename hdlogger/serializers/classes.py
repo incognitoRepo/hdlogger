@@ -5,6 +5,8 @@ from itertools import count
 from typing import Union, TypeVar
 from hunter.const import SYS_PREFIX_PATHS
 from hdlogger.utils import *
+COL=80
+
 
 class BaseEvt:
   @property
@@ -18,15 +20,15 @@ class BaseEvt:
     s = f"i:{count:<4} ☰:{len(self.stack)}, {event}{filename}.{lineno:<4}"
     return s
 
-  def nonstatic_rightpad(self,static_vars):
-    nonstls = self.nonstatic.splitlines()
-    _indented = [self.indent+elm for elm in nonstls]
-    _sectioned = [f"{elm:<80}" for elm in _indented]
-    _static = self.static(static_vars)
-    _metad = [f"├{self.pseudo_static}┤|{elm}|├{_static}┤" for elm in _sectioned]
-    s = 'n'.join(_metad)
+  def pseudo_static(self,symbol):
+    s = f"{self.indent}{symbol}"
     return s
 
+  def nonstatic_rightpad(self,static_vars,depth=None):
+    lines = self.nonstatic.splitlines()
+    _indented = [f"├{self.indent}┤|{elm:<(80-len(self.indent))}|├{self.static(static_vars)}┤" for elm in lines]
+    s = 'n'.join(_indented)
+    return s
 
 class CallEvt(BaseEvt):
   def __init__(self, function=None, f_locals=None, stack=None):
@@ -46,7 +48,7 @@ class CallEvt(BaseEvt):
   @property
   def pseudo_static(self):
     symbol = "=>"
-    pseudo = f"{self.indent}{symbol}|"
+    pseudo = super().pseudo_static(symbol)
     return pseudo
 
   @property
@@ -86,8 +88,8 @@ class LineEvt(BaseEvt):
 
   @property
   def pseudo_static(self):
-    symbol = " -"
-    pseudo = f"{self.indent}{symbol}|"
+    symbol = " _"
+    pseudo = super().pseudo_static(symbol)
     return pseudo
 
   @property
@@ -119,7 +121,7 @@ class RetnEvt(BaseEvt):
   @property
   def pseudo_static(self):
     symbol = "<="
-    pseudo = f"{self.indent}{symbol}|"
+    pseudo = super().pseudo_static(symbol)
     return pseudo
 
   @property
@@ -160,7 +162,7 @@ class ExcpEvt(BaseEvt):
   @property
   def pseudo_static(self):
     symbol = " !"
-    pseudo = f"{self.indent}{symbol}|"
+    pseudo = super().pseudo_static(symbol)
     return pseudo
 
   @property

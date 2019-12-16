@@ -9,24 +9,26 @@ COL=80
 
 
 class BaseEvt:
-  @property
-  def indent(self):
-    idt = '\u0020' * (len(self.stack)-1)
-    idt = '-' * (len(self.stack)-1)
+  def indent(self,char='\u0020'):
+    idt = char * (len(self.stack)-1)
     return idt
 
   def static(self,static_vars):
     count,filename,lineno,event = static_vars
-    s = f"i:{count:<4} ☰:{len(self.stack)}, {event}{filename}.{lineno:<4}"
+    s = f"i:{count:<4} ☰:{len(self.stack)}/{len(self.stack)}, {event}{filename}.{lineno:<4}"
     return s
 
   def pseudo_static(self,symbol):
-    s = f"{self.indent}{symbol}"
+    s = f"{self.indent()}{symbol}"
     return s
 
   def nonstatic_rightpad(self,static_vars,depth=None):
     lines = self.nonstatic.splitlines()
-    _indented = [f"├{self.indent}┤|{elm:<(80-len(self.indent))}|├{self.static(static_vars)}┤" for elm in lines]
+    _indented = [
+      (f"├{self.indent('@')}┤"
+       f"|{elm:<{ 80-len(self.indent()) }}|"
+       f"├{self.static(static_vars)}┤")
+      for elm in lines]
     s = 'n'.join(_indented)
     return s
 
@@ -85,6 +87,10 @@ class LineEvt(BaseEvt):
 
   def __iter__(self):
     return ((k,v) for k,v in self.__dict__.items())
+
+  def indent(self,char='\u0020'):
+    idt = char * (len(self.stack)+1)
+    return idt
 
   @property
   def pseudo_static(self):
@@ -293,42 +299,48 @@ class PickleableState:
   _stack = []
   @property
   def format_call(self):
-    callevt = CallEvt(self.function, self.f_locals, PickleableState._stack)
+    wf(f"call1. {str(self.stack)}\n",'logs/retnevt.popstate.log','a')
     PickleableState._stack.append(f"{self.module}.{self.function}")
+    self.stack = [elm for elm in PickleableState._stack]
+    callevt = CallEvt(self.function, self.f_locals, self.stack)
     static_vars = (self.count,self.filename,f"{self.lineno:<5}",self.event)
     static,pseudo,nonsta = callevt.static(static_vars),callevt.pseudo_static,callevt.nonstatic
-    self.stack = [elm for elm in PickleableState._stack]
+    wf(f"call2. {str(self.stack)}\n",'logs/retnevt.popstate.log','a')
     return static+pseudo+nonsta
 
   @property
   def format_line(self):
-    lineevt = LineEvt(self.source, PickleableState._stack)
+    wf(f"line1. {str(self.stack)}\n",'logs/retnevt.popstate.log','a')
+    lineevt = LineEvt(self.source, self.stack)
     static_vars = (self.count,self.filename,f"{self.lineno:<5}",self.event)
     static,pseudo,nonsta = lineevt.static(static_vars),lineevt.pseudo_static,lineevt.nonstatic
     self.stack = PickleableState._stack[:]
+    wf(f"line2. {str(self.stack)}\n",'logs/retnevt.popstate.log','a')
     return static+pseudo+nonsta
 
   @property
   def format_return(self):
-    retnevt = RetnEvt(self.function, self.arg, PickleableState._stack)
+    retnevt = RetnEvt(self.function, self.arg, self.stack)
     static_vars = (self.count,self.filename,f"{self.lineno:<5}",self.event)
     static,pseudo,nonsta = retnevt.static(static_vars),retnevt.pseudo_static,retnevt.nonstatic
     # if PickleableState._stack and PickleableState._stack[-1] == f"{self.module}.{self.function}":
       # PickleableState._stack.pop()
-    wf(f"1. {str(PickleableState._stack)}\n",'logs/retnevt.popstate.log','a')
+    wf(f"ret1. {str(PickleableState._stack)}\n",'logs/retnevt.popstate.log','a')
     if PickleableState._stack:
       PickleableState._stack.pop()
-      wf(f"2. {str(PickleableState._stack)}\n",'logs/retnevt.popstate.log','a')
+      wf(f"ret2. {str(PickleableState._stack)}\n",'logs/retnevt.popstate.log','a')
     self.stack = PickleableState._stack[:]
-    wf(f"3. {str(self.stack)}\n",'logs/retnevt.popstate.log','a')
+    wf(f"ret3. {str(self.stack)}\n",'logs/retnevt.popstate.log','a')
     return static+pseudo+nonsta
 
   @property
   def format_exception(self):
-    excpevt = ExcpEvt(self.function, self.arg, PickleableState._stack)
+    wf(f"exc1. {str(self.stack)}\n",'logs/retnevt.popstate.log','a')
+    excpevt = ExcpEvt(self.function, self.arg, self.stack)
     static_vars = (self.count,self.filename,f"{self.lineno:<5}",self.event)
     static,pseudo,nonsta = excpevt.static(static_vars),excpevt.pseudo_static,excpevt.nonstatic
     self.stack = PickleableState._stack[:]
+    wf(f"exc2. {str(self.stack)}\n",'logs/retnevt.popstate.log','a')
     return static+pseudo+nonsta
 
 class PickleableGenerator:

@@ -9,9 +9,9 @@ COL=80
 
 
 class BaseEvt:
-  def indent(self,char='\u0020'):
-    idt = char * (len(self.stack)-1)
-    return idt
+  def indent(self,char='\u0020',length=0):
+    if length: return char * length
+    else: return char * ((len(self.stack)-1))
 
   def static(self,static_vars):
     count,filename,lineno,event = static_vars
@@ -22,17 +22,27 @@ class BaseEvt:
     s = f"{self.indent()}{symbol}"
     return s
 
+  nonstatic_first = True
   def nonstatic_rightpad(self,static_vars,depth=None):
     lines = self.nonstatic.splitlines()
-    _indented = [
-      (f"├{self.indent('@')}┤"
-       f"|{elm:<{ 80-len(self.indent()) }}|"
-       f"├{self.static(static_vars)}┤")
-      for elm in lines]
-    s = 'n'.join(_indented)
-    return s
+    _first,_rest,idt = lines[0],lines[1:], self.indent()
+    if self.nonstatic_first:
+      s = (
+        f"{idt}{self.symbol}"
+        f"|{_first:<{80-len(idt)}.{80-len(idt)}}|"
+        f"├{self.static(static_vars)}┤"
+        )
+    else:
+      l = [
+        (f"{self.indent()} ."
+        f"|{elm:<{ 80-(len(self.indent())) }}|"
+        f"├{self.static(static_vars)}┤")
+        for elm in lines]
+      s = first + '\n'.join(l)
+    return s+'\n'
 
 class CallEvt(BaseEvt):
+  symbol = "=>"
   def __init__(self, function=None, f_locals=None, stack=None):
     self.function = function
     self.f_locals = f_locals
@@ -56,16 +66,12 @@ class CallEvt(BaseEvt):
   @property
   def nonstatic(self):
     function, f_locals = self.function, self.f_locals
-    def recursive(l,first=True):
-      if not l: return ""
-      elm = l[0]
-      if first:
-        first = False
-        return f"{function}{elm}\n" + recursive(l[1:],first)
-      else:
-        return f"{len(function)*' '}{elm}\n" + recursive(l[1:],first)
-    nonst = recursive(prettyprinter.pformat(f_locals).splitlines())
-    return nonst
+    newd = {}
+    fmtdlns = prettyprinter.pformat(f_locals).splitlines()
+    _first,*_rest = fmtdlns
+    joinstr = '\n' + self.indent(length=len(function))
+    rv = f"{function}{_first}\n{joinstr.join(_rest)}\n"
+    return rv
 
   def pformat(self,count,filename,lineno,event):
     static_vars = (count,filename,lineno,event)
@@ -74,11 +80,13 @@ class CallEvt(BaseEvt):
     return s2
 
 class LineEvt(BaseEvt):
+  symbol =" _"
   def __init__(self, source=None, stack=None):
     wf(source,'logs/LineEvt.source.log','a')
     self.source = source
     self.stack = stack
     self.pid = id(self)
+
 
   def __str__(self):
     source, pid = self.source, self.pid
@@ -110,6 +118,7 @@ class LineEvt(BaseEvt):
     return s2
 
 class RetnEvt(BaseEvt):
+  symbol = "<="
   def __init__(self, function, arg, stack=None):
     self.function = function
     self.arg = arg
@@ -151,6 +160,7 @@ class RetnEvt(BaseEvt):
     return s2
 
 class ExcpEvt(BaseEvt):
+  symbol = " !"
   def __init__(self, function, arg, stack=None):
     self.function = function
     self.arg = arg

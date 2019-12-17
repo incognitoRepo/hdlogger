@@ -76,11 +76,21 @@ class TraceProcessor:
     return s
 
   @property
+  def level_1(self):
+    # df = self._dataframe.copy()
+    # maxstacklen = df['stacklen'].max()
+    # df = df[df.stacklen.apply(lambda cell: cell <= maxstacklen)]
+    # s = self.formatter(df)
+    df = self._dataframe
+    df2 = df[df.stacklen.apply(lambda cell: cell <= df['stacklen'].max())]
+    s = self.formatter(df2)
+    return s
+
+  @property
   def level1(self):
     df = self._dataframe
     df2 = df[df.stacklen.apply(lambda cell: cell <= 1)]
     s = self.formatter(df2)
-    wf(s,'logs/level1.log','a')
     return s
 
   @property

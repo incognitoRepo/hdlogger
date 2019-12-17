@@ -1,4 +1,4 @@
-import sys, os, collections, linecache, prettyprinter
+import sys, os, collections, linecache, prettyprinter, stackprinter
 from functools import singledispatchmethod, cached_property
 from toolz.functoolz import compose_left
 from itertools import count
@@ -7,7 +7,6 @@ from hunter.const import SYS_PREFIX_PATHS
 from hdlogger.utils import *
 COL=80
 
-
 class BaseEvt:
   def indent(self,char='\u0020',length=0):
     if length: return char * length
@@ -15,30 +14,75 @@ class BaseEvt:
 
   def static(self,static_vars):
     count,filename,lineno,event = static_vars
-    s = f"i:{count:<4} ☰:{len(self.stack)}/{len(self.stack)}, {event}{filename}.{lineno:<4}"
+    s = f"i:{count:<4} ☰:{len(self.stack):<3}, {event[0]}{filename}.{lineno:<4}"
     return s
 
   def pseudo_static(self,symbol):
     s = f"{self.indent()}{symbol}"
     return s
 
+  @property
+  def nonstatic(self):
+    function, f_locals = self.function, self.f_locals
+    fmtdlns = prettyprinter.pformat(f_locals).splitlines()
+    _first,*_rest = fmtdlns
+    joinstr = '\n' + self.indent(length=len(function))
+    rv = f"{function}{_first}\n{joinstr.join(_rest)}\n"
+    return rv
+
   nonstatic_first = True
   def nonstatic_rightpad(self,static_vars,depth=None):
+    def _special_cases(lines): # Union[False,Any]
+      # TODO: Special Cases. put in enum for dispatch?
+      if len(lines) >= 2:
+        return False
+      elif len(lines) == 1:
+        line0`Ω = lines[0]
+        s = (
+          f"{idt}{self.symbol}"
+          f"{line0:<{80-len(idt)}.{80-len(idt)}}|"
+          f"├{self.static(static_vars)}┤"
+        )
+        return s
+      elif not lines:
+        return self.nonstatic
+      else:
+        s = stackprinter.format(sys.exc_info())
+        wf(s, f"logs/{__name__}.log",'a')
+        raise SystemExit(f"_special_cases.{__name__}")
+
+    idt = self.indent()
     lines = self.nonstatic.splitlines()
-    _first,_rest,idt = lines[0],lines[1:], self.indent()
+    if special_rv:= _special_cases(lines):
+      s = (
+        f"{idt}{self.symbol}"
+        f"|{special_rv:<{80-len(idt)}.{80-len(idt)}}|"
+        f"├{self.static(static_vars)}┤"
+        )
+    try:
+      (_first,*_rest),idt = lines,self.indent()
+    except:
+      s = stackprinter.format(sys.exc_info())
+      s2 = f"{_special_cases(lines)=}"
+      wf(s, f"logs/except.expand_lines.log",'a')
+      raise SystemExit(f"except.{__name__}")
     if self.nonstatic_first:
       s = (
         f"{idt}{self.symbol}"
         f"|{_first:<{80-len(idt)}.{80-len(idt)}}|"
         f"├{self.static(static_vars)}┤"
         )
-    else:
+    elif False: # default case stashed here
       l = [
         (f"{self.indent()} ."
         f"|{elm:<{ 80-(len(self.indent())) }}|"
         f"├{self.static(static_vars)}┤")
         for elm in lines]
       s = first + '\n'.join(l)
+    else:
+      s = stackprinter.format(sys.exc_info())
+      wf(s, f"logs/nonstatic_rightpad.log",'a')
+      raise SystemExit(f"nonstatic_rightpad.{__name__}")
     return s+'\n'
 
 class CallEvt(BaseEvt):
@@ -66,7 +110,6 @@ class CallEvt(BaseEvt):
   @property
   def nonstatic(self):
     function, f_locals = self.function, self.f_locals
-    newd = {}
     fmtdlns = prettyprinter.pformat(f_locals).splitlines()
     _first,*_rest = fmtdlns
     joinstr = '\n' + self.indent(length=len(function))
@@ -82,11 +125,9 @@ class CallEvt(BaseEvt):
 class LineEvt(BaseEvt):
   symbol =" _"
   def __init__(self, source=None, stack=None):
-    wf(source,'logs/LineEvt.source.log','a')
     self.source = source
     self.stack = stack
     self.pid = id(self)
-
 
   def __str__(self):
     source, pid = self.source, self.pid
@@ -108,12 +149,12 @@ class LineEvt(BaseEvt):
 
   @property
   def nonstatic(self):
-    nonst = self.source
-    return nonst
+    source = self.source
+    return source
 
   def pformat(self,count,filename,lineno,event):
     static_vars = (count,filename,lineno,event)
-    s = f"{self.pseudo_static}{self.nonstatic}{self.static(static_vars)}"
+    s = f"{self.static(static_vars)}{self.pseudo_static}{self.nonstatic}"
     s2 = f"{self.pseudo_static}{self.nonstatic}"
     return s2
 
@@ -142,16 +183,11 @@ class RetnEvt(BaseEvt):
   @property
   def nonstatic(self):
     function, arg = self.function, self.arg
-    def recursive(l,first=True):
-      if not l: return ""
-      elm = l[0]
-      if first:
-        first = False
-        return f"{function}{elm}\n" + recursive(l[1:],first)
-      else:
-        return f"{len(function)*' '}{elm}\n" + recursive(l[1:],first)
-    nonst = recursive(prettyprinter.pformat(arg).splitlines())
-    return nonst
+    fmtdlns = prettyprinter.pformat(arg).splitlines()
+    _first,*_rest = fmtdlns
+    joinstr = '\n' + self.indent(length=len(function))
+    rv = f"{function}{_first}\n{joinstr.join(_rest)}\n"
+    return rv
 
   def pformat(self,count,filename,lineno,event):
     static_vars = (count,filename,lineno,event)
@@ -184,16 +220,11 @@ class ExcpEvt(BaseEvt):
   @property
   def nonstatic(self):
     function, arg = self.function, self.arg
-    def recursive(l,first=True):
-      if not l: return ""
-      elm = l[0]
-      if first:
-        first = False
-        return f"{function}{elm}\n" + recursive(l[1:],first)
-      else:
-        return f"{len(function)*' '}{elm}\n" + recursive(l[1:],first)
-    nonst = recursive(prettyprinter.pformat(arg).splitlines())
-    return nonst
+    fmtdlns = prettyprinter.pformat(arg).splitlines()
+    _first,*_rest = fmtdlns
+    joinstr = '\n' + self.indent(length=len(function))
+    rv = f"{function}{_first}\n{joinstr.join(_rest)}\n"
+    return rv
 
   def pformat(self,count,filename,lineno,event):
     static_vars = (count,filename,lineno,event)

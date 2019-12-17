@@ -32,12 +32,13 @@ class BaseEvt:
 
   nonstatic_first = True
   def nonstatic_rightpad(self,static_vars,depth=None):
+    wf(f"{static_vars=}\n",'logs/nonstatic_rpad.first.log','a')
     def _special_cases(lines): # Union[False,Any]
       # TODO: Special Cases. put in enum for dispatch?
       if len(lines) >= 2:
         return False
       elif len(lines) == 1:
-        line0`Ω = lines[0]
+        line0 = lines[0]
         s = (
           f"{idt}{self.symbol}"
           f"{line0:<{80-len(idt)}.{80-len(idt)}}|"
@@ -54,11 +55,13 @@ class BaseEvt:
     idt = self.indent()
     lines = self.nonstatic.splitlines()
     if special_rv:= _special_cases(lines):
+      wf(special_rv,'logs/special_rv.log','a')
       s = (
         f"{idt}{self.symbol}"
         f"|{special_rv:<{80-len(idt)}.{80-len(idt)}}|"
         f"├{self.static(static_vars)}┤"
         )
+      return s
     try:
       (_first,*_rest),idt = lines,self.indent()
     except:

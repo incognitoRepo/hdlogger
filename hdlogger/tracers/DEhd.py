@@ -44,8 +44,10 @@ state_attrs = [
   # 'formatter'
   ]
 
-def predicate(obj):
-  getattr(obj, )
+def predicate(frame):
+  filename = getattr(frame, 'f_code.co_filename', '')
+  if 'youtube' in filename: return True
+  return False
 
 class HiDefTracer:
 
@@ -59,6 +61,7 @@ class HiDefTracer:
 
   def trace_dispatch(self, frame, event, arg):
     """this is the entry point for this class"""
+    if not predicate(frame): return
     try:
       assert self.initialize(frame, event, arg)
     except:

@@ -44,6 +44,9 @@ state_attrs = [
   # 'formatter'
   ]
 
+def predicate(obj):
+  getattr(obj, )
+
 class HiDefTracer:
 
   def __init__(self):

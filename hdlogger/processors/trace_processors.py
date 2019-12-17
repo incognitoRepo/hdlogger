@@ -1,4 +1,4 @@
-import pickle, sys, inspect, prettyprinter
+import pickle, sys, inspect, prettyprinter, snoop
 import pandas as pd
 import pdir, stackprinter
 from hdlogger.utils import *
@@ -26,6 +26,10 @@ columns = [
   'stack',
 ]
 
+snoop.install(out='logs/formatter1.log',builtins=False)
+
+# TODO: just pysnoop this shit
+@snoop()
 def formatter1(df):
   l = []
   for row in df.itertuples():
@@ -77,20 +81,26 @@ class TraceProcessor:
 
   @property
   def level_1(self):
-    # df = self._dataframe.copy()
-    # maxstacklen = df['stacklen'].max()
-    # df = df[df.stacklen.apply(lambda cell: cell <= maxstacklen)]
-    # s = self.formatter(df)
     df = self._dataframe.copy()
     df2 = df[df.stacklen.apply(lambda cell: cell <= df['stacklen'].max())]
-    s = self.formatter(df2)
+    try:
+      s = self.formatter(df2)
+    except:
+      s = stackprinter.format(sys.exc_info())
+      wf(s, f"logs/{__name__}.log",'a')
+      raise SystemExit("problem is in the formatter")
     return s
 
   @property
   def level1(self):
     df = self._dataframe.copy()
     df2 = df[df.stacklen.apply(lambda cell: cell <= 1)]
-    s = self.formatter(df2)
+    try:
+      s = self.formatter(df2)
+    except:
+      s = stackprinter.format(sys.exc_info())
+      wf(s, f"logs/{__name__}.log",'a')
+      raise SystemExit("problem is in the formatter")
     return s
 
   @property

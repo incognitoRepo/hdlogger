@@ -47,7 +47,6 @@ state_attrs = [
 def predicate(frame):
   code = frame.f_code
   filename = code.co_filename
-  wf(f"{filename=},'','a'"
   wf(f"{filename=}, {'youtube' in filename=}\n",'logs/predicate.log','a')
   if 'youtube' in filename: return True
   return False

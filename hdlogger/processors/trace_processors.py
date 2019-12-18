@@ -26,10 +26,7 @@ columns = [
   'stack',
 ]
 
-snoop.install(out='logs/formatter1.log',builtins=False)
-
 # TODO: just pysnoop this shit
-@snoop()
 def formatter1(df):
   l = []
   for row in df.itertuples():
@@ -49,6 +46,8 @@ class TraceProcessor:
     self._dataframe = None
     self.formatter = formatter
     self.initialize(filepath)
+    pickler = pickle._Pickler
+    unpickler = pickle._Unpickler
 
   def initialize(self,filepath):
     self.pickleable_states = []

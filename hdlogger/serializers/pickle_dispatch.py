@@ -1,4 +1,4 @@
-import optparse, copyreg, inspect, os
+import optparse, copyreg, inspect, os, ctypes
 
 import stackprinter, sys
 import dill as pickle
@@ -144,7 +144,7 @@ def pickleable_simple(s):
     raise SystemExit
 
 # ===-===-===-===-===-
-def pickle_ctyles(c):
+def pickle_ctypes(c):
   kwds = {'ctypes':repr(c)}
   return unpickle_ctypes, (kwds,)
 

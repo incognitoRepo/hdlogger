@@ -44,6 +44,16 @@ state_attrs = [
   # 'formatter'
   ]
 
+_ = """Reproduction of Error:
+import ctypes
+import dill as pickle
+dylib=ctypes.CDLL('libc.dylib')
+pickle.loads(pickle.dumps(dylib))
+"""
+_ = """Solution
+
+"""
+
 def predicate(frame):
   code = frame.f_code
   filename = code.co_filename
@@ -88,18 +98,18 @@ class HiDefTracer:
 
   def initialize(self, frame, event, arg):
 
-    def debug_pickleable_state(state):
-      ps = self.pickleable_state
-      psd = state.__dict__
-      psg = ((k,psd.get(k,"nope")) for k in psd)
-      for k,v in psg:
-        try: pickle.loads(pickle.dumps(v))
-        except:
-          sys.settrace(None)
-          s = stackprinter.format(sys.exc_info())
-          wf(s, f"logs/debug.log",'a')
-          import IPython; IPython.embed()
-          raise SystemExit(f"HiDefTracer.initialize_")
+    # def debug_pickleable_state(state):
+    #   ps = self.pickleable_state
+    #   psd = state.__dict__
+    #   psg = ((k,psd.get(k,"nope")) for k in psd)
+    #   for k,v in psg:
+    #     try: pickle.loads(pickle.dumps(v))
+    #     except:
+    #       sys.settrace(None)
+    #       s = stackprinter.format(sys.exc_info())
+    #       wf(s, f"logs/debug.log",'a')
+    #       import IPython; IPython.embed()
+    #       raise SystemExit(f"HiDefTracer.initialize_")
     initialize_copyreg()
     self.state = State(frame,event,arg)
     try:
@@ -110,7 +120,6 @@ class HiDefTracer:
       wf(pformat(_as_dict)+"\n",'logs/02.pickleable_states.tracer.log', 'a')
     except:
       wf( stackprinter.format(sys.exc_info()),'logs/cant.make.log', 'a')
-      debug_pickleable_state(self.state)
       raise SystemExit("shouldnt be here")
     wf(_as_hexad+"\n","logs/03.pickled_states_hex.tracer.log","a")
     self.pickleable_states.append(self.pickleable_state)

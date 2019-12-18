@@ -19,6 +19,7 @@ def initialize_copyreg():
     (State, pickle_state),
     (FunctionType, pickle_function),
     (os._Environ, pickle_environ),
+    (ctypes.CDLL, pickle_ctypes),
     # (Mapping, pickleable_dict)
   ]
   for special_case in special_cases:
@@ -141,6 +142,14 @@ def pickleable_simple(s):
         pass
     wf( stackprinter.format(sys.exc_info()),'logs/models.unpickleable.log', 'a')
     raise SystemExit
+
+# ===-===-===-===-===-
+def pickle_ctyles(c):
+  kwds = {'ctypes':repr(c)}
+  return unpickle_ctypes, (kwds,)
+
+def unpickle_ctyles(kwds):
+  return Dict(kwds)
 
 def pickle_environ(e):
   kwds = e.__dict__.copy()

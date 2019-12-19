@@ -20,6 +20,7 @@ def initialize_copyreg():
     (FunctionType, pickle_function),
     (os._Environ, pickle_environ),
     (ctypes.CDLL, pickle_ctypes),
+    (ctypes, pickle_ctypes),
     # (Mapping, pickleable_dict)
   ]
   for special_case in special_cases:
@@ -148,8 +149,8 @@ def pickle_ctypes(c):
   kwds = {'ctypes':repr(c)}
   return unpickle_ctypes, (kwds,)
 
-def unpickle_ctyles(kwds):
-  return Dict(kwds)
+def unpickle_ctypes(kwds):
+  return dict(kwds)
 
 def pickle_environ(e):
   kwds = e.__dict__.copy()

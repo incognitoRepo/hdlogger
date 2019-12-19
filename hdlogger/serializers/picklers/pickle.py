@@ -1750,7 +1750,8 @@ if __name__ == "__main__":
         help='run self-test suite')
     parser.add_argument(
         '-v', action='store_true',
-        help='run verbosely; only affects self-test run')   args = parser.parse_args()
+        help='run verbosely; only affects self-test run')
+    args = parser.parse_args()
     if args.test:
         _test()
     else:

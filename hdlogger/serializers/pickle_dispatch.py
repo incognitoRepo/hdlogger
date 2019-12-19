@@ -1,14 +1,22 @@
 import optparse, copyreg, inspect, os, ctypes
 
-import stackprinter, sys
+import stackprinter, sys, jsonpickle
 import dill as pickle
 
-from typing import Iterable, Mapping, Sequence
+from typing import Iterable, Mapping, Sequence, Collection
 from types import GeneratorType, FrameType, TracebackType, FunctionType
 
 from hdlogger.utils import *
 
 from .classes import State, PickleableFrame, PickleableTraceback, PickleableOptparseOption
+from .picklers import TryUntilPickleable
+
+FUNCS = [
+  lambda v: pickle.loads(pickle.dumps(v)),
+  lambda v: jsonpickle.encode(v),
+  lambda v: repr(v),
+  lambda v: getattr(v,'__class__.__name__')
+]
 
 def initialize_copyreg():
   special_cases = [
@@ -63,29 +71,27 @@ def pickleable_frame(frm):
     raise
 
 def pickleable_dict(d):
-  funclist = [
+  funcs = [
     lambda v: pickle.loads(pickle.dumps(v)),
     lambda v: jsonpickle.encode(v),
     lambda v: getattr(v,'__class__.__name__')
   ]
-  d2 = {}
-  for k,v in d.items():
-    try:
-      checked = checkfuncs(funclist,v)
-      pickleable = next(filter(None,checked))
-      d2[k] = pickleable
-    except:
-      s = stackprinter.format(sys.exc_info())
-      wf( s,'logs/pickleable_dict.tracers.log',mode="a")
-      wf((
-        f"unable to pickle {d} due to:\n{k=}\n{v=}"
-        f"{isinstance(v,GeneratorType)=}\n{pickle.loads(pickle.dumps(v))}"
-      ),"a")
-      raise SystemExit(
-        f"unable to pickle {d} due to:\n{k=}\n{v=}"
-        f"{isinstance(v,GeneratorType)=}\n{pickle.loads(pickle.dumps(v))}"
-      )
-  return d2
+  tup = TryUntilPickleable(funcs,d.values())
+  rvl = tup.try_until()
+  if not any(rvl):
+    """all of the values in the dict are not pickleable (rare!)"""
+    s = stackprinter.format(sys.exc_info())
+    wf( (
+      f"unable to pickle {d}\n\n"
+      f"{stackprinter.format(sys.exc_info())}"
+      ),
+      'logs/pickleable_dict.tracers.log', mode="a"
+    )
+    raise
+  elif all(rvl):
+    return {k:v for k,v in zip(d.keys(),rvl)}
+  else:
+    return {k:v if v else repr(d[k]) for k,v in zip(d.keys(),rvl)}
 
 def pickleable_globals(g):
   cp = g.copy()

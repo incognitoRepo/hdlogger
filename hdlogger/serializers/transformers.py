@@ -1,6 +1,8 @@
 import stackprinter, inspect, sys
+from prettyprinter import pformat
 from .classes import PickleableState, PickleableFrame
-from .pickle_dispatch import pickleable_dispatch
+from .pickle_dispatch import pickleable_dispatch, FUNCS
+from .picklers import TryUntilPickleable
 from hdlogger.utils import *
 
 def getcodecontext(frame,lineno,context=2):
@@ -30,6 +32,9 @@ def make_pickleable_frame(frame):
   return PickleableFrame(kwds)
 
 def make_pickleable_state(state,stack) -> PickleableState:
+  funcs = FUNCS
+  assert isinstance(state.lineno,int), f"{state.lineno=}"
+  assert isinstance(state.count,int), f"{state.count}"
   kwds = {
       "frame": pickleable_dispatch(state.frame),
       "event": state.event,
@@ -45,8 +50,12 @@ def make_pickleable_state(state,stack) -> PickleableState:
       "stack": [elm for elm in PickleableState._stack]
     }
   try:
-    pickleable_state = PickleableState(kwds)
+    tup = TryUntilPickleable(funcs=funcs,arg=kwds.values())
+    rvl = tup.try_until()
+    nkwds = {k:v for k,v in zip(kwds.keys(),rvl)}
+    wf(pformat(str(nkwds)),'logs/make_pickleable_state.debug.log','a')
+    pickleable_state = PickleableState(nkwds)
   except:
-    wf(stackprinter.format(sys.exc_info()),'logs/make_pickleable_state.log','a')
-    raise SystemExit
+    wf(stackprinter.format(sys.exc_info()),'logs/make_pickleable_state.error.log','a')
+    raise
   return pickleable_state

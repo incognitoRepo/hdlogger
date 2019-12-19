@@ -97,19 +97,6 @@ class HiDefTracer:
     return self.trace_dispatch
 
   def initialize(self, frame, event, arg):
-
-    # def debug_pickleable_state(state):
-    #   ps = self.pickleable_state
-    #   psd = state.__dict__
-    #   psg = ((k,psd.get(k,"nope")) for k in psd)
-    #   for k,v in psg:
-    #     try: pickle.loads(pickle.dumps(v))
-    #     except:
-    #       sys.settrace(None)
-    #       s = stackprinter.format(sys.exc_info())
-    #       wf(s, f"logs/debug.log",'a')
-    #       import IPython; IPython.embed()
-    #       raise SystemExit(f"HiDefTracer.initialize_")
     initialize_copyreg()
     self.state = State(frame,event,arg)
     try:

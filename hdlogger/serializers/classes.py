@@ -345,7 +345,7 @@ class PickleableState:
   def format_call(self):
     wf(f"call1. {str(self.stack)}\n",'logs/retnevt.popstate.log','a')
     PickleableState._stack.append(f"{self.module}.{self.function}")
-    self.stack = [elm for elm in PickleableState._stack]
+    self.stack = PickleableState._stack[:]
     callevt = CallEvt(self.function, self.f_locals, self.stack)
     static_vars = (self.count,self.filename,f"{self.lineno:<5}",self.event)
     static,pseudo,nonsta = callevt.static(static_vars),callevt.pseudo_static,callevt.nonstatic

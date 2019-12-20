@@ -4,7 +4,7 @@ import pandas as pd
 from pickle import PicklingError
 # dill.Pickler.dispatch
 from prettyprinter import pformat, cpprint
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 from itertools import count
 from functools import singledispatch, singledispatchmethod, cached_property
 from pathlib import Path
@@ -61,15 +61,59 @@ def predicate(frame):
   if 'youtube' in filename: return True
   return False
 
+class VariablesWatcher:
+
+  def __init__(self,variables:List[str]):
+    self.variables = variables
+    self.d = defaultdict(list)
+
+  def check_assumptions(self,frame,event,arg):
+    # f_locals is a strict subset of f_globals
+    # gkeys,lkeys = set(frame.f_globals.keys()),set(frame.f_locals.keys()) # doesn't hold
+    assert lkeys.issubset(gkeys), f"{lkeys.symmetric_difference(gkeys)}"
+    # code assumptions
+    code = frame.f_code
+    assert (
+      len(code.co_varnames) == code.co_nlocals == code.co_argcount,
+      f"{len(code.co_varnames)=}, {code.n_locals}"
+    )
+
+  def check_event(self,frame,event,arg):
+    self.check_assumptions(frame,event,arg)
+    gkeys,lkeys = list(frame.f_globals.keys()), list(frame.f_locals.keys())
+    results = [(var in gkeys) for var in self.variables]
+    for var in self.variables:
+      if var in lkeys:
+        val = frame.f_locals[var]
+      elif var in gkeys:
+        val = frame.f_globals[var]
+      else:
+        continue
+      self.d[var].append(
+        [val, frame.f_lineno, frame.f_code.co_name, frame.f_code.co_filename]
+      )
+    return self.d
+
+  def write_var_history(self):
+    l = []
+    for k,v in self.d.items():
+      val, lno, fnc, filename = v
+      l.append(f"{filename:10.10}{fnc:10.10}{lno:<05}\n\t{k}={v}\n")
+    s = '\n'.join(l)
+    wf(s,'logs/vars_watcher.log','a')
+    return s
+
+
 class HiDefTracer:
 
-  def __init__(self):
+  def __init__(self,vars=None):
     self.state = None
     self.pickleable_state = None
     self.pickleable_states = []
     self.pickled_state_as_bytes = []
     self.pickled_state_as_hex = []
     self.dataframe = None
+    self.varswatcher = VariablesWatcher(vars)
 
   def trace_dispatch(self, frame, event, arg):
     """this is the entry point for this class"""
@@ -79,6 +123,7 @@ class HiDefTracer:
     except:
       wf( stackprinter.format(sys.exc_info()),'logs/tracer.dispatch.log', 'a')
       raise
+    self.varswatcher.check_event(frame,event,arg)
     if event == 'line':
       return self.dispatch_line(frame, arg)
     if event == 'call':

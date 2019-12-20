@@ -34,10 +34,15 @@ class BaseEvt:
   def nonstatic_rightpad(self,static_vars,depth=None):
     wf(f"{static_vars=}\n",'logs/nonstatic_rpad.first.log','a')
     def _special_cases(lines): # Union[False,Any]
-      # TODO: Special Cases. put in enum for dispatch?
-      if len(lines) >= 2:
-        return False
-      elif len(lines) == 1:
+      """hardcoded logic for unique cases
+      case1: len(lines) == 0
+      case2: len(lines) == 1
+      case3: len(lines) >= 2
+      """
+      wf(f"{lines=}\n",'logs/_special_cases.log','a')
+      if len(lines) == 0:
+        return self.nonstatic
+      if len(lines) == 1:
         line0 = lines[0]
         s = (
           f"{idt}{self.symbol}"
@@ -45,48 +50,48 @@ class BaseEvt:
           f"├{self.static(static_vars)}┤"
         )
         return s
-      elif not lines:
-        return self.nonstatic
-      else:
-        s = stackprinter.format(sys.exc_info())
-        wf(s, f"logs/{__name__}.log",'a')
-        raise SystemExit(f"_special_cases.{__name__}")
+      if len(lines) >= 2:
+        return False
+      s = stackprinter.format()
+      wf(s, f"logs/nonstatic_rpad.error.log",'a')
+      return SystemExit(f"error in nonstatic_rpad: fucked logic")
 
     idt = self.indent()
-    lines = self.nonstatic.splitlines()
-    if special_rv:= _special_cases(lines):
-      wf(special_rv,'logs/special_rv.log','a')
+    lines = self.nonstatic.strip().splitlines()
+    if not isinstance(_special_cases(lines),Exception):
+      wf(_special_cases(lines),'logs/special_rv.log','a')
       s = (
         f"{idt}{self.symbol}"
-        f"|{special_rv:<{80-len(idt)}.{80-len(idt)}}|"
+        f"|{_special_cases(lines):<{80-len(idt)}.{80-len(idt)}}|"
         f"├{self.static(static_vars)}┤"
         )
       return s
-    try:
-      (_first,*_rest),idt = lines,self.indent()
-    except:
-      s = stackprinter.format(sys.exc_info())
-      s2 = f"{_special_cases(lines)=}"
-      wf(s, f"logs/except.expand_lines.log",'a')
-      raise SystemExit(f"except.{__name__}")
-    if self.nonstatic_first:
-      s = (
-        f"{idt}{self.symbol}"
-        f"|{_first:<{80-len(idt)}.{80-len(idt)}}|"
-        f"├{self.static(static_vars)}┤"
-        )
-    elif False: # default case stashed here
-      l = [
-        (f"{self.indent()} ."
-        f"|{elm:<{ 80-(len(self.indent())) }}|"
-        f"├{self.static(static_vars)}┤")
-        for elm in lines]
-      s = first + '\n'.join(l)
     else:
-      s = stackprinter.format(sys.exc_info())
-      wf(s, f"logs/nonstatic_rightpad.log",'a')
-      raise SystemExit(f"nonstatic_rightpad.{__name__}")
-    return s+'\n'
+      try:
+        (_first,*_rest),idt = lines,self.indent()
+      except:
+        s = stackprinter.format(sys.exc_info())
+        s2 = f"{_special_cases(lines)=}"
+        wf(s, f"logs/except.expand_lines.log",'a')
+        raise SystemExit(f"except.{__name__}")
+      if self.nonstatic_first:
+        s = (
+          f"{idt}{self.symbol}"
+          f"|{_first:<{80-len(idt)}.{80-len(idt)}}|"
+          f"├{self.static(static_vars)}┤"
+          )
+      elif False: # default case stashed here
+        l = [
+          (f"{self.indent()} ."
+          f"|{elm:<{ 80-(len(self.indent())) }}|"
+          f"├{self.static(static_vars)}┤")
+          for elm in lines]
+        s = first + '\n'.join(l)
+      else:
+        s = stackprinter.format(sys.exc_info())
+        wf(s, f"logs/nonstatic_rightpad.log",'a')
+        raise SystemExit(f"nonstatic_rightpad.{__name__}")
+      return s+'\n'
 
 class CallEvt(BaseEvt):
   symbol = "=>"

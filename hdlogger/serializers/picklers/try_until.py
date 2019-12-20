@@ -4,19 +4,6 @@ import dill as pickle
 from prettyprinter import pformat
 from hdlogger.utils import *
 from typing import Union, Any, Dict, List
-import snoop
-
-def type_watch(source, value):
-  return 'type({})'.format(source), type(value)
-
-snoop.install(
-  out='logs/snoop.log',
-  color = False,
-  prefix = 'snoop: ',
-  columns = ['time','file','function'],
-  watch_extras=[type_watch],
-  # builtins=False,
-)
 
 
 class TryUntil:
@@ -32,7 +19,6 @@ class TryUntil:
       arg = arg
     return arg
 
-  @snoop
   def try_until(self,funcs=[],arg=None):
     """returns: List[False,Any]
         Any: the return value of func(arg)
@@ -47,7 +33,6 @@ class TryUntil:
     else:
       return self._try_until(funcs,arg)
 
-  @snoop
   def _try_until(self,funcs=[],arg=None):
     """iterates thru a list of functions, returning on the first success"""
     wf(f"in _try_until:\n",'logs/try_until.log','a')
@@ -68,7 +53,6 @@ class TryUntil:
       l.append(rv_or_false)
     return l
 
-  @snoop
   def _try_until_container(self,funcs=[],args=None):
     """for container types: e.g., List, Dict"""
     wf(f"in _try_until_container:\n",'logs/try_until.log','a')
@@ -82,7 +66,6 @@ class TryUntil:
       wf('l: '+pformat(l)+'\n','logs/try_until.log','a')
     return l
 
-  @snoop
   def _with_func(self,func,arg) -> Union[type(False),Any]:
     try:
       rv = func(arg)
@@ -95,11 +78,9 @@ class TryUntil:
 
 
 class TryUntilPickleable(TryUntil):
-  @snoop
   def __init__(self,funcs,arg):
     super().__init__(funcs=funcs,arg=arg)
 
-  @snoop
   def _with_func(self,func,arg):
     try:
       rv = pickle.loads(pickle.dumps(func(arg)))

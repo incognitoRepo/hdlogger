@@ -10,21 +10,6 @@ from typing import Any, Dict, List
 from ..serializers.classes import PickleableFrame, CallEvt, LineEvt, RetnEvt, ExcpEvt
 from ipdb import set_trace as st
 
-columns = [
-  'frame',
-  'event',
-  'arg',
-  'locals',
-  'index',
-  'function',
-  'module',
-  'filename',
-  'lineno',
-  'stdlib',
-  'source',
-  'format_filename'
-  'stack',
-]
 
 # TODO: just pysnoop this shit
 def formatter1(df):
@@ -34,7 +19,7 @@ def formatter1(df):
     if row.event == 'line': evt = LineEvt(source=row.source,stack=row.stack)
     if row.event == 'return': evt = RetnEvt(function=row.function,arg=row.arg,stack=row.stack)
     if row.event == 'exception': evt = ExcpEvt(function=row.function,arg=row.arg,stack=row.stack)
-    static_vars = [row.count, row.filename, row.lineno, row.event]
+    static_vars = [row.st_count, row.filename, row.lineno, row.event]
     l.append(evt.nonstatic_rightpad(static_vars))
   ljd = '\n'.join(l)
   return ljd

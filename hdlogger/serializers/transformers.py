@@ -1,4 +1,5 @@
 import stackprinter, inspect, sys
+import dill as pickle
 from prettyprinter import pformat
 from .classes import PickleableState, PickleableFrame
 from .pickle_dispatch import pickleable_dispatch, FUNCS
@@ -34,13 +35,13 @@ def make_pickleable_frame(frame):
 def make_pickleable_state(state,stack) -> PickleableState:
   funcs = FUNCS
   assert isinstance(state.lineno,int), f"{state.lineno=}"
-  assert isinstance(state.count,int), f"{state.count}"
+  assert isinstance(state.st_count,int), f"{state.st_count=}"
   kwds = {
-      "frame": pickleable_dispatch(state.frame),
+      "frame": pickle.loads(pickle.dumps(state.frame)),
       "event": state.event,
-      "arg": pickleable_dispatch(state.arg),
-      "f_locals": pickleable_dispatch(state.frame.f_locals),
-      "count": state.count,
+      "arg": pickle.loads(pickle.dumps(state.arg)),
+      "f_locals": pickle.loads(pickle.dumps(state.frame.f_locals)),
+      "st_count": state.st_count,
       "function": state.function,
       "module": state.module,
       "format_filename": state.format_filename,
@@ -49,11 +50,13 @@ def make_pickleable_state(state,stack) -> PickleableState:
       "source": state.source,
       "stack": [elm for elm in PickleableState._stack]
     }
+  wf(pformat(kwds),'logs/make_pklbl_st.log','a')
+  assert pickle.loads(pickle.dumps(kwds)) # so the problem is in TryUntilPickleable
   try:
     tup = TryUntilPickleable(funcs=funcs,arg=kwds.values())
     rvl = tup.try_until()
     nkwds = {k:v for k,v in zip(kwds.keys(),rvl)}
-    wf(pformat(str(nkwds)),'logs/make_pickleable_state.debug.log','a')
+    wf(pformat(nkwds),'logs/make_pickleable_state.debug.log','a')
     pickleable_state = PickleableState(nkwds)
   except:
     wf(stackprinter.format(sys.exc_info()),'logs/make_pickleable_state.error.log','a')

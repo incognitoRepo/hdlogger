@@ -70,13 +70,11 @@ class VariablesWatcher:
   def check_assumptions(self,frame,event,arg):
     # f_locals is a strict subset of f_globals
     # gkeys,lkeys = set(frame.f_globals.keys()),set(frame.f_locals.keys()) # doesn't hold
-    assert lkeys.issubset(gkeys), f"{lkeys.symmetric_difference(gkeys)}"
+    # assert lkeys.issubset(gkeys), f"{lkeys.symmetric_difference(gkeys)}"
     # code assumptions
     code = frame.f_code
-    assert (
-      len(code.co_varnames) == code.co_nlocals == code.co_argcount,
-      f"{len(code.co_varnames)=}, {code.n_locals}"
-    )
+    if not (len(code.co_varnames) == code.co_nlocals == code.co_argcount):
+      raise SystemExit(f"assumption failed: {len(code.co_varnames)=}, {code.co_nlocals=}, {code.co_argcount=}")
 
   def check_event(self,frame,event,arg):
     self.check_assumptions(frame,event,arg)
@@ -102,7 +100,6 @@ class VariablesWatcher:
     s = '\n'.join(l)
     wf(s,'logs/vars_watcher.log','a')
     return s
-
 
 class HiDefTracer:
 

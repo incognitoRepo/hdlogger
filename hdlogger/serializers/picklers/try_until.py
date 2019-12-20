@@ -4,6 +4,19 @@ import dill as pickle
 from prettyprinter import pformat
 from hdlogger.utils import *
 from typing import Union, Any, Dict, List
+import snoop
+
+def type_watch(source, value):
+  return 'type({})'.format(source), type(value)
+
+snoop.install(
+  out='logs/snoop.log',
+  color = False,
+  prefix = 'snoop: ',
+  columns = ['time','file','function'],
+  watch_extras=[type_watch],
+  # builtins=False,
+)
 
 
 class TryUntil:
@@ -19,6 +32,7 @@ class TryUntil:
       arg = arg
     return arg
 
+  @snoop
   def try_until(self,funcs=[],arg=None):
     """returns: List[False,Any]
         Any: the return value of func(arg)
@@ -26,60 +40,73 @@ class TryUntil:
     """
     funcs = funcs if funcs else self.funcs
     arg = arg if arg else self.arg
+    wf(f"{funcs=}\n",'logs/try_until.log','a')
+    wf(f"{arg=}\n",'logs/try_until.log','a')
     if isinstance(arg,(List,Dict)):
       return self._try_until_container(funcs,arg)
     else:
       return self._try_until(funcs,arg)
 
+  @snoop
   def _try_until(self,funcs=[],arg=None):
     """iterates thru a list of functions, returning on the first success"""
-    funcs = funcs if funcs else self.funcs
-    arg = arg if arg else self.arg
+    wf(f"in _try_until:\n",'logs/try_until.log','a')
+    wf('\targ: '+pformat(arg)+'\n','logs/try_until.log','a')
     l,rv_or_false = [], None
     for func in funcs:
+      wf('\tfunc: '+pformat(func)+'\n','logs/try_until.log','a')
       rv_or_false = self._with_func(func,arg)
-      if rv_or_false:
+      wf('\trv_or_false: '+pformat(rv_or_false)+'\n','logs/try_until.log','a')
+      if not isinstance(rv_or_false,Exception):
         return rv_or_false
     else:
       wf((
-        f"{pformat(funcs)=}"
-        f"{pformat(arg)=}"
+        f"\t{pformat(funcs)=}\n"
+        f"\t{pformat(arg)=}\n"
       ),'logs/_try_until.error.log','a')
       raise SystemExit('_try_until: all funcs failed to create a pickleable obj.')
       l.append(rv_or_false)
     return l
 
+  @snoop
   def _try_until_container(self,funcs=[],args=None):
     """for container types: e.g., List, Dict"""
+    wf(f"in _try_until_container:\n",'logs/try_until.log','a')
     funcs = funcs if funcs else self.funcs
     args = args if args else self.arg
+    wf('args: '+pformat(args)+'\n','logs/try_until.log','a')
     l = []
     for arg in args:
+      wf('arg: '+pformat(arg)+'\n','logs/try_until.log','a')
       l.append(self._try_until(funcs,arg))
+      wf('l: '+pformat(l)+'\n','logs/try_until.log','a')
     return l
 
+  @snoop
   def _with_func(self,func,arg) -> Union[type(False),Any]:
     try:
       rv = func(arg)
     except:
       fid = id(func)
-      wf(stackprinter.format(sys.exc_info()),f'logs/tryuntil{fid}.log', 'a')
-      return False
+      wf(stackprinter.format(sys.exc_info())+'\n',f'logs/tryuntil{fid}.log', 'a')
+      return Exception(f"unable to create a pickleable object from {arg}")
     else:
       return func(arg)
 
 
 class TryUntilPickleable(TryUntil):
+  @snoop
   def __init__(self,funcs,arg):
     super().__init__(funcs=funcs,arg=arg)
 
+  @snoop
   def _with_func(self,func,arg):
     try:
       rv = pickle.loads(pickle.dumps(func(arg)))
     except:
       fid = id(func)
       wf(stackprinter.format(sys.exc_info()),f'logs/tryuntilpkl{fid}.log', 'w')
-      return False
+      return Exception(f"unable to create a pickleable object from {arg}")
     else:
       return pickle.loads(pickle.dumps(func(arg)))
 

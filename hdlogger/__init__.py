@@ -10,7 +10,7 @@ from .core import (
   StopTracer,
   get_tracer_kill_pack,
 )
-from .tracers import (
+from .serializers.tracers import (
   traceTracer,
   hdTracer
 )

@@ -241,14 +241,14 @@ class State:
     sys.exec_prefix,
     os.path.dirname(os.__file__),
     os.path.dirname(collections.__file__),))
-  counter = count(0)
+  _counter = count(0)
 
   def __init__(self, frame, event, arg):
     wf(repr(arg)+"\n",'logs/01.initial_arg.state.log', 'a')
     self.frame = frame
     self.event = event
     self.arg = arg
-    self.count = next(State.counter)
+    self.st_count = next(State._counter)
     self.initialize()
 
   def initialize(self):
@@ -301,7 +301,7 @@ class PickleableFrame:
     self.function = kwds['function']
     self.local_vars = kwds['local_vars']
     self.code_context = kwds['code_context']
-    self.count = kwds['count']
+    self.st_count = kwds['count']
 
   def __str__(self,color=False):
     return prettyprinter.pformat(self.__dict__)
@@ -313,7 +313,7 @@ class PickleableState:
     self.event: str = kwds['event']
     self.arg: Any = kwds['arg']
     self.f_locals: Dict = kwds['f_locals']
-    self.count: int = kwds['count']
+    self.st_count: int = kwds['st_count']
     self.function: str = kwds['function']
     self.module: str = kwds['module']
     self.filename: str = kwds['format_filename']
@@ -347,7 +347,7 @@ class PickleableState:
     PickleableState._stack.append(f"{self.module}.{self.function}")
     self.stack = PickleableState._stack[:]
     callevt = CallEvt(self.function, self.f_locals, self.stack)
-    static_vars = (self.count,self.filename,f"{self.lineno:<5}",self.event)
+    static_vars = (self.st_count,self.filename,f"{self.lineno:<5}",self.event)
     static,pseudo,nonsta = callevt.static(static_vars),callevt.pseudo_static,callevt.nonstatic
     wf(f"call2. {str(self.stack)}\n",'logs/retnevt.popstate.log','a')
     return static+pseudo+nonsta
@@ -356,7 +356,7 @@ class PickleableState:
   def format_line(self):
     wf(f"line1. {str(self.stack)}\n",'logs/retnevt.popstate.log','a')
     lineevt = LineEvt(self.source, self.stack)
-    static_vars = (self.count,self.filename,f"{self.lineno:<5}",self.event)
+    static_vars = (self.st_count,self.filename,f"{self.lineno:<5}",self.event)
     static,pseudo,nonsta = lineevt.static(static_vars),lineevt.pseudo_static,lineevt.nonstatic
     self.stack = PickleableState._stack[:]
     wf(f"line2. {str(self.stack)}\n",'logs/retnevt.popstate.log','a')
@@ -365,7 +365,7 @@ class PickleableState:
   @property
   def format_return(self):
     retnevt = RetnEvt(self.function, self.arg, self.stack)
-    static_vars = (self.count,self.filename,f"{self.lineno:<5}",self.event)
+    static_vars = (self.st_count,self.filename,f"{self.lineno:<5}",self.event)
     static,pseudo,nonsta = retnevt.static(static_vars),retnevt.pseudo_static,retnevt.nonstatic
     # if PickleableState._stack and PickleableState._stack[-1] == f"{self.module}.{self.function}":
       # PickleableState._stack.pop()
@@ -381,7 +381,7 @@ class PickleableState:
   def format_exception(self):
     wf(f"exc1. {str(self.stack)}\n",'logs/retnevt.popstate.log','a')
     excpevt = ExcpEvt(self.function, self.arg, self.stack)
-    static_vars = (self.count,self.filename,f"{self.lineno:<5}",self.event)
+    static_vars = (self.st_count,self.filename,f"{self.lineno:<5}",self.event)
     static,pseudo,nonsta = excpevt.static(static_vars),excpevt.pseudo_static,excpevt.nonstatic
     self.stack = PickleableState._stack[:]
     wf(f"exc2. {str(self.stack)}\n",'logs/retnevt.popstate.log','a')

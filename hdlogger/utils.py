@@ -7,25 +7,25 @@ from typing import Iterable, Container, Collection
 def wf(obj,filename,mode="a"):
 
   n,s,end = count(),stackprinter.format(),f"\n{'-~'*40}\n"
-  with open('logs/wf.error.log','a') as f: f.write(f"{next(n)}: {s}{end}")
-  with open('logs/wf.error.log','a') as f: f.write(f"{next(n)}: "+stackprinter.format()+f'\n{"-~"*40}\n')
+  with open('logs/wf.error.log','a') as f: f.write(f"1: {s}{end}")
+  with open('logs/wf.error.log','a') as f: f.write(f"2: {stackprinter.format()}\n{\"-~\"*40}\n")
   path = Path(filename)
   if not path.parent.exists():
     path.mkdir(parents=True, exist_ok=True)
   if isinstance(obj, bytes):
     nobj = str(obj)
     s = f"bytes instance:\n{obj=}\n{nobj=}{end}"
-    with open('logs/wf.error.log','a') as f: f.write(f"{next(n)}: {s}{end}")
+    with open('logs/wf.error.log','a') as f: f.write(f"3: {s}{end}")
   elif isinstance(obj, Container) and not isinstance(obj,str):
     nobj = "\n".join(str(obj)) + "\n"
     s = f"container instance:\n{obj=}\n{nobj=}{end}"
-    with open('logs/wf.error.log','a') as f: f.write(f"{next(n)}: {s}{end}")
+    with open('logs/wf.error.log','a') as f: f.write(f"4: {s}{end}")
   else:
     nobj = obj
     s = f"else case:\n{obj=}\n{nobj=}{end}"
-    with open('logs/wf.error.log','a') as f: f.write(f"{next(n)}: {s}{end}")
+    with open('logs/wf.error.log','a') as f: f.write(f"5: {s}{end}")
   s = f"write obj:\n{str(nobj)=}\n{nobj=}{end}"
-  with open('logs/wf.error.log','a') as f: f.write(f"{next(n)}: {s}{end}")
+  with open('logs/wf.error.log','a') as f: f.write(f"6: {s}{end}")
   with path.open(mode,encoding="utf-8") as f: f.write(str(nobj))
   assert path.exists()
   with open('logs/history.log','a') as f: f.write(str(path)+'\n')

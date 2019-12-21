@@ -8,7 +8,7 @@ def wf(obj,filename,mode="a"):
 
   n,s,end = count(),stackprinter.format(),f"\n{'-~'*40}\n"
   with open('logs/wf.error.log','a') as f: f.write(f"1: {s}{end}")
-  with open('logs/wf.error.log','a') as f: f.write(f"2: {stackprinter.format()}\n{\"-~\"*40}\n")
+  with open('logs/wf.error.log','a') as f: f.write(f"2: {stackprinter.format()}\n{'-~'*40}\n")
   path = Path(filename)
   if not path.parent.exists():
     path.mkdir(parents=True, exist_ok=True)

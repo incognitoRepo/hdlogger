@@ -4,18 +4,22 @@ from pathlib import Path
 from typing import Iterable, Container, Collection
 
 def wf(obj,filename,mode="a"):
-  with open('logs/wf.error.log','a') as f:
-    f.write(stackprinter.format()+f'\n{-~*40}\n')
+  s = stackprinter.format()
+  with open('logs/wf.error.log','a') as f: f.write()
+  with open('logs/wf.error.log','a') as f: f.write(stackprinter.format()+f'\n{"-~"*40}\n')
   path = Path(filename)
   if not path.parent.exists():
     path.mkdir(parents=True, exist_ok=True)
   if isinstance(obj, bytes):
-    obj = str(obj)
+    nobj = str(obj)
+    with open('logs/wf.error.log','a') as f: f.write()
   elif isinstance(obj, Container) and not isinstance(obj,str):
-    obj = "\n".join(str(obj)) + "\n"
+    nobj = "\n".join(str(obj)) + "\n"
+    with open('logs/wf.error.log','a') as f: f.write()
   else:
-    obj = obj
-  with path.open(mode,encoding="utf-8") as f: f.write(str(obj))
+    nobj = obj
+    with open('logs/wf.error.log','a') as f: f.write()
+  with path.open(mode,encoding="utf-8") as f: f.write(str(nobj))
   assert path.exists()
   with open('logs/history.log','a') as f: f.write(str(path)+'\n')
 

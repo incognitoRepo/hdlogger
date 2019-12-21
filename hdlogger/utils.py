@@ -4,8 +4,8 @@ from pathlib import Path
 from typing import Iterable, Container, Collection
 
 def wf(obj,filename,mode="a"):
-  with open('logs/wf.error.log','w') as f:
-    f.write(stackprinter.format())
+  with open('logs/wf.error.log','a') as f:
+    f.write(stackprinter.format()+f'\n{-~*40}\n')
   path = Path(filename)
   if not path.parent.exists():
     path.mkdir(parents=True, exist_ok=True)

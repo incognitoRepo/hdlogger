@@ -121,7 +121,7 @@ class HiDefTracer:
     except:
       wf( stackprinter.format(sys.exc_info()),'logs/tracer.dispatch.log', 'a')
       raise
-    self.varswatcher.check_event(frame,event,arg)
+    # self.varswatcher.check_event(frame,event,arg)
     if event == 'line':
       return self.dispatch_line(frame, arg)
     if event == 'call':

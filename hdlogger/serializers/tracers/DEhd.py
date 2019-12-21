@@ -50,14 +50,12 @@ import dill as pickle
 dylib=ctypes.CDLL('libc.dylib')
 pickle.loads(pickle.dumps(dylib))
 """
-_ = """Solution
-
-"""
 
 def predicate(frame):
   code = frame.f_code
   filename = code.co_filename
-  wf(f"{filename=}, {('youtube' in filename)=}\n",'logs/predicate.log','a')
+  s = f"{filename=}, {'youtube' in filename}\n"
+  wf(s,'logs/predicate.log','a')
   if 'youtube' in filename: return True
   return False
 

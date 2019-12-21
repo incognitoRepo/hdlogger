@@ -5,9 +5,8 @@ from pathlib import Path
 from typing import Iterable, Container, Collection
 
 def wf(obj,filename,mode="a"):
-
-  n,end = count(),f"\n{'-~'*40}\n"
-  with open('logs/wf.error.log','a') as f: f.write(f"1: {s}{end}")
+  end = f"\n{'-~'*40}\n"
+  with open('logs/wf.error.log','a') as f: f.write(f"1: {obj}{end}")
   # with open('logs/wf.error.log','a') as f: f.write(f"2: {stackprinter.format()}\n{'-~'*40}\n")
   path = Path(filename)
   if not path.parent.exists():

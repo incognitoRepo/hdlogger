@@ -56,42 +56,34 @@ class BaseEvt:
       wf(s, f"logs/nonstatic_rpad.error.log",'a')
       return SystemExit(f"error in nonstatic_rpad: fucked logic")
 
-    idt = self.indent()
-    lines = self.nonstatic.strip().splitlines()
-    if not isinstance(_special_cases(lines),Exception):
-      wf(_special_cases(lines),'logs/special_rv.log','a')
+    def firstline(fl):
       s = (
         f"{idt}{self.symbol}"
-        f"|{_special_cases(lines):<{80-len(idt)}.{80-len(idt)}}|"
+        f"{fl:<{80-len(idt)}.{80-len(idt)}}|"
         f"├{self.static(static_vars)}┤"
-        )
+      )
       return s
-    else:
-      try:
-        (_first,*_rest),idt = lines,self.indent()
-      except:
-        s = stackprinter.format(sys.exc_info())
-        s2 = f"{_special_cases(lines)=}"
-        wf(s, f"logs/except.expand_lines.log",'a')
-        raise SystemExit(f"except.{__name__}")
-      if self.nonstatic_first:
-        s = (
-          f"{idt}{self.symbol}"
-          f"|{_first:<{80-len(idt)}.{80-len(idt)}}|"
-          f"├{self.static(static_vars)}┤"
-          )
-      elif False: # default case stashed here
-        l = [
-          (f"{self.indent()} ."
-          f"|{elm:<{ 80-(len(self.indent())) }}|"
-          f"├{self.static(static_vars)}┤")
-          for elm in lines]
-        s = first + '\n'.join(l)
-      else:
-        s = stackprinter.format(sys.exc_info())
-        wf(s, f"logs/nonstatic_rightpad.log",'a')
-        raise SystemExit(f"nonstatic_rightpad.{__name__}")
-      return s+'\n'
+
+    def formatlines(rls):
+      l = [
+        (f"{self.indent()} ."
+        f"|{elm:<{ 80-(len(self.indent())) }}|"
+        f"├{self.static(static_vars)}┤")
+        for elm in rls]
+      return '\n'.join(l)
+
+    idt = self.indent()
+    lines = self.nonstatic.strip().splitlines()
+    if len(lines) == 0: return self.nonstatic
+    if len(lines) == 1: return firstline(lines[0])
+    if len(lines) >= 2:
+      first = firstline(lines[0])
+      rest = formatlines(lines[1:])
+      fmtdlines = f"{first}\n{rest}\n"
+      return fmtdlines
+    s = stackprinter.format(sys.exc_info())
+    wf(s, f"logs/nonstatic_rightpad.log",'a')
+    raise SystemExit(f"nonstatic_rightpad.{__name__}")
 
 class CallEvt(BaseEvt):
   symbol = "=>"

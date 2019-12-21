@@ -5,6 +5,8 @@ from prettyprinter import pformat
 from hdlogger.utils import *
 from typing import Union, Any, Dict, List
 
+ErrorFlag = type("ErrorFlag",(object,),{"msg":None})
+ErrorFlag2 = type("ErrorFlag2",(),{})
 
 class TryUntil:
   def __init__(self,funcs,arg):
@@ -42,7 +44,7 @@ class TryUntil:
       wf('\tfunc: '+pformat(func)+'\n','logs/try_until.log','a')
       rv_or_false = self._with_func(func,arg)
       wf('\trv_or_false: '+pformat(rv_or_false)+'\n','logs/try_until.log','a')
-      if not isinstance(rv_or_false,Exception):
+      if not isinstance(rv_or_false,ErrorFlag):
         return rv_or_false
     else:
       wf((
@@ -72,7 +74,7 @@ class TryUntil:
     except:
       fid = id(func)
       wf(stackprinter.format(sys.exc_info())+'\n',f'logs/tryuntil{fid}.log', 'a')
-      return Exception(f"unable to create a pickleable object from {arg}")
+      return ErrorFlag(msg=f"TryUntil._with_func failed to make {arg} pickleable")
     else:
       return func(arg)
 
@@ -87,7 +89,7 @@ class TryUntilPickleable(TryUntil):
     except:
       fid = id(func)
       wf(stackprinter.format(sys.exc_info()),f'logs/tryuntilpkl{fid}.log', 'w')
-      return Exception(f"unable to create a pickleable object from {arg}")
+      return ErrorFlag(msg=f"TryUntilPickleable._with_func failed to make {arg} pickleable")
     else:
       return pickle.loads(pickle.dumps(func(arg)))
 
@@ -124,3 +126,5 @@ if __name__ == "__main__":
   tu = TryUntil(fs, arg)
   from ipdb import set_trace as st;st()
   print(tu)
+
+

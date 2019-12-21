@@ -1,21 +1,23 @@
-import contextlib
+import contextlib, stackprinter
 
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Container, Collection
 
 def wf(obj,filename,mode="a"):
+  with open('logs/wf.error.log','w') as f:
+    f.write(stackprinter.format())
   path = Path(filename)
   if not path.parent.exists():
     path.mkdir(parents=True, exist_ok=True)
   if isinstance(obj, bytes):
     obj = str(obj)
-  elif isinstance(obj, Iterable):
-    if isinstance(obj, str):
-      pass
-    else:
-      obj = "\n".join(str(obj)) + "\n"
-  with path.open(mode,encoding="utf-8") as f:
-    f.write(str(obj))
+  elif isinstance(obj, Container) and not isinstance(obj,str):
+    obj = "\n".join(str(obj)) + "\n"
+  else:
+    obj = obj
+  with path.open(mode,encoding="utf-8") as f: f.write(str(obj))
+  assert path.exists()
+  with open('logs/history.log','a') as f: f.write(str(path)+'\n')
 
 def rf(filename, mode="r"):
   path = Path(filename)

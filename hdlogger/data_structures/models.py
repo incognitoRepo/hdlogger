@@ -189,21 +189,6 @@ def pickleable_simple(s):
       f.write(stackprinter.format(sys.exc_info()))
     raise SystemExit
 
-# def pickleable_dispatch(obj):
-#   if isinstance(obj,Iterable) and not isinstance(obj,str):
-#     if isinstance(obj, Mapping):
-#       return pickleable_dict(obj)
-#     elif isinstance(obj, Sequence):
-#       return pickleable_list(obj)
-#     else:
-#       with open('logs/models.pickleable_dispatch.log','w') as f:
-#         f.write(stackprinter.format(sys.exc_info()))
-#       raise
-#   elif isinstance(obj,FrameType):
-#     return pickleable_frame(obj)
-#   else:
-#     return pickleable_simple(obj)
-
 
 class PickleableDict(BaseModel):
   d: Optional[Dict[str, Any]] = None

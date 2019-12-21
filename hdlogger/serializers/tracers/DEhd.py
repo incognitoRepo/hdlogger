@@ -57,7 +57,7 @@ _ = """Solution
 def predicate(frame):
   code = frame.f_code
   filename = code.co_filename
-  wf(f"{filename=}, {'youtube' in filename=}\n",'logs/predicate.log','a')
+  wf(f"{filename=}, {('youtube' in filename)=}\n",'logs/predicate.log','a')
   if 'youtube' in filename: return True
   return False
 
@@ -73,8 +73,9 @@ class VariablesWatcher:
     # assert lkeys.issubset(gkeys), f"{lkeys.symmetric_difference(gkeys)}"
     # code assumptions
     code = frame.f_code
-    if not (len(code.co_varnames) == code.co_nlocals == code.co_argcount):
-      raise SystemExit(f"assumption failed: {len(code.co_varnames)=}, {code.co_nlocals=}, {code.co_argcount=}")
+    # nb. node.co_argcount is < varnames and nlocls
+    if not (len(code.co_varnames) == code.co_nlocals):
+      raise SystemExit(f"assumption failed: {len(code.co_varnames)=}, {code.co_nlocals=}")
 
   def check_event(self,frame,event,arg):
     self.check_assumptions(frame,event,arg)

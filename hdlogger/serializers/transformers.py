@@ -3,7 +3,7 @@ import dill as pickle
 from prettyprinter import pformat
 from .classes import PickleableState, PickleableFrame
 from .pickle_dispatch import pickleable_dispatch, FUNCS
-from .picklers import TryUntilPickleable, filtered_dumps
+from .picklers import TryUntilPickleable, filtered_dumps, filtered_loads
 from hdlogger.utils import *
 
 def getcodecontext(frame,lineno,context=2):
@@ -36,6 +36,12 @@ def make_pickleable_state(state,stack) -> PickleableState:
   funcs = FUNCS
   assert isinstance(state.lineno,int), f"{state.lineno=}"
   assert isinstance(state.st_count,int), f"{state.st_count=}"
+  try:
+    a=filtered_dumps(state.frame.f_locals)
+    b=filtered_loads(a)
+  except:
+    wf(stackprinter.format(sys.exc_info()),'logs/filtered_dumps.log','a')
+    raise
   kwds = {
       "frame": pickle.loads(pickle.dumps(state.frame)),
       "event": state.event,

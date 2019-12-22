@@ -32,7 +32,6 @@ def initialize_copyreg():
     (ctypes.Array, pickle_ctypes),
     # (Mapping, pickleable_dict)
   ]
-  wf(f"{special_cases}\n",'logs/init_copyreg.log','a')
   for special_case in special_cases:
     copyreg.pickle(*special_case)
 

@@ -391,7 +391,6 @@ class Trace:
   def run(self, cmd):
     import __main__
     dict = __main__.__dict__
-    # from ipdb import set_trace as st; st()
     self.runctx(cmd, dict, dict)
 
   def runctx(self, cmd, globals=None, locals=None):

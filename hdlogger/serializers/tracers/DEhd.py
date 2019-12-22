@@ -94,14 +94,14 @@ class VariablesWatcher:
 
 class HiDefTracer:
 
-  def __init__(self,vars=None):
+  def __init__(self): #,vars=None):
     self.state = None
     self.pickleable_state = None
     self.pickleable_states = []
     self.pickled_state_as_bytes = []
     self.pickled_state_as_hex = []
     self.dataframe = None
-    self.varswatcher = VariablesWatcher(vars)
+    # self.varswatcher = VariablesWatcher(vars)
 
   def trace_dispatch(self, frame, event, arg):
     """this is the entry point for this class"""
@@ -199,9 +199,8 @@ class HiDefTracer:
     try:
       print(self.pickleable_state.format_call)
     except:
-      sys.settrace(None)
       wf(stackprinter.format(sys.exc_info()),'logs/tracer.user_call.log','a')
-      from ipdb import set_trace as st; st()
+      raise
     return self.trace_dispatch
 
   def user_line(self, frame, pickleable):

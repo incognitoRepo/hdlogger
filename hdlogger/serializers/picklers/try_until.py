@@ -7,6 +7,11 @@ from prettyprinter import pformat
 from hdlogger.utils import *
 from typing import Union, Any, Dict, List
 
+from dill._dill import stack, _main_module
+from dill.settings import settings
+from numpy import ufunc as NumpyUfuncType
+from numpy import ndarray as NumpyArrayType
+
 ClassType = TypeType = type
 
 ErrorFlag = type("ErrorFlag",(object,),{"msg":None})
@@ -255,10 +260,6 @@ def numpyufunc(obj):
 
 def filtered_dump(obj, file, protocol=None, byref=None, fmode=None, recurse=None):#, strictio=None):
     """pickle an object to a file"""
-    from dill._dill import stack, _main_module
-    from dill.settings import settings
-    from numpy import ufunc as NumpyUfuncType
-    from numpy import ndarray as NumpyArrayType
     strictio = False #FIXME: strict=True needs cleanup
     if protocol is None: protocol = settings['protocol']
     if byref is None: byref = settings['byref']
@@ -312,11 +313,10 @@ def filtered_dumps(obj, protocol=None, byref=None, fmode=None, recurse=None):#, 
     filtered_dump(obj, file, protocol, byref, fmode, recurse)#, strictio)
     return file.getvalue()
 
-def load(file, ignore=None):
+def filtered_load(file, ignore=None):
     """unpickle an object from a file"""
-    from .settings import settings
     if ignore is None: ignore = settings['ignore']
-    pik = Unpickler(file)
+    pik = pickle.Unpickler(file)
     pik._main = _main_module
     # apply kwd settings
     pik._ignore = bool(ignore)
@@ -329,7 +329,7 @@ def load(file, ignore=None):
    #_main_module.__dict__.update(obj.__dict__) #XXX: should update globals ?
     return obj
 
-def loads(str, ignore=None):
+def filtered_loads(str, ignore=None):
     """unpickle an object from a string"""
     file = BytesIO(str)
-    return load(file, ignore)
+    return filtered_load(file, ignore)

@@ -43,10 +43,8 @@ class TraceProcessor:
       try:
         pickleable_state = pickle.loads(_as_bytes)
       except:
-        sys.settrace(None)
         wf(stackprinter.format(sys.exc_info()),'logs/pickle.loads.log','a')
-        from ipdb import set_trace as st; st()
-        raise SystemExit(f"{line}")
+        raise
       self.pickleable_states.append(pickleable_state)
 
   def format0(self,Index:int,frame:PickleableFrame,event:str,arg:Any,f_locals:Dict,count:int,function:str,module:str,filename:str,lineno:int,stdlib:bool,source:str,stack:List[str]):

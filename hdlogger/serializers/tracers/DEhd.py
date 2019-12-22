@@ -44,18 +44,10 @@ state_attrs = [
   # 'formatter'
   ]
 
-_ = """Reproduction of Error:
-import ctypes
-import dill as pickle
-dylib=ctypes.CDLL('libc.dylib')
-pickle.loads(pickle.dumps(dylib))
-"""
-
 def predicate(frame):
   code = frame.f_code
   filename = code.co_filename
-  s = f"{filename=}, {'youtube' in filename}\n"
-  wf(s,'logs/predicate.log','a')
+  wf(f"{filename=}",'logs/predicate.log','a')
   if 'youtube' in filename: return True
   return False
 
@@ -113,12 +105,17 @@ class HiDefTracer:
 
   def trace_dispatch(self, frame, event, arg):
     """this is the entry point for this class"""
+
+    wf("1",'logs/trace_dispatch.log','a')
     if not predicate(frame): return
     try:
+      wf("2",'logs/trace_dispatch.log','a')
       assert self.initialize(frame, event, arg)
     except:
+      wf("3",'logs/trace_dispatch.log','a')
       wf( stackprinter.format(sys.exc_info()),'logs/tracer.dispatch.log', 'a')
       raise
+    wf("4",'logs/trace_dispatch.log','a')
     # self.varswatcher.check_event(frame,event,arg)
     if event == 'line':
       return self.dispatch_line(frame, arg)

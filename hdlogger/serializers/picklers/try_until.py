@@ -128,3 +128,142 @@ if __name__ == "__main__":
   print(tu)
 
 
+
+filtered_modules = {
+  'ctypes': lambda obj: repr(obj)
+}
+
+class FilteredPickler(pickle.Pickler):
+  def __init__(self, filtered_modules=filtered_modules, *args, **kwds):
+      self.filtered_modules = filtered_modules
+      super().__init__(*args, **kwds)
+
+  def save(self, obj, save_persistent_id=True):
+    self.framer.commit_frame()
+
+    # Check for persistent id (defined by a subclass)
+    pid = self.persistent_id(obj)
+    if pid is not None and save_persistent_id:
+      self.save_pers(pid)
+      return
+
+    # Check the memo
+    x = self.memo.get(id(obj))
+    if x is not None:
+      self.write(self.get(x[0]))
+      return
+
+    # filter by module
+    if obj.__module__ in self.filtered_modules:
+      return self.filtered_modules[obj.__module__]
+
+    rv = NotImplemented
+    reduce = getattr(self, "reducer_override", None)
+    if reduce is not None:
+      rv = reduce(obj)
+
+    if rv is NotImplemented:
+      # Check the type dispatch table
+      t = type(obj)
+      f = self.dispatch.get(t)
+      if f is not None:
+        f(self, obj)  # Call unbound method with explicit self
+        return
+
+      # Check private dispatch table if any, or else
+      # copyreg.dispatch_table
+      reduce = getattr(self, 'dispatch_table', dispatch_table).get(t)
+      if reduce is not None:
+        rv = reduce(obj)
+      else:
+        # Check for a class with a custom metaclass; treat as regular
+        # class
+        if issubclass(t, type):
+          self.save_global(obj)
+          return
+
+        # Check for a __reduce_ex__ method, fall back to __reduce__
+        reduce = getattr(obj, "__reduce_ex__", None)
+        if reduce is not None:
+          rv = reduce(self.proto)
+        else:
+          reduce = getattr(obj, "__reduce__", None)
+          if reduce is not None:
+            rv = reduce()
+          else:
+            raise PicklingError("Can't pickle %r object: %r" %
+                      (t.__name__, obj))
+
+    # Check for string returned by reduce(), meaning "save as global"
+    if isinstance(rv, str):
+      self.save_global(obj, rv)
+      return
+
+    # Assert that reduce() returned a tuple
+    if not isinstance(rv, tuple):
+      raise PicklingError("%s must return string or tuple" % reduce)
+
+    # Assert that it returned an appropriately sized tuple
+    l = len(rv)
+    if not (2 <= l <= 6):
+      raise PicklingError("Tuple returned by %s must have "
+                "two to six elements" % reduce)
+
+    # Save the reduce() output and finally memoize the object
+    self.save_reduce(obj=obj, *rv)
+
+
+def filtered_dump(obj, file, protocol=None, byref=None, fmode=None, recurse=None):#, strictio=None):
+    """pickle an object to a file"""
+    from .settings import settings
+    strictio = False #FIXME: strict=True needs cleanup
+    if protocol is None: protocol = settings['protocol']
+    if byref is None: byref = settings['byref']
+    if fmode is None: fmode = settings['fmode']
+    if recurse is None: recurse = settings['recurse']
+    stack.clear()  # clear record of 'recursion-sensitive' pickled objects
+    pik = FilteredPickler(file, protocol)
+    pik._main = _main_module
+    # apply kwd settings
+    pik._byref = bool(byref)
+    pik._strictio = bool(strictio)
+    pik._fmode = fmode
+    pik._recurse = bool(recurse)
+    # register if the object is a numpy ufunc
+    # thanks to Paul Kienzle for pointing out ufuncs didn't pickle
+    if NumpyUfuncType and numpyufunc(obj):
+        @register(type(obj))
+        def save_numpy_ufunc(pickler, obj):
+            log.info("Nu: %s" % obj)
+            StockPickler.save_global(pickler, obj)
+            log.info("# Nu")
+            return
+        # NOTE: the above 'save' performs like:
+        #   import copy_reg
+        #   def udump(f): return f.__name__
+        #   def uload(name): return getattr(numpy, name)
+        #   copy_reg.pickle(NumpyUfuncType, udump, uload)
+    # register if the object is a subclassed numpy array instance
+    if NumpyArrayType and ndarraysubclassinstance(obj):
+        @register(type(obj))
+        def save_numpy_array(pickler, obj):
+            log.info("Nu: (%s, %s)" % (obj.shape,obj.dtype))
+            npdict = getattr(obj, '__dict__', None)
+            f, args, state = obj.__reduce__()
+            pickler.save_reduce(_create_array, (f,args,state,npdict), obj=obj)
+            log.info("# Nu")
+            return
+    # end hack
+    if GENERATOR_FAIL and type(obj) == GeneratorType:
+        msg = "Can't pickle %s: attribute lookup builtins.generator failed" % GeneratorType
+        raise PicklingError(msg)
+    else:
+        pik.dump(obj)
+    stack.clear()  # clear record of 'recursion-sensitive' pickled objects
+    return
+
+def filtered_dumps(obj, protocol=None, byref=None, fmode=None, recurse=None):#, strictio=None):
+    """pickle an object to a string"""
+    file = StringIO()
+    filtered_dump(obj, file, protocol, byref, fmode, recurse)#, strictio)
+    return file.getvalue()

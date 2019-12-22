@@ -3,7 +3,7 @@ import optparse, copyreg, inspect, os, ctypes
 import stackprinter, sys, jsonpickle
 import dill as pickle
 
-from typing import Iterable, Mapping, Sequence, Collection
+from typing import Iterable, Iterator, Mapping, Sequence, Collection, Callable
 from types import GeneratorType, FrameType, TracebackType, FunctionType
 
 from hdlogger.utils import *
@@ -19,6 +19,7 @@ FUNCS = [
 ]
 
 def initialize_copyreg():
+  pickle.load_types()
   special_cases = [
     (GeneratorType, pickle_generator),
     (FrameType, pickle_frame),
@@ -28,9 +29,10 @@ def initialize_copyreg():
     (FunctionType, pickle_function),
     (os._Environ, pickle_environ),
     (ctypes.CDLL, pickle_ctypes),
-    (ctypes, pickle_ctypes),
+    (ctypes.Array, pickle_ctypes),
     # (Mapping, pickleable_dict)
   ]
+  wf(f"{special_cases}\n",'logs/init_copyreg.log','a')
   for special_case in special_cases:
     copyreg.pickle(*special_case)
 
@@ -151,12 +153,53 @@ def pickleable_simple(s):
     raise SystemExit
 
 # ===-===-===-===-===-
-def pickle_ctypes(c):
-  kwds = {'ctypes':repr(c)}
-  return unpickle_ctypes, (kwds,)
+def __reduce__():
+  a:Callable
+  b:tuple # args for Callable
+  c:state # passed to obj's __setstate__()
+  d:Iterator # List-like, obj.append(item) | obj.append(list_of_items)
+  e:Iterator # Dict-like, obj[key]=value
+  f:Callable # (obj,state) signature
+
+def copyreg_pickle(type,function,constructor=None):
+  '''_function_ should be used as a "reduction" for _type_ objs
+  function: returns Union[str,tuple(2 or 3 elements)]
+  constructor: Callable: reconstruct the object when called with args from _function_
+  '''
+  pass
+
+def pickle_ctypes(obj):
+  """obj = ctypes.create_string_buffer(1)
+    obj._type_ = ctypes.c_char
+    type(obj) = ctypes.c_char_Array_1
+  """
+  kwds={}
+  if isinstance(obj, ctypes.Array):
+    kwds = {'cls':obj._type_,'wrapper':obj._wrapper,'length':obj._length_}
+    return unpickle_ctypes, (kwds,)
+  elif isinstance(obj,ctypes.CDLL):
+    kwds = {'cls':obj.__class__,'dllpath':obj._name}
+    return unpickle_ctypes, (kwds,)
+  else:
+    kwds = {'cls':type(obj),'wrapper':obj._wrapper,'length':None}
+    return unpickle_ctypes, (kwds,)
 
 def unpickle_ctypes(kwds):
-  return dict(kwds)
+  if kwds['cls'] == ctypes.CDLL:
+    # return kwds['cls'](kwds['dllpath'])
+    return 1
+  elif kwds['cls'] == ctypes.c_char:
+    # return kwds['cls']*kwds['length']
+    return 2
+  else:
+    assert kwds['length'] is None, f"{kwds['length']}"
+    # type_,wrapper,length = kwds.values()
+    # if length is not None:
+    #   type_ = type_ * length
+    # obj = type_.from_address(wrapper.get_address())
+    # obj._wrapper = wrapper
+    # return obj
+    return 3
 
 def pickle_environ(e):
   kwds = e.__dict__.copy()

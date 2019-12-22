@@ -1,6 +1,7 @@
-import stackprinter, sys
+import stackprinter, sys, copyreg
 import dill as pickle
 
+from io import StringIO
 from prettyprinter import pformat
 from hdlogger.utils import *
 from typing import Union, Any, Dict, List
@@ -134,8 +135,8 @@ filtered_modules = {
 }
 
 class FilteredPickler(pickle.Pickler):
-  def __init__(self, filtered_modules=filtered_modules, *args, **kwds):
-      self.filtered_modules = filtered_modules
+  def __init__(self, *args, **kwds):
+      self.filtered_modules = kwds.get('filtered_modules',filtered_modules)
       super().__init__(*args, **kwds)
 
   def save(self, obj, save_persistent_id=True):
@@ -215,7 +216,8 @@ class FilteredPickler(pickle.Pickler):
 
 def filtered_dump(obj, file, protocol=None, byref=None, fmode=None, recurse=None):#, strictio=None):
     """pickle an object to a file"""
-    from .settings import settings
+    from dill._dill import stack, _main_module
+    from dill.settings import settings
     strictio = False #FIXME: strict=True needs cleanup
     if protocol is None: protocol = settings['protocol']
     if byref is None: byref = settings['byref']
@@ -223,6 +225,7 @@ def filtered_dump(obj, file, protocol=None, byref=None, fmode=None, recurse=None
     if recurse is None: recurse = settings['recurse']
     stack.clear()  # clear record of 'recursion-sensitive' pickled objects
     pik = FilteredPickler(file, protocol)
+    pik.dispatch_table = copyreg.dispatch_table.copy()
     pik._main = _main_module
     # apply kwd settings
     pik._byref = bool(byref)

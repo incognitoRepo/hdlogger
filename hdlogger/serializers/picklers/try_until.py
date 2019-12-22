@@ -1,10 +1,13 @@
 import stackprinter, sys, copyreg
 import dill as pickle
 
-from io import StringIO
+from pickle import SETITEM
+from io import StringIO, BytesIO
 from prettyprinter import pformat
 from hdlogger.utils import *
 from typing import Union, Any, Dict, List
+
+ClassType = TypeType = type
 
 ErrorFlag = type("ErrorFlag",(object,),{"msg":None})
 ErrorFlag2 = type("ErrorFlag2",(),{})
@@ -155,7 +158,7 @@ class FilteredPickler(pickle.Pickler):
       return
 
     # filter by module
-    if obj.__module__ in self.filtered_modules:
+    if hasattr(obj,'__module__') and (obj.__module__ in self.filtered_modules):
       return self.filtered_modules[obj.__module__]
 
     rv = NotImplemented
@@ -173,7 +176,7 @@ class FilteredPickler(pickle.Pickler):
 
       # Check private dispatch table if any, or else
       # copyreg.dispatch_table
-      reduce = getattr(self, 'dispatch_table', dispatch_table).get(t)
+      reduce = getattr(self, 'dispatch_table', copyreg.dispatch_table).get(t)
       if reduce is not None:
         rv = reduce(obj)
       else:
@@ -213,11 +216,49 @@ class FilteredPickler(pickle.Pickler):
     # Save the reduce() output and finally memoize the object
     self.save_reduce(obj=obj, *rv)
 
+if sys.hexversion < 0x03040000:
+  GENERATOR_FAIL = True
+else: GENERATOR_FAIL = False
+
+def ndarraysubclassinstance(obj):
+  if type(obj) in (TypeType, ClassType):
+    return False # all classes return False
+  try: # check if is ndarray, and elif is subclass of ndarray
+    cls = getattr(obj, '__class__', None)
+    if cls is None: return False
+    elif cls is TypeType: return False
+    elif 'numpy.ndarray' not in str(getattr(cls, 'mro', int.mro)()):
+      return False
+  except ReferenceError: return False # handle 'R3' weakref in 3.x
+  except TypeError: return False
+  # anything below here is a numpy array (or subclass) instance
+  __hook__() # import numpy (so the following works!!!)
+  # verify that __reduce__ has not been overridden
+  NumpyInstance = NumpyArrayType((0,),'int8')
+  if id(obj.__reduce_ex__) == id(NumpyInstance.__reduce_ex__) and \
+    id(obj.__reduce__) == id(NumpyInstance.__reduce__): return True
+  return False
+
+def numpyufunc(obj):
+  if type(obj) in (TypeType, ClassType):
+    return False # all classes return False
+  try: # check if is ufunc
+    cls = getattr(obj, '__class__', None)
+    if cls is None: return False
+    elif cls is TypeType: return False
+    if 'numpy.ufunc' not in str(getattr(cls, 'mro', int.mro)()):
+      return False
+  except ReferenceError: return False # handle 'R3' weakref in 3.x
+  except TypeError: return False
+  # anything below here is a numpy ufunc
+  return True
 
 def filtered_dump(obj, file, protocol=None, byref=None, fmode=None, recurse=None):#, strictio=None):
     """pickle an object to a file"""
     from dill._dill import stack, _main_module
     from dill.settings import settings
+    from numpy import ufunc as NumpyUfuncType
+    from numpy import ndarray as NumpyArrayType
     strictio = False #FIXME: strict=True needs cleanup
     if protocol is None: protocol = settings['protocol']
     if byref is None: byref = settings['byref']
@@ -267,6 +308,28 @@ def filtered_dump(obj, file, protocol=None, byref=None, fmode=None, recurse=None
 
 def filtered_dumps(obj, protocol=None, byref=None, fmode=None, recurse=None):#, strictio=None):
     """pickle an object to a string"""
-    file = StringIO()
+    file = BytesIO()
     filtered_dump(obj, file, protocol, byref, fmode, recurse)#, strictio)
     return file.getvalue()
+
+def load(file, ignore=None):
+    """unpickle an object from a file"""
+    from .settings import settings
+    if ignore is None: ignore = settings['ignore']
+    pik = Unpickler(file)
+    pik._main = _main_module
+    # apply kwd settings
+    pik._ignore = bool(ignore)
+    obj = pik.load()
+    if type(obj).__module__ == getattr(_main_module, '__name__', '__main__'):
+        if not ignore:
+            # point obj class to main
+            try: obj.__class__ = getattr(pik._main, type(obj).__name__)
+            except (AttributeError,TypeError): pass # defined in a file
+   #_main_module.__dict__.update(obj.__dict__) #XXX: should update globals ?
+    return obj
+
+def loads(str, ignore=None):
+    """unpickle an object from a string"""
+    file = BytesIO(str)
+    return load(file, ignore)

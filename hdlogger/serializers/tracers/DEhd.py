@@ -106,16 +106,12 @@ class HiDefTracer:
   def trace_dispatch(self, frame, event, arg):
     """this is the entry point for this class"""
 
-    wf("1",'logs/trace_dispatch.log','a')
     if not predicate(frame): return
     try:
-      wf("2",'logs/trace_dispatch.log','a')
       assert self.initialize(frame, event, arg)
     except:
-      wf("3",'logs/trace_dispatch.log','a')
       wf( stackprinter.format(sys.exc_info()),'logs/tracer.dispatch.log', 'a')
       raise
-    wf("4",'logs/trace_dispatch.log','a')
     # self.varswatcher.check_event(frame,event,arg)
     if event == 'line':
       return self.dispatch_line(frame, arg)

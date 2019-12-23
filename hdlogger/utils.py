@@ -17,8 +17,7 @@ def wf(obj,filename,mode="a"):
     s = f"container instance:\n{obj=}\n{nobj=}{end}"
   else:
     nobj = obj
-    s = f"else case:\n{obj=}\n{nobj=}{end}"
-  s = f"write obj:\n{str(nobj)=}\n{nobj=}{end}"`
+  s = f"write obj:\n{str(nobj)=}\n{nobj=}{end}"
   with path.open(mode,encoding="utf-8") as f: f.write(str(nobj))
   assert path.exists()
   with open('logs/history.log','a') as f: f.write(str(path)+'\n')

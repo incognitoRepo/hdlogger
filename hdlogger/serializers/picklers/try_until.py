@@ -37,8 +37,8 @@ class TryUntil:
     """
     funcs = funcs if funcs else self.funcs
     arg = arg if arg else self.arg
-    wf(f"{funcs=}\n",'logs/try_until.log','a')
-    wf(f"{arg=}\n",'logs/try_until.log','a')
+    # wf(f"{funcs=}\n",'logs/try_until.log','a')
+    # wf(f"{arg=}\n",'logs/try_until.log','a')
     if isinstance(arg,(List,Dict)):
       return self._try_until_container(funcs,arg)
     else:
@@ -46,13 +46,13 @@ class TryUntil:
 
   def _try_until(self,funcs=[],arg=None):
     """iterates thru a list of functions, returning on the first success"""
-    wf(f"in _try_until:\n",'logs/try_until.log','a')
-    wf('\targ: '+pformat(arg)+'\n','logs/try_until.log','a')
+    # wf(f"in _try_until:\n",'logs/try_until.log','a')
+    # wf('\targ: '+pformat(arg)+'\n','logs/try_until.log','a')
     l,rv_or_false = [], None
     for func in funcs:
-      wf('\tfunc: '+pformat(func)+'\n','logs/try_until.log','a')
+      # wf('\tfunc: '+pformat(func)+'\n','logs/try_until.log','a')
       rv_or_false = self._with_func(func,arg)
-      wf('\trv_or_false: '+pformat(rv_or_false)+'\n','logs/try_until.log','a')
+      # wf('\trv_or_false: '+pformat(rv_or_false)+'\n','logs/try_until.log','a')
       if not isinstance(rv_or_false,ErrorFlag):
         return rv_or_false
     else:
@@ -66,15 +66,15 @@ class TryUntil:
 
   def _try_until_container(self,funcs=[],args=None):
     """for container types: e.g., List, Dict"""
-    wf(f"in _try_until_container:\n",'logs/try_until.log','a')
+    # wf(f"in _try_until_container:\n",'logs/try_until.log','a')
     funcs = funcs if funcs else self.funcs
     args = args if args else self.arg
-    wf('args: '+pformat(args)+'\n','logs/try_until.log','a')
+    # wf('args: '+pformat(args)+'\n','logs/try_until.log','a')
     l = []
     for arg in args:
-      wf('arg: '+pformat(arg)+'\n','logs/try_until.log','a')
+      # wf('arg: '+pformat(arg)+'\n','logs/try_until.log','a')
       l.append(self._try_until(funcs,arg))
-      wf('l: '+pformat(l)+'\n','logs/try_until.log','a')
+      # wf('l: '+pformat(l)+'\n','logs/try_until.log','a')
     return l
 
   def _with_func(self,func,arg) -> Union[type(False),Any]:

@@ -109,7 +109,8 @@ class HiDefTracer:
     if not predicate(frame):
       return
     try:
-      wf('a\n','logs/trace_dispatch.predicate.log','a')
+      s = f"{frame.f_code.co_filename}{frame.f_lineno}\n"
+      wf(s,'logs/trace_dispatch.predicate.log','a')
       assert self.initialize(frame, event, arg)
     except:
       wf( stackprinter.format(sys.exc_info()),'logs/tracer.dispatch.log', 'a')
@@ -140,11 +141,11 @@ class HiDefTracer:
       _as_dict = self.pickleable_state.asdict()
       _as_bytes = pickle.dumps(self.pickleable_state)
       _as_hexad = _as_bytes.hex()
-      wf(pformat(_as_dict)+"\n",'logs/02.pickleable_states.tracer.log', 'a')
+      # wf(pformat(_as_dict)+"\n",'logs/02.pickleable_states.tracer.log', 'a') # TODO: must uncomment
     except:
       wf( stackprinter.format(sys.exc_info()),'logs/cant.make.log', 'a')
       raise
-    wf(_as_hexad+"\n","logs/03.pickled_states_hex.tracer.log","a")
+    # wf(_as_hexad+"\n","logs/03.pickled_states_hex.tracer.log","a") # TODO: must uncomment
     self.pickleable_states.append(self.pickleable_state)
     return True
 
@@ -171,7 +172,7 @@ class HiDefTracer:
 
   def dispatch_return(self, frame, arg):
     """note: there are a few `special cases` wrt `arg`"""
-    if arg is None: return ""
+    if arg is None: arg = repr(None)
     try:
       pickleable = self.pickleable_state.arg
     except:

@@ -241,7 +241,7 @@ class State:
   _counter = count(0)
 
   def __init__(self, frame, event, arg):
-    wf(repr(arg)+"\n",'logs/01.initial_arg.state.log', 'a')
+    # wf(repr(arg)+"\n",'logs/01.initial_arg.state.log', 'a') # TODO: must uncomment
     self.frame = frame
     self.event = event
     self.arg = arg

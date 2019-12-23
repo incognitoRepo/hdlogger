@@ -61,7 +61,14 @@ def make_pickleable_state(state,stack) -> PickleableState:
   try:
     tup = TryUntilPickleable(funcs=funcs,arg=kwds.values())
     rvl = tup.try_until()
-    nkwds = {k:v for k,v in zip(kwds.keys(),rvl)}
+    nkwds = {}
+    for k,v in zip(kwds.keys(),rvl):
+      if (
+        k == 'builtins'
+        or k.startswith('_')
+      ): continue
+      else:
+        nkwds.update({k:v})
     # wf(pformat(nkwds),'logs/make_pickleable_state.debug.log','a')
     pickleable_state = PickleableState(nkwds)
   except:

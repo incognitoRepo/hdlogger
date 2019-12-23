@@ -126,7 +126,7 @@ def pickleable_list(l):
               l2.append(dde)
             except: pass
           wf( stackprinter.format(sys.exc_info()),'logs/models.unpickleable.log', 'a')
-          raise SystemExit
+          raise
       return l2
 
 def pickleable_simple(s):
@@ -149,7 +149,7 @@ def pickleable_simple(s):
       except:
         pass
     wf( stackprinter.format(sys.exc_info()),'logs/models.unpickleable.log', 'a')
-    raise SystemExit
+    raise
 
 # ===-===-===-===-===-
 def __reduce__():

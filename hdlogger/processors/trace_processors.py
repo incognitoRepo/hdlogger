@@ -70,7 +70,7 @@ class TraceProcessor:
     except:
       s = stackprinter.format(sys.exc_info())
       wf(s, f"logs/{__name__}.log",'a')
-      raise SystemExit("problem is in the formatter")
+      raise
     return s
 
   @property
@@ -82,7 +82,7 @@ class TraceProcessor:
     except:
       s = stackprinter.format(sys.exc_info())
       wf(s, f"logs/{__name__}.log",'a')
-      raise SystemExit("problem is in the formatter")
+      raise
     return s
 
   @property

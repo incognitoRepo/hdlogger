@@ -141,6 +141,9 @@ if __name__ == "__main__":
 filtered_modules = {
   'ctypes': lambda obj: repr(obj)
 }
+def module_filters(obj):
+  if hasattr(obj,'__module__') and (obj.__module__ in filtered_modules):
+    return filtered_modules[obj.__module__]
 
 class FilteredPickler(pickle.Pickler):
   def __init__(self, *args, **kwds):
@@ -148,78 +151,12 @@ class FilteredPickler(pickle.Pickler):
       super().__init__(*args, **kwds)
 
   def save(self, obj, save_persistent_id=True):
-    self.framer.commit_frame()
-
-    # Check for persistent id (defined by a subclass)
-    pid = self.persistent_id(obj)
-    if pid is not None and save_persistent_id:
-      self.save_pers(pid)
-      return
-
-    # Check the memo
-    x = self.memo.get(id(obj))
-    if x is not None:
-      self.write(self.get(x[0]))
-      return
-
-    # filter by module
-    if hasattr(obj,'__module__') and (obj.__module__ in self.filtered_modules):
-      return self.filtered_modules[obj.__module__]
-
-    rv = NotImplemented
-    reduce = getattr(self, "reducer_override", None)
-    if reduce is not None:
-      rv = reduce(obj)
-
-    if rv is NotImplemented:
-      # Check the type dispatch table
-      t = type(obj)
-      f = self.dispatch.get(t)
-      if f is not None:
-        f(self, obj)  # Call unbound method with explicit self
-        return
-
-      # Check private dispatch table if any, or else
-      # copyreg.dispatch_table
-      reduce = getattr(self, 'dispatch_table', copyreg.dispatch_table).get(t)
-      if reduce is not None:
-        rv = reduce(obj)
-      else:
-        # Check for a class with a custom metaclass; treat as regular
-        # class
-        if issubclass(t, type):
-          self.save_global(obj)
-          return
-
-        # Check for a __reduce_ex__ method, fall back to __reduce__
-        reduce = getattr(obj, "__reduce_ex__", None)
-        if reduce is not None:
-          rv = reduce(self.proto)
-        else:
-          reduce = getattr(obj, "__reduce__", None)
-          if reduce is not None:
-            rv = reduce()
-          else:
-            raise PicklingError("Can't pickle %r object: %r" %
-                      (t.__name__, obj))
-
-    # Check for string returned by reduce(), meaning "save as global"
-    if isinstance(rv, str):
-      self.save_global(obj, rv)
-      return
-
-    # Assert that reduce() returned a tuple
-    if not isinstance(rv, tuple):
-      raise PicklingError("%s must return string or tuple" % reduce)
-
-    # Assert that it returned an appropriately sized tuple
-    l = len(rv)
-    if not (2 <= l <= 6):
-      raise PicklingError("Tuple returned by %s must have "
-                "two to six elements" % reduce)
-
-    # Save the reduce() output and finally memoize the object
-    self.save_reduce(obj=obj, *rv)
+    # filter modules
+    obj = module_filters(obj)
+    try:
+      return super().save(obj, save_persistent_id=True)
+    except:
+      return repr(obj)
 
 if sys.hexversion < 0x03040000:
   GENERATOR_FAIL = True

@@ -145,7 +145,7 @@ class HiDefTracer:
       wf(pformat(_as_dict)+"\n",'logs/02.pickleable_states.tracer.log', 'a')
     except:
       wf( stackprinter.format(sys.exc_info()),'logs/cant.make.log', 'a')
-      raise SystemExit("shouldnt be here")
+      raise
     wf(_as_hexad+"\n","logs/03.pickled_states_hex.tracer.log","a")
     self.pickleable_states.append(self.pickleable_state)
     return True

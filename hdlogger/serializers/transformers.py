@@ -45,8 +45,8 @@ def make_pickleable_state(state,stack) -> PickleableState:
   kwds = {
       "frame": pickle.loads(pickle.dumps(state.frame)),
       "event": state.event,
-      "arg": pickle.loads(pickle.dumps(state.arg)),
-      "f_locals": pickle.loads(filtered_dumps(state.frame.f_locals)),
+      "arg": filtered_loads(filtered_dumps(state.arg)),
+      "f_locals": filtered_loads(filtered_dumps(state.frame.f_locals)),
       "st_count": state.st_count,
       "function": state.function,
       "module": state.module,

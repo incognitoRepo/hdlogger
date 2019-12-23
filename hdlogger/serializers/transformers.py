@@ -56,13 +56,13 @@ def make_pickleable_state(state,stack) -> PickleableState:
       "source": state.source,
       "stack": [elm for elm in PickleableState._stack]
     }
-  wf(pformat(kwds),'logs/make_pklbl_st.log','a')
+  # wf(pformat(kwds),'logs/make_pklbl_st.log','a')
   assert pickle.loads(pickle.dumps(kwds)) # so the problem is in TryUntilPickleable
   try:
     tup = TryUntilPickleable(funcs=funcs,arg=kwds.values())
     rvl = tup.try_until()
     nkwds = {k:v for k,v in zip(kwds.keys(),rvl)}
-    wf(pformat(nkwds),'logs/make_pickleable_state.debug.log','a')
+    # wf(pformat(nkwds),'logs/make_pickleable_state.debug.log','a')
     pickleable_state = PickleableState(nkwds)
   except:
     wf(stackprinter.format(sys.exc_info()),'logs/make_pickleable_state.error.log','a')

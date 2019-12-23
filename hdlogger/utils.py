@@ -20,7 +20,7 @@ def wf(obj,filename,mode="a"):
   s = f"write obj:\n{str(nobj)=}\n{nobj=}{end}"
   with path.open(mode,encoding="utf-8") as f: f.write(str(nobj))
   assert path.exists()
-  with open('logs/history.log','a') as f: f.write(str(path)+'\n')
+  # with open('logs/history.log','a') as f: f.write(str(path)+'\n')
 
 def rf(filename, mode="r"):
   path = Path(filename)

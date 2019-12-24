@@ -29,6 +29,7 @@ def make_pickleable_frame(frame):
     "local_vars": frame.f_code.co_names,
     "code_context": getcodecontext(frame,frame.f_lineno)[0],
     "count": getcodecontext(frame,frame.f_lineno)[1],
+    "f_code": frame.f_code
   }
   return PickleableFrame(kwds)
 

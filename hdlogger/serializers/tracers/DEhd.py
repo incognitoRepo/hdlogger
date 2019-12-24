@@ -105,7 +105,8 @@ class HiDefTracer:
 
   def trace_dispatch(self, frame, event, arg):
     """this is the entry point for this class"""
-
+    s = f"{event=}\n{frame.f_lineno=}\n{frame.f_code.co_filename=}\n{arg=}\n"
+    wf(s, 'logs/tempdebug.log','a')
     if not predicate(frame):
       return
     try:
@@ -145,7 +146,7 @@ class HiDefTracer:
     except:
       wf( stackprinter.format(sys.exc_info()),'logs/cant.make.log', 'a')
       raise
-    # wf(_as_hexad+"\n","logs/03.pickled_states_hex.tracer.log","a") # TODO: must uncomment
+    wf(_as_hexad+"\n","logs/03.pickled_states_hex.tracer.log","a") # TODO: must uncomment
     self.pickleable_states.append(self.pickleable_state)
     return True
 
@@ -172,7 +173,7 @@ class HiDefTracer:
 
   def dispatch_return(self, frame, arg):
     """note: there are a few `special cases` wrt `arg`"""
-    if arg is None: arg = repr(None)
+    if arg is None: arg = 'None'
     try:
       pickleable = self.pickleable_state.arg
     except:

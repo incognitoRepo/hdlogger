@@ -3,6 +3,7 @@ from functools import singledispatchmethod, cached_property
 from toolz.functoolz import compose_left
 from itertools import count
 from typing import Union, TypeVar
+from types import CodeType
 from hunter.const import SYS_PREFIX_PATHS
 from hdlogger.utils import *
 COL=80
@@ -87,14 +88,17 @@ class BaseEvt:
 
 class CallEvt(BaseEvt):
   symbol = "=>"
-  def __init__(self, function=None, f_locals=None, stack=None):
+  def __init__(self, function=None, f_locals=None, keys=None, stack=None):
+    assert isinstance(f_locals,dict)
     self.function = function
     self.f_locals = f_locals
+    self.keys = keys
     self.stack = stack
     self.pid = id(self)
 
   def __str__(self):
     function, f_locals, pid = self.function, self.f_locals, self.pid
+    assert isinstance(f_locals,dict)
     s = f"<CallEvt object: function={function}, f_locals={f_locals}, id={pid}>"
     return s
 
@@ -109,11 +113,13 @@ class CallEvt(BaseEvt):
 
   @property
   def nonstatic(self):
-    function, f_locals = self.function, self.f_locals
-    fmtdlns = prettyprinter.pformat(f_locals).splitlines()
-    _first,*_rest = fmtdlns
+    function, f_locals, keys = self.function, self.f_locals, self.keys
+    fmtdlns = prettyprinter.pformat(
+      {k:f_locals[k] for k in keys}
+    ).splitlines()
+    _first_as_str,*_rest_as_list = fmtdlns
     joinstr = '\n' + self.indent(length=len(function))
-    rv = f"{function}{_first}\n{joinstr.join(_rest)}\n"
+    rv = f"{function}{_first_as_str}\n{joinstr.join(_rest_as_list)}\n"
     return rv
 
   def pformat(self,count,filename,lineno,event):
@@ -299,6 +305,7 @@ class PickleableFrame:
     self.local_vars = kwds['local_vars']
     self.code_context = kwds['code_context']
     self.st_count = kwds['count']
+    self.f_code = kwds['f_code']
 
   def __str__(self,color=False):
     return prettyprinter.pformat(self.__dict__)
@@ -310,6 +317,7 @@ class PickleableState:
     self.event: str = kwds['event']
     self.arg: Any = kwds['arg']
     self.f_locals: Dict = kwds['f_locals']
+    self.f_code = self.frame.f_code
     self.st_count: int = kwds['st_count']
     self.function: str = kwds['function']
     self.module: str = kwds['module']
@@ -342,7 +350,12 @@ class PickleableState:
   def format_call(self):
     PickleableState._stack.append(f"{self.module}.{self.function}")
     self.stack = PickleableState._stack[:]
-    callevt = CallEvt(self.function, self.f_locals, self.stack)
+    callevt = CallEvt(
+      self.function,
+      self.f_locals,
+      self.f_code.co_varnames[:self.f_code.co_argcount],
+      self.stack
+    )
     static_vars = (self.st_count,self.filename,f"{self.lineno:<5}",self.event)
     static,pseudo,nonsta = callevt.static(static_vars),callevt.pseudo_static,callevt.nonstatic
     return static+pseudo+nonsta

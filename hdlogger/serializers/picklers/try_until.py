@@ -12,6 +12,8 @@ from dill.settings import settings
 from numpy import ufunc as NumpyUfuncType
 from numpy import ndarray as NumpyArrayType
 
+from hdlogger.serializers.pickle_dispatch import pickleable_dispatch, initialize_copyreg
+
 ClassType = TypeType = type
 
 ErrorFlag = type("ErrorFlag",(object,),{"msg":None})
@@ -204,6 +206,7 @@ def filtered_dump(obj, file, protocol=None, byref=None, fmode=None, recurse=None
     if recurse is None: recurse = settings['recurse']
     stack.clear()  # clear record of 'recursion-sensitive' pickled objects
     pik = FilteredPickler(file, protocol)
+    initialize_copyreg()
     pik.dispatch_table = copyreg.dispatch_table.copy()
     pik._main = _main_module
     # apply kwd settings
@@ -217,7 +220,7 @@ def filtered_dump(obj, file, protocol=None, byref=None, fmode=None, recurse=None
         @register(type(obj))
         def save_numpy_ufunc(pickler, obj):
             log.info("Nu: %s" % obj)
-            StockPickler.save_global(pickler, obj)
+            FilteredPickler.save_global(pickler, obj)
             log.info("# Nu")
             return
         # NOTE: the above 'save' performs like:

@@ -47,10 +47,10 @@ state_attrs = [
 def predicate(frame):
   code = frame.f_code
   filename = code.co_filename
-  # wf(f"{filename=}",'logs/predicate.log','a')
   if 'youtube' in filename: return True
   return False
 
+@singledispatch
 def arg_shortcut_preprocess(arg):
   try:
     modname = inspect.getmodule(arg).__name__
@@ -60,6 +60,19 @@ def arg_shortcut_preprocess(arg):
     if hasattr(arg,'__module__') and modname == 'ctypes':
       return repr(arg)
     return arg
+
+@arg_shortcut_preprocess.register
+def _(arg:dict):
+  nd = {}
+  for k,v in arg.items():
+    try:
+      modename = inspect.getmodule(arg).__name__
+    except:
+      nd.update({k:v})
+    else:
+      if hasattr(arg,'__module__') and modname == 'ctypes':
+        nd.update({k:repr(v)})
+      return nd.update({k:v})
 
 class VariablesWatcher:
 
@@ -140,7 +153,7 @@ class HiDefTracer:
 
   def initialize(self, frame, event, arg):
     arg = arg_shortcut_preprocess(arg)
-    wf(f'1. {type(arg)=}, {arg=}\n','logs/DEhd.initialize.138.log','a')`
+    wf(f'1. {type(arg)=}, {arg=}\n','logs/DEhd.initialize.138.log','a')
     if hasattr(arg,'__module__') and arg.__module__ == 'ctypes':
       wf(f'2. {type(arg)=}, {arg=}\n', 'logs/DEhd.initialize.138.log', 'a')
       initialize_copyreg(Type2Add=type(arg))

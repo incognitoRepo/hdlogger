@@ -27,10 +27,9 @@ class ErrorFlag:
 class TryUntil:
   def __init__(self,funcs,arg):
     self.funcs = funcs
-    self.arg = TryUntil.initialize_arg(arg)
+    self.arg = self.initialize_arg(arg)
 
-  @classmethod
-  def initialize_arg(cls,arg):
+  def initialize_arg(self,arg):
     if isinstance(arg,type({}.values())):
       arg = list(arg)
     else:
@@ -42,10 +41,6 @@ class TryUntil:
         Any: the return value of func(arg)
         func: makes arg `pickleable`
     """
-    funcs = funcs if funcs else self.funcs
-    arg = arg if arg else self.arg
-    # wf(f"{funcs=}\n",'logs/try_until.log','a')
-    # wf(f"{arg=}\n",'logs/try_until.log','a')
     if isinstance(arg,(List,Dict)):
       return self._try_until_container(funcs,arg)
     else:
@@ -53,13 +48,9 @@ class TryUntil:
 
   def _try_until(self,funcs=[],arg=None):
     """iterates thru a list of functions, returning on the first success"""
-    # wf(f"in _try_until:\n",'logs/try_until.log','a')
-    # wf('\targ: '+pformat(arg)+'\n','logs/try_until.log','a')
     l,rv_or_false = [], None
     for func in funcs:
-      # wf('\tfunc: '+pformat(func)+'\n','logs/try_until.log','a')
       rv_or_false = self._with_func(func,arg)
-      # wf('\trv_or_false: '+pformat(rv_or_false)+'\n','logs/try_until.log','a')
       if not isinstance(rv_or_false,ErrorFlag):
         return rv_or_false
     else:
@@ -73,10 +64,6 @@ class TryUntil:
 
   def _try_until_container(self,funcs=[],args=None):
     """for container types: e.g., List, Dict"""
-    # wf(f"in _try_until_container:\n",'logs/try_until.log','a')
-    funcs = funcs if funcs else self.funcs
-    args = args if args else self.arg
-    # wf('args: '+pformat(args)+'\n','logs/try_until.log','a')
     l = []
     for arg in args:
       # wf('arg: '+pformat(arg)+'\n','logs/try_until.log','a')
@@ -97,6 +84,7 @@ class TryUntil:
 class TryUntilPickleable(TryUntil):
   def __init__(self,funcs,arg):
     super().__init__(funcs=funcs,arg=arg)
+    hdlogger.serializers.initialize_copyreg()
 
   def _with_func(self,func,arg):
     try:

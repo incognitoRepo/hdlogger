@@ -136,9 +136,9 @@ class HiDefTracer:
 
   def initialize(self, frame, event, arg):
     _ = lambda x: x.__module__ if hasattr(x,'__module__') else repr(x.__class__)
-    wf(f'1. {arg=}, {_(arg)}','logs/DEhd.initialize.138.log','a')
+    wf(f'1. {arg=}, {_(arg)}\n','logs/DEhd.initialize.138.log','a')
     if hasattr(arg,'__module__') and arg.__module__ == 'ctypss':
-      wf(f'2. {arg=}', 'logs/DEhd.initialize.139.log', 'a')
+      wf(f'2. {arg=}\n', 'logs/DEhd.initialize.139.log', 'a')
       initialize_copyreg(Type2Add=type(arg))
     else:
       initialize_copyreg()

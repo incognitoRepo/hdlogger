@@ -38,20 +38,21 @@ def make_pickleable_state(state,stack) -> PickleableState:
   funcs = FUNCS
   assert isinstance(state.lineno,int), f"{state.lineno=}"
   assert isinstance(state.st_count,int), f"{state.st_count=}"
-  try:
-    fls = state.frame.f_locals; assert isinstance(fls,dict)
-    a=pickleable_dict(state.frame.f_locals)
-    wf(f"{a=}",'logs/transformers.make_pklbl_st.log','a')
-    wf('\n'.join([f"{k}: {v}" for k,v in state.frame.f_locals.items()]),'logs/transformers.make_pklbl_st.log','a')
-    b=pickle.loads(a)
-  except:
-    wf(stackprinter.format(sys.exc_info()),'logs/filtered_dumps.log','a')
-    raise
+  # try:
+  #   fls = state.frame.f_locals; assert isinstance(fls,dict)
+  #   a=pickleable_dict(state.frame.f_locals)
+  #   wf(f"{a=}",'logs/transformers.make_pklbl_st.log','a')
+  #   wf('\n'.join([f"{k}: {v}" for k,v in state.frame.f_locals.items()]),'logs/transformers.make_pklbl_st.log','a')
+  #   b=pickle.loads(a)
+  # except:
+  #   wf(stackprinter.format(sys.exc_info()),'logs/filtered_dumps.log','a')
+  #   raise
   kwds = {
       "frame": pickle.loads(pickle.dumps(state.frame)),
       "event": state.event,
-      "arg": pickle.loads(dumps_with_custom_pickler(state.arg)),
-      "f_locals": pickle.loads(dumps_with_custom_pickler(state.frame.f_locals)),
+      "arg": pickle.loads(pickle.dumps(pickleable_dispatch(state.arg))),
+      # "f_locals": pickle.loads(dumps_with_custom_pickler(state.frame.f_locals)),
+      "f_locals": pickle.loads(pickle.dumps(pickleable_dict(state.frame.f_locals))),
       "st_count": state.st_count,
       "function": state.function,
       "module": state.module,

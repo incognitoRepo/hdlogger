@@ -35,26 +35,27 @@ def initialize_copyreg():
   for special_case in special_cases:
     copyreg.pickle(*special_case)
 
-def pickleable_dispatch(obj):
+def pickleable_dispatch(arg):
+  """dispatch for ensuring `arg`
+  (which is passed to sys.settrace) is pickleable.
+  ..arg: Any
+  """
   try:
-    return pickle.loads(pickle.dumps(obj))
+    return pickle.loads(pickle.dumps(arg))
   except:
-    if isinstance(obj, bytes): obj = str(obj)
-    if isinstance(obj,Iterable) and not isinstance(obj,str):
-      if isinstance(obj, Mapping):
-        return pickleable_dict(obj)
-      elif isinstance(obj, Sequence):
-        return pickleable_list(obj)
-      else:
-        wf(stackprinter.format(sys.exc_info()),'logs/models.pickleable_dispatch.log','a')
-        raise
-    elif isinstance(obj,FrameType):
-      return pickleable_frame(obj)
+    if isinstance(arg, bytes):
+      return str(arg)
+    if isinstance(arg, str):
+      return arg
+    if isinstance(arg,Mapping):
+      return pickleable_dict(arg)
+    NonStrIterable = lambda arg: isinstance(arg,Iterable) and not isinstance(arg,str)
+    if NonStrIterable(arg):
+      return pickleable_list(arg)
+    if isinstance(arg,FrameType):
+      return pickleable_frame(arg)
     else:
-      return pickleable_simple(obj)
-    s = stackprinter.format(sys.exc_info())
-    print(s)
-    raise SystemExit(f"failure in pickleable_dispatch: cannot pickle {obj}")
+      return pickleable_simple(arg)
 
 def pickleable_environ(env):
   envd = dict(env)
@@ -92,23 +93,6 @@ def pickleable_dict(d):
   except:
     wf(stackprinter.format(sys.exc_info()),'logs/pickle_dispatcch.pickleable_dict.error.log','a')
     raise
-
-
-  # if not any(rvl):
-  #   """all of the values in the dict are not pickleable (rare!)"""
-  #   s = stackprinter.format(sys.exc_info())
-  #   wf( (
-  #     f"unable to pickle {d}\n\n"
-  #     f"{stackprinter.format(sys.exc_info())}"
-  #     ),
-  #     'logs/.tracers.log', mode="a"
-  #   )
-  #   raise
-  # elif all(rvl):
-  #   return {k:v for k,v in zip(d.keys(),rvl)}
-  # else:
-  #   return {k:v if v else repr(d[k]) for k,v in zip(d.keys(),rvl)}
-
 
 def pickleable_globals(g):
   cp = g.copy()

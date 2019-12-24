@@ -16,8 +16,13 @@ import hdlogger
 
 ClassType = TypeType = type
 
-ErrorFlag = type("ErrorFlag",(object,),{"msg":None})
-ErrorFlag2 = type("ErrorFlag2",(),{})
+class ErrorFlag:
+  def __init__(self,arg):
+    self.arg = arg
+
+  def __str__(self):
+    s = f"TryUntilPickleable._with_func failed to make {arg} pickleable"
+    return s
 
 class TryUntil:
   def __init__(self,funcs,arg):
@@ -99,7 +104,7 @@ class TryUntilPickleable(TryUntil):
     except:
       fid = id(func)
       wf(stackprinter.format(sys.exc_info()),f'logs/tryuntilpkl{fid}.log', 'w')
-      return ErrorFlag(msg=f"TryUntilPickleable._with_func failed to make {arg} pickleable")
+      return ErrorFlag(arg)
     else:
       return pickle.loads(pickle.dumps(func(arg)))
 
@@ -193,39 +198,3 @@ def numpyufunc(obj):
   except TypeError: return False
   # anything below here is a numpy ufunc
   return True
-
-# def filtered_dump(obj, file, protocol=None, byref=None, fmode=None, recurse=None):
-#   rv = dump_with_custom_pickler(obj, file, protocol=None, Pickler=FilteredPickler, byref=None, fmode=None, recurse=None)
-#   return rv
-
-# def filtered_dumps(obj, protocol=None, byref=None, fmode=None, recurse=None):
-#     """pickle an object to a string"""
-#     hdlogger.serializers.initialize_copyreg()
-#     file = BytesIO()
-#     print('calling {filtered_dumps=}')
-#     filtered_dump(obj, file, protocol, byref, fmode, recurse)#, strictio)
-#     return file.getvalue()
-
-# def filtered_load(file, ignore=None):
-#     """unpickle an object from a file"""
-#     if ignore is None: ignore = settings['ignore']
-#     pik = pickle.Unpickler(file)
-#     hdlogger.serializers.initialize_copyreg()
-#     pik._main = _main_module
-#     # apply kwd settings
-#     pik._ignore = bool(ignore)
-#     obj = pik.load()
-#     if type(obj).__module__ == getattr(_main_module, '__name__', '__main__'):
-#         if not ignore:
-#             # point obj class to main
-#             try: obj.__class__ = getattr(pik._main, type(obj).__name__)
-#             except (AttributeError,TypeError): pass # defined in a file
-#    #_main_module.__dict__.update(obj.__dict__) #XXX: should update globals ?
-#     return obj
-
-# def filtered_loads(str, ignore=None):
-#     """unpickle an object from a string"""
-#     hdlogger.serializers.initialize_copyreg()
-#     file = BytesIO(str) # BytesIO(str)
-#     print('calling {filtered_loads=}')
-#     return dill_load(file, ignore)

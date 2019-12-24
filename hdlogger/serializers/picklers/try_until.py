@@ -12,7 +12,9 @@ from dill.settings import settings
 from numpy import ufunc as NumpyUfuncType
 from numpy import ndarray as NumpyArrayType
 
-from hdlogger.serializers.pickle_dispatch import pickleable_dispatch, initialize_copyreg
+# from ..pickle_dispatch import pickleable_dispatch, initialize_copyreg
+import hdlogger
+print(dir(hdlogger))
 
 ClassType = TypeType = type
 
@@ -257,6 +259,7 @@ def filtered_load(file, ignore=None):
     """unpickle an object from a file"""
     if ignore is None: ignore = settings['ignore']
     pik = pickle.Unpickler(file)
+    initialize_copyreg()
     pik._main = _main_module
     # apply kwd settings
     pik._ignore = bool(ignore)

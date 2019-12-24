@@ -152,13 +152,13 @@ def pickleable_simple(s):
     raise
 
 # ===-===-===-===-===-
-def __reduce__():
-  a:Callable
-  b:tuple # args for Callable
-  c:state # passed to obj's __setstate__()
-  d:Iterator # List-like, obj.append(item) | obj.append(list_of_items)
-  e:Iterator # Dict-like, obj[key]=value
-  f:Callable # (obj,state) signature
+# def __reduce__():
+#   a:Callable
+#   b:tuple # args for Callable
+#   c:state # passed to obj's __setstate__()
+#   d:Iterator # List-like, obj.append(item) | obj.append(list_of_items)
+#   e:Iterator # Dict-like, obj[key]=value
+#   f:Callable # (obj,state) signature
 
 def copyreg_pickle(type,function,constructor=None):
   '''_function_ should be used as a "reduction" for _type_ objs

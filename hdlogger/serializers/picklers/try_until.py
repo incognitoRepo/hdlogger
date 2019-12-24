@@ -14,7 +14,11 @@ from numpy import ndarray as NumpyArrayType
 
 # from ..pickle_dispatch import pickleable_dispatch, initialize_copyreg
 import hdlogger
-print(dir(hdlogger))
+from pprint import pformat
+dir_hdlogger = pformat(dir(hdlogger))
+# mod = __module__
+wf(f"{dir_hdlogger}\n",'logs/try_until.module.log','a')
+
 
 ClassType = TypeType = type
 
@@ -91,7 +95,6 @@ class TryUntil:
     else:
       return func(arg)
 
-
 class TryUntilPickleable(TryUntil):
   def __init__(self,funcs,arg):
     super().__init__(funcs=funcs,arg=arg)
@@ -139,8 +142,6 @@ if __name__ == "__main__":
   tu = TryUntil(fs, arg)
   from ipdb import set_trace as st;st()
   print(tu)
-
-
 
 filtered_modules = {
   'ctypes': lambda obj: repr(obj)

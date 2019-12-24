@@ -1,9 +1,10 @@
 import stackprinter, inspect, sys
 import dill as pickle
+from dill._dill import dumps_with_custom_pickler
 from prettyprinter import pformat
 from .classes import PickleableState, PickleableFrame
-from .pickle_dispatch import pickleable_dispatch, FUNCS
-from .picklers import TryUntilPickleable, filtered_dumps, filtered_loads
+from .pickle_dispatch import pickleable_dispatch, FUNCS, pickleable_dict
+from hdlogger.serializers.picklers import TryUntilPickleable, FilteredPickler
 from hdlogger.utils import *
 
 def getcodecontext(frame,lineno,context=2):
@@ -38,16 +39,19 @@ def make_pickleable_state(state,stack) -> PickleableState:
   assert isinstance(state.lineno,int), f"{state.lineno=}"
   assert isinstance(state.st_count,int), f"{state.st_count=}"
   try:
-    a=filtered_dumps(state.frame.f_locals)
-    b=filtered_loads(a)
+    fls = state.frame.f_locals; assert isinstance(fls,dict)
+    a=pickleable_dict(state.frame.f_locals)
+    wf(f"{a=}",'logs/transformers.make_pklbl_st.log','a')
+    wf('\n'.join([f"{k}: {v}" for k,v in state.frame.f_locals.items()]),'logs/transformers.make_pklbl_st.log','a')
+    b=pickle.loads(a)
   except:
     wf(stackprinter.format(sys.exc_info()),'logs/filtered_dumps.log','a')
     raise
   kwds = {
       "frame": pickle.loads(pickle.dumps(state.frame)),
       "event": state.event,
-      "arg": filtered_loads(filtered_dumps(state.arg)),
-      "f_locals": filtered_loads(filtered_dumps(state.frame.f_locals)),
+      "arg": pickle.loads(dumps_with_custom_pickler(state.arg)),
+      "f_locals": pickle.loads(dumps_with_custom_pickler(state.frame.f_locals)),
       "st_count": state.st_count,
       "function": state.function,
       "module": state.module,

@@ -12,13 +12,7 @@ from dill.settings import settings
 from numpy import ufunc as NumpyUfuncType
 from numpy import ndarray as NumpyArrayType
 
-# from ..pickle_dispatch import pickleable_dispatch, initialize_copyreg
 import hdlogger
-from pprint import pformat
-dir_hdlogger = pformat(dir(hdlogger))
-# mod = __module__
-wf(f"{dir_hdlogger}\n",'logs/try_until.module.log','a')
-
 
 ClassType = TypeType = type
 
@@ -144,11 +138,11 @@ if __name__ == "__main__":
   print(tu)
 
 filtered_modules = {
-  'ctypes': lambda obj: repr(obj)
+  'ctypes': lambda k,v: {k:repr(v)}
 }
 def module_filters(obj):
   if hasattr(obj,'__module__') and (obj.__module__ in filtered_modules):
-    return filtered_modules[obj.__module__]
+    return filtered_modules[obj.__module__](obj)
 
 class FilteredPickler(pickle.Pickler):
   def __init__(self, *args, **kwds):
@@ -200,80 +194,38 @@ def numpyufunc(obj):
   # anything below here is a numpy ufunc
   return True
 
-def filtered_dump(obj, file, protocol=None, byref=None, fmode=None, recurse=None):#, strictio=None):
-    """pickle an object to a file"""
-    strictio = False #FIXME: strict=True needs cleanup
-    if protocol is None: protocol = settings['protocol']
-    if byref is None: byref = settings['byref']
-    if fmode is None: fmode = settings['fmode']
-    if recurse is None: recurse = settings['recurse']
-    stack.clear()  # clear record of 'recursion-sensitive' pickled objects
-    pik = FilteredPickler(file, protocol)
-    initialize_copyreg()
-    pik.dispatch_table = copyreg.dispatch_table.copy()
-    pik._main = _main_module
-    # apply kwd settings
-    pik._byref = bool(byref)
-    pik._strictio = bool(strictio)
-    pik._fmode = fmode
-    pik._recurse = bool(recurse)
-    # register if the object is a numpy ufunc
-    # thanks to Paul Kienzle for pointing out ufuncs didn't pickle
-    if NumpyUfuncType and numpyufunc(obj):
-        @register(type(obj))
-        def save_numpy_ufunc(pickler, obj):
-            log.info("Nu: %s" % obj)
-            FilteredPickler.save_global(pickler, obj)
-            log.info("# Nu")
-            return
-        # NOTE: the above 'save' performs like:
-        #   import copy_reg
-        #   def udump(f): return f.__name__
-        #   def uload(name): return getattr(numpy, name)
-        #   copy_reg.pickle(NumpyUfuncType, udump, uload)
-    # register if the object is a subclassed numpy array instance
-    if NumpyArrayType and ndarraysubclassinstance(obj):
-        @register(type(obj))
-        def save_numpy_array(pickler, obj):
-            log.info("Nu: (%s, %s)" % (obj.shape,obj.dtype))
-            npdict = getattr(obj, '__dict__', None)
-            f, args, state = obj.__reduce__()
-            pickler.save_reduce(_create_array, (f,args,state,npdict), obj=obj)
-            log.info("# Nu")
-            return
-    # end hack
-    if GENERATOR_FAIL and type(obj) == GeneratorType:
-        msg = "Can't pickle %s: attribute lookup builtins.generator failed" % GeneratorType
-        raise PicklingError(msg)
-    else:
-        pik.dump(obj)
-    stack.clear()  # clear record of 'recursion-sensitive' pickled objects
-    return
+# def filtered_dump(obj, file, protocol=None, byref=None, fmode=None, recurse=None):
+#   rv = dump_with_custom_pickler(obj, file, protocol=None, Pickler=FilteredPickler, byref=None, fmode=None, recurse=None)
+#   return rv
 
-def filtered_dumps(obj, protocol=None, byref=None, fmode=None, recurse=None):#, strictio=None):
-    """pickle an object to a string"""
-    file = BytesIO()
-    filtered_dump(obj, file, protocol, byref, fmode, recurse)#, strictio)
-    return file.getvalue()
+# def filtered_dumps(obj, protocol=None, byref=None, fmode=None, recurse=None):
+#     """pickle an object to a string"""
+#     hdlogger.serializers.initialize_copyreg()
+#     file = BytesIO()
+#     print('calling {filtered_dumps=}')
+#     filtered_dump(obj, file, protocol, byref, fmode, recurse)#, strictio)
+#     return file.getvalue()
 
-def filtered_load(file, ignore=None):
-    """unpickle an object from a file"""
-    if ignore is None: ignore = settings['ignore']
-    pik = pickle.Unpickler(file)
-    initialize_copyreg()
-    pik._main = _main_module
-    # apply kwd settings
-    pik._ignore = bool(ignore)
-    obj = pik.load()
-    if type(obj).__module__ == getattr(_main_module, '__name__', '__main__'):
-        if not ignore:
-            # point obj class to main
-            try: obj.__class__ = getattr(pik._main, type(obj).__name__)
-            except (AttributeError,TypeError): pass # defined in a file
-   #_main_module.__dict__.update(obj.__dict__) #XXX: should update globals ?
-    return obj
+# def filtered_load(file, ignore=None):
+#     """unpickle an object from a file"""
+#     if ignore is None: ignore = settings['ignore']
+#     pik = pickle.Unpickler(file)
+#     hdlogger.serializers.initialize_copyreg()
+#     pik._main = _main_module
+#     # apply kwd settings
+#     pik._ignore = bool(ignore)
+#     obj = pik.load()
+#     if type(obj).__module__ == getattr(_main_module, '__name__', '__main__'):
+#         if not ignore:
+#             # point obj class to main
+#             try: obj.__class__ = getattr(pik._main, type(obj).__name__)
+#             except (AttributeError,TypeError): pass # defined in a file
+#    #_main_module.__dict__.update(obj.__dict__) #XXX: should update globals ?
+#     return obj
 
-def filtered_loads(str, ignore=None):
-    """unpickle an object from a string"""
-    file = BytesIO(str)
-    return filtered_load(file, ignore)
+# def filtered_loads(str, ignore=None):
+#     """unpickle an object from a string"""
+#     hdlogger.serializers.initialize_copyreg()
+#     file = BytesIO(str) # BytesIO(str)
+#     print('calling {filtered_loads=}')
+#     return dill_load(file, ignore)

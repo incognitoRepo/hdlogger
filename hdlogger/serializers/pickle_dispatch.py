@@ -79,20 +79,36 @@ def pickleable_dict(d):
   ]
   tup = TryUntilPickleable(funcs,d.values())
   rvl = tup.try_until()
-  if not any(rvl):
-    """all of the values in the dict are not pickleable (rare!)"""
-    s = stackprinter.format(sys.exc_info())
-    wf( (
-      f"unable to pickle {d}\n\n"
-      f"{stackprinter.format(sys.exc_info())}"
-      ),
-      'logs/pickleable_dict.tracers.log', mode="a"
-    )
+  nkwds = {}
+  try:
+    for k,v in zip(d.keys(),rvl):
+      if (
+        k == 'builtins'
+        or k.startswith('_')
+      ): continue
+      else:
+        nkwds.update({k:v})
+    return nkwds
+  except:
+    wf(stackprinter.format(sys.exc_info()),'logs/pickle_dispatcch.pickleable_dict.error.log','a')
     raise
-  elif all(rvl):
-    return {k:v for k,v in zip(d.keys(),rvl)}
-  else:
-    return {k:v if v else repr(d[k]) for k,v in zip(d.keys(),rvl)}
+
+
+  # if not any(rvl):
+  #   """all of the values in the dict are not pickleable (rare!)"""
+  #   s = stackprinter.format(sys.exc_info())
+  #   wf( (
+  #     f"unable to pickle {d}\n\n"
+  #     f"{stackprinter.format(sys.exc_info())}"
+  #     ),
+  #     'logs/.tracers.log', mode="a"
+  #   )
+  #   raise
+  # elif all(rvl):
+  #   return {k:v for k,v in zip(d.keys(),rvl)}
+  # else:
+  #   return {k:v if v else repr(d[k]) for k,v in zip(d.keys(),rvl)}
+
 
 def pickleable_globals(g):
   cp = g.copy()

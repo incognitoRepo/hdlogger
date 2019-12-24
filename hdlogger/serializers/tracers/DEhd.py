@@ -113,11 +113,8 @@ class HiDefTracer:
     """this is the entry point for this class"""
     s = f"{event=}\n{frame.f_lineno=}\n{frame.f_code.co_filename=}\n{arg=}\n"
     wf(s, 'logs/tempdebug.log','a')
-    if not predicate(frame):
-      return
+    if not predicate(frame): return
     try:
-      s = f"{frame.f_code.co_filename}{frame.f_lineno}\n"
-      wf(s,'logs/trace_dispatch.predicate.log','a')
       assert self.initialize(frame, event, arg)
     except:
       wf( stackprinter.format(sys.exc_info()),'logs/tracer.dispatch.log', 'a')

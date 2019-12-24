@@ -52,10 +52,14 @@ def predicate(frame):
   return False
 
 def arg_shortcut_preprocess(arg):
-  modname = inspect.getmodule(arg).__name__
-  if hasattr(arg,'__module__') and modname == 'ctypes':
-    return repr(arg)
-  return arg
+  try:
+    modname = inspect.getmodule(arg).__name__
+  except:
+    return arg
+  else:
+    if hasattr(arg,'__module__') and modname == 'ctypes':
+      return repr(arg)
+    return arg
 
 class VariablesWatcher:
 
@@ -107,19 +111,16 @@ class HiDefTracer:
     self.pickled_state_as_bytes = []
     self.pickled_state_as_hex = []
     self.dataframe = None
-    # self.varswatcher = VariablesWatcher(vars)
 
   def trace_dispatch(self, frame, event, arg):
     """this is the entry point for this class"""
-    s = f"{event=}\n{frame.f_lineno=}\n{frame.f_code.co_filename=}\n{arg=}\n"
-    wf(s, 'logs/tempdebug.log','a')
     if not predicate(frame): return
     try:
       assert self.initialize(frame, event, arg)
     except:
       wf( stackprinter.format(sys.exc_info()),'logs/tracer.dispatch.log', 'a')
       raise
-    # self.varswatcher.check_event(frame,event,arg)
+
     if event == 'line':
       return self.dispatch_line(frame, arg)
     if event == 'call':
@@ -138,10 +139,10 @@ class HiDefTracer:
     return self.trace_dispatch
 
   def initialize(self, frame, event, arg):
-    _ = lambda x: x.__module__ if hasattr(x,'__module__') else repr(x.__class__)
-    wf(f'1. {arg=}, {_(arg)}\n','logs/DEhd.initialize.138.log','a')
+    arg = arg_shortcut_preprocess(arg)
+    wf(f'1. {type(arg)=}, {arg=}\n','logs/DEhd.initialize.138.log','a')`
     if hasattr(arg,'__module__') and arg.__module__ == 'ctypes':
-      wf(f'2. {arg=}\n', 'logs/DEhd.initialize.139.log', 'a')
+      wf(f'2. {type(arg)=}, {arg=}\n', 'logs/DEhd.initialize.138.log', 'a')
       initialize_copyreg(Type2Add=type(arg))
     else:
       initialize_copyreg()

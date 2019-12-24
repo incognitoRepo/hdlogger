@@ -29,7 +29,7 @@ def initialize_copyreg():
     (FunctionType, pickle_function),
     (os._Environ, pickle_environ),
     (ctypes.CDLL, pickle_ctypes),
-    (ctypes.Array, pickle_ctypes),
+    (ctypes.Array, pickle_ctypes_array),
     # (Mapping, pickleable_dict)
   ]
   for special_case in special_cases:
@@ -166,6 +166,13 @@ def copyreg_pickle(type,function,constructor=None):
   constructor: Callable: reconstruct the object when called with args from _function_
   '''
   pass
+
+def pickle_ctypes_array(arr):
+  string = repr(arr)
+  return unpickle_ctypes_array, (string,)
+
+def unpickle_ctypes_array(string):
+  return string
 
 def pickle_ctypes(obj):
   """obj = ctypes.create_string_buffer(1)

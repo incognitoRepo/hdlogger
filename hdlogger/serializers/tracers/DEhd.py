@@ -135,7 +135,7 @@ class HiDefTracer:
     return self.trace_dispatch
 
   def initialize(self, frame, event, arg):
-    initialize_copyreg()
+    initialize_copyreg(Type2Add=type(arg))
     self.state = State(frame,event,arg)
     try:
       self.pickleable_state = make_pickleable_state(self.state, PickleableState._stack)

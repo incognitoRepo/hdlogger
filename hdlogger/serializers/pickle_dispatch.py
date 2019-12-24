@@ -18,7 +18,7 @@ FUNCS = [
   lambda v: getattr(v,'__class__.__name__')
 ]
 
-def initialize_copyreg():
+def initialize_copyreg(Type2Add=None):
   pickle.load_types()
   special_cases = [
     (GeneratorType, pickle_generator),
@@ -30,8 +30,10 @@ def initialize_copyreg():
     (os._Environ, pickle_environ),
     (ctypes.CDLL, pickle_ctypes),
     (ctypes.Array, pickle_ctypes_array),
-    # (Mapping, pickleable_dict)
+    (Mapping, pickleable_dict),
   ]
+  if Type2Add:
+    special_cases.append((Type2Add, pickle_dynamically_added_as_repr))
   for special_case in special_cases:
     copyreg.pickle(*special_case)
 
@@ -166,6 +168,13 @@ def copyreg_pickle(type,function,constructor=None):
   constructor: Callable: reconstruct the object when called with args from _function_
   '''
   pass
+
+def pickle_dynamically_added_as_repr(dynobj):
+  string = repr(dynobj)
+  return unpickle_dynamically_added_as_repr, (string,)
+
+def unpickle_dynamically_added_as_repr(string):
+  return string
 
 def pickle_ctypes_array(arr):
   string = repr(arr)

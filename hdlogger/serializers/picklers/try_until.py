@@ -2,6 +2,7 @@ import stackprinter, sys, copyreg
 import dill as pickle
 
 from pickle import SETITEM
+from functools import singledispatchmethod
 from io import StringIO, BytesIO
 from prettyprinter import pformat
 from hdlogger.utils import *
@@ -36,39 +37,49 @@ class TryUntil:
       arg = arg
     return arg
 
-  def try_until(self,funcs=[],arg=None):
+  def try_until(self,funcs=None,arg=None):
     """returns: List[False,Any]
         Any: the return value of func(arg)
         func: makes arg `pickleable`
     """
+    if funcs is None: funcs = self.funcs
+    if arg is None: args = self.arg
     if isinstance(arg,(List,Dict)):
-      return self._try_until_container(funcs,arg)
+      if isinstance(arg,List): return self._try_until_iterable(funcs, args=arg)
+      if isinstance(arg,Dict): return self._try_until_mapping(funcs, args=arg)
     else:
       return self._try_until(funcs,arg)
 
-  def _try_until(self,funcs=[],arg=None):
+  def _try_until(self,funcs,arg):
     """iterates thru a list of functions, returning on the first success"""
-    l,rv_or_false = [], None
+    wf(pformat(funcs),'logs/try_until.info.log','a')
+    wf(pformat(arg), 'logs/try_until.info.log','a')
+    l,rv_or_error = [], None
     for func in funcs:
-      rv_or_false = self._with_func(func,arg)
-      if not isinstance(rv_or_false,ErrorFlag):
-        return rv_or_false
+      rv_or_error = self._with_func(func,arg)
+      if not isinstance(rv_or_error,ErrorFlag):
+        return rv_or_error
     else:
       wf((
         f"\t{pformat(funcs)=}\n"
         f"\t{pformat(arg)=}\n"
       ),'logs/_try_until.error.log','a')
       raise SystemExit('_try_until: all funcs failed to create a pickleable obj.')
-      l.append(rv_or_false)
+      l.append(rv_or_error)
     return l
 
-  def _try_until_container(self,funcs=[],args=None):
-    """for container types: e.g., List, Dict"""
+  def _try_until_mapping(self,funcs,args):
+    wf(f"{arg=}\n",'log/_try_until_mapping.log','a')
+    d = {}
+    for k,v in args.items():
+      d.update({k:self._try_until(v)})
+    return d
+
+  def _try_until_iterable(self,funcs,args):
+    wf(f"{arg=}\n",'log/_try_until_iterable.log','a')
     l = []
-    for arg in args:
-      # wf('arg: '+pformat(arg)+'\n','logs/try_until.log','a')
+    for elm in args:
       l.append(self._try_until(funcs,arg))
-      # wf('l: '+pformat(l)+'\n','logs/try_until.log','a')
     return l
 
   def _with_func(self,func,arg) -> Union[type(False),Any]:

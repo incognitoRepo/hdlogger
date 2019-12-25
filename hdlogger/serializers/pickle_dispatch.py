@@ -29,7 +29,7 @@ def initialize_copyreg(Type2Add=None):
     (FunctionType, pickle_function),
     (os._Environ, pickle_environ),
     (ctypes.CDLL, pickle_ctypes),
-    (ctypes.Array, pickle_ctypes_array),
+    (ctypes.create_string_buffer(10)._type_, pickle_ctypes_array),
     (Mapping, pickleable_dict),
   ]
   if Type2Add:
@@ -82,6 +82,7 @@ def pickleable_dict(d):
   ]
   tup = TryUntilPickleable(funcs,d.values())
   rvl = tup.try_until()
+  rvl = [rvl] if not isinstance(rvl,list) else rvl
   nkwds = {}
   try:
     for k,v in zip(d.keys(),rvl):

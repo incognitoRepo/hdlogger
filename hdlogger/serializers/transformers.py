@@ -66,7 +66,7 @@ def make_pickleable_state(state,stack) -> PickleableState:
   assert pickle.loads(pickle.dumps(kwds)) # so the problem is in TryUntilPickleable
   try:
     tup = TryUntilPickleable(funcs=funcs,arg=kwds.values())
-    rvl = tup.try_until()
+    rvl = [tup.try_until()] if not isinstance(tup.try_until(),list) else tup.try_until()
     nkwds = {}
     for k,v in zip(kwds.keys(),rvl):
       if (

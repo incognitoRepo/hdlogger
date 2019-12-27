@@ -1,4 +1,4 @@
-import optparse, copyreg, inspect, os, ctypes
+import optparse, copyreg, inspect, os, ctypes, urllib, io
 
 import stackprinter, sys, jsonpickle
 import dill as pickle
@@ -31,6 +31,9 @@ def initialize_copyreg(Type2Add=None):
     (ctypes.CDLL, pickle_ctypes),
     (ctypes.create_string_buffer(10)._type_, pickle_ctypes_array),
     (Mapping, pickleable_dict),
+    (io.BytesIO, pickle_io_stream),
+    (io.StringIO, pickle_io_stream),
+    (urllib.response.addinfourl, pickle_addinfourl),
   ]
   if Type2Add:
     special_cases.append((Type2Add, pickle_dynamically_added_as_repr))
@@ -53,7 +56,7 @@ def pickleable_dispatch(arg):
       return pickleable_dict(arg)
     NonStrIterable = lambda arg: isinstance(arg,Iterable) and not isinstance(arg,str)
     if NonStrIterable(arg):
-      return pickleable_list(arg)
+      return pickleable_list(arg) # ears4
     if isinstance(arg,FrameType):
       return pickleable_frame(arg)
     else:
@@ -73,6 +76,8 @@ def pickleable_frame(frm):
   except:
     wf('logs/pickleable_frame.tracer.log', stackprinter.format(sys.exc_info()))
     raise
+
+Sentinel = object()
 
 def pickleable_dict(d):
   funcs = [
@@ -106,30 +111,18 @@ def pickleable_globals(g):
 def pickleable_list(l):
   if l == "": return ""
   try:
-    ddl = pickle.dumps(l)
-    assert pickle.loads(ddl)
-    return l
+    return pickle.loads(pickle.dumps(l))
   except:
       l2 = []
       for elm in l:
-        try:
-          dde = pickle.dumps(elm)
-          assert pickle.loads(dde), f"cant load pickle.dumps(dde)={dde}"
-          l2.append(dde)
-        except:
-          for test in [
-            lambda: pickle.dumps(jsonpickle.encode(elm)),
-            lambda: pickle.dumps(repr(elm)),
-            lambda: pickle.dumps(str(elm)),
-            lambda: pickle.dumps(elm.__class__.__name__)
-            ]:
-            try:
-              dde = test()
-              assert pickle.loads(dde), f"cant load pickle.dumps(dde)={dde}"
-              l2.append(dde)
-            except: pass
-          wf( stackprinter.format(sys.exc_info()),'logs/models.unpickleable.log', 'a')
-          raise
+        for func in FUNCS:
+          with contextlib.suppress(Exception):
+            pickleable_elm = pickle.loads(pickle.dumps(elm))
+            l2.append(pickleable_elm); break
+        else:
+          s = f"{type(elm)=}, {elm=}\n\n{stackprinter.format()}"
+          wf(s,'logs/pickleable_list.error.log','a')
+          raise Exception(f"from function:pickleable_list. can't make {elm=} pickleable")
       return l2
 
 def pickleable_simple(s):
@@ -176,6 +169,24 @@ def pickle_dynamically_added_as_repr(dynobj):
 
 def unpickle_dynamically_added_as_repr(string):
   return string
+
+def pickle_io_stream(stream):
+  kwds = {
+    'stream_repr': repr(stream)
+  }
+  return unpickle_to_stream, (kwds,)
+
+def unpickle_io_stream(kwds):
+  return kwds['stream_repr']
+
+def pickle_addinfourl(aifl):
+  d = aifl.__dict__
+  assert pickle.loads(pickle.dumps(d['code'])), f"{d['code']=}\n"
+  kwds = {'reprd': repr(aifl)}
+  return unpickle_addinfourl, (kwds,)
+
+def unpickle_addinfourl(kwds):
+  return kwds['reprd']
 
 def pickle_ctypes_array(arr):
   string = repr(arr)

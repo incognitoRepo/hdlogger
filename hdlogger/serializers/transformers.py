@@ -38,20 +38,11 @@ def make_pickleable_state(state,stack) -> PickleableState:
   funcs = FUNCS
   assert isinstance(state.lineno,int), f"{state.lineno=}"
   assert isinstance(state.st_count,int), f"{state.st_count=}"
-  # try:
-  #   fls = state.frame.f_locals; assert isinstance(fls,dict)
-  #   a=pickleable_dict(state.frame.f_locals)
-  #   wf(f"{a=}",'logs/transformers.make_pklbl_st.log','a')
-  #   wf('\n'.join([f"{k}: {v}" for k,v in state.frame.f_locals.items()]),'logs/transformers.make_pklbl_st.log','a')
-  #   b=pickle.loads(a)
-  # except:
-  #   wf(stackprinter.format(sys.exc_info()),'logs/filtered_dumps.log','a')
-  #   raise
   kwds = {
       "frame": pickle.loads(pickle.dumps(state.frame)),
       "event": state.event,
-      "arg": pickle.loads(pickle.dumps(pickleable_dispatch(state.arg))),
-      # "f_locals": pickle.loads(dumps_with_custom_pickler(state.frame.f_locals)),
+      "arg": pickle.loads(pickle.dumps(pickleable_dispatch(state.arg))), # ears3
+      "callargs": pickle.loads(pickle.dumps(pickleable_dispatch(state.callargs))),
       "f_locals": pickle.loads(pickle.dumps(pickleable_dict(state.frame.f_locals))),
       "st_count": state.st_count,
       "function": state.function,
@@ -62,23 +53,13 @@ def make_pickleable_state(state,stack) -> PickleableState:
       "source": state.source,
       "stack": [elm for elm in PickleableState._stack]
     }
-  # wf(pformat(kwds),'logs/make_pklbl_st.log','a')
   assert pickle.loads(pickle.dumps(kwds)) # so the problem is in TryUntilPickleable
+  pickleable_state = PickleableState(kwds)
   try:
-    tup = TryUntilPickleable(funcs=funcs,arg=kwds.values())
-    rvl = [tup.try_until()] if not isinstance(tup.try_until(),list) else tup.try_until()
-    nkwds = {}
-    for k,v in zip(kwds.keys(),rvl):
-      if (
-        k == 'builtins'
-        or k.startswith('_')
-      ): continue
-      else:
-        nkwds.update({k:v})
-    # wf(pformat(nkwds),'logs/make_pickleable_state.debug.log','a')
-    pickleable_state = PickleableState(nkwds)
+    pickle.loads(pickle.dumps(kwds))
   except:
     wf(stackprinter.format(sys.exc_info()),'logs/make_pickleable_state.error.log','a')
     raise
-  return pickleable_state
+  else:
+    return pickleable_state
 

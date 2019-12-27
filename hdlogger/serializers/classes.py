@@ -1,4 +1,4 @@
-import sys, os, collections, linecache, prettyprinter, stackprinter
+import sys, os, collections, linecache, prettyprinter, stackprinter, inspect
 from functools import singledispatchmethod, cached_property
 from toolz.functoolz import compose_left
 from itertools import count
@@ -88,11 +88,12 @@ class BaseEvt:
 
 class CallEvt(BaseEvt):
   symbol = "=>"
-  def __init__(self, function=None, f_locals=None, keys=None, stack=None):
+  def __init__(self, function=None, f_locals=None, callargs=None, varnames=None, stack=None):
     assert isinstance(f_locals,dict)
     self.function = function
     self.f_locals = f_locals
-    self.keys = keys
+    self.callargs = callargs
+    self.varnames = varnames
     self.stack = stack
     self.pid = id(self)
 
@@ -113,10 +114,9 @@ class CallEvt(BaseEvt):
 
   @property
   def nonstatic(self):
-    function, f_locals, keys = self.function, self.f_locals, self.keys
-    fmtdlns = prettyprinter.pformat(
-      {k:f_locals[k] for k in keys}
-    ).splitlines()
+    # assert set(self.callargs.keys()).issuperset(self.varnames), f"{self.callargs=}, {self.varnames}\n"
+    function, callargs = self.function, self.callargs
+    fmtdlns = prettyprinter.pformat(self.callargs).splitlines()
     _first_as_str,*_rest_as_list = fmtdlns
     joinstr = '\n' + self.indent(length=len(function))
     rv = f"{function}{_first_as_str}\n{joinstr.join(_rest_as_list)}\n"
@@ -251,6 +251,7 @@ class State:
     self.frame = frame
     self.event = event
     self.arg = arg
+    self.callargs = {a:inspect.getargvalues(frame).locals[a] for a in inspect.getargvalues(frame).args}
     self.st_count = next(State._counter)
     self.initialize()
 
@@ -316,6 +317,7 @@ class PickleableState:
     self.frame: PickleableFrame = kwds['frame']
     self.event: str = kwds['event']
     self.arg: Any = kwds['arg']
+    self.callargs: List = kwds['callargs']
     self.f_locals: Dict = kwds['f_locals']
     self.f_code = self.frame.f_code
     self.st_count: int = kwds['st_count']
@@ -353,6 +355,7 @@ class PickleableState:
     callevt = CallEvt(
       self.function,
       self.f_locals,
+      self.callargs,
       self.f_code.co_varnames[:self.f_code.co_argcount],
       self.stack
     )

@@ -94,6 +94,7 @@ class TryUntil:
 
 class TryUntilPickleable(TryUntil):
   def __init__(self,funcs,arg):
+    wf(f"{arg=}, {type(arg)=}\n",'logs/TryUntilPickleable.log','a')
     super().__init__(funcs=funcs,arg=arg)
     hdlogger.serializers.initialize_copyreg()
 

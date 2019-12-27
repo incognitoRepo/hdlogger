@@ -50,6 +50,19 @@ def predicate(frame):
   if 'youtube' in filename: return True
   return False
 
+  def function_filter(self,funcname=self.state.funcname):
+    pass
+
+def function_filter(funcname):
+  filtered_functions = ['SOMEUN_NAMED_FUNCTION32452652']
+  return not (funcname in filtered_functions)
+
+def filename_filter(filename):
+  filtered_functions = [
+    'common.py'
+    ]
+  return not (filename in filtered_functions)
+
 @singledispatch
 def arg_shortcut_preprocess(arg):
   try:
@@ -127,9 +140,12 @@ class HiDefTracer:
 
   def trace_dispatch(self, frame, event, arg):
     """this is the entry point for this class"""
+    wf(f"{frame=}\n{event=}\n{arg=}:{type(arg)=}\n",'logs/DEhd.initialize.138.log','a')
+    if not frame: sys.settrace(None); return
     if not predicate(frame): return
+    if function_filter(frame.f_code.co_name): return
     try:
-      assert self.initialize(frame, event, arg)
+      assert self.initialize(frame, event, arg) # ears1
     except:
       wf( stackprinter.format(sys.exc_info()),'logs/tracer.dispatch.log', 'a')
       raise
@@ -153,7 +169,6 @@ class HiDefTracer:
 
   def initialize(self, frame, event, arg):
     arg = arg_shortcut_preprocess(arg)
-    wf(f'1. {type(arg)=}, {arg=}\n','logs/DEhd.initialize.138.log','a')
     if hasattr(arg,'__module__') and arg.__module__ == 'ctypes':
       wf(f'2. {type(arg)=}, {arg=}\n', 'logs/DEhd.initialize.138.log', 'a')
       initialize_copyreg(Type2Add=type(arg))
@@ -161,14 +176,15 @@ class HiDefTracer:
       initialize_copyreg()
     self.state = State(frame,event,arg)
     try:
-      self.pickleable_state = make_pickleable_state(self.state, PickleableState._stack)
+      self.pickleable_state = make_pickleable_state(self.state, PickleableState._stack) # ears2 -> transformers.44
+    except:
+      wf( stackprinter.format(sys.exc_info()),'logs/cant.make.log', 'a')
+      raise
+    else:
       _as_dict = self.pickleable_state.asdict()
       _as_bytes = pickle.dumps(self.pickleable_state)
       _as_hexad = _as_bytes.hex()
       # wf(pformat(_as_dict)+"\n",'logs/02.pickleable_states.tracer.log', 'a') # TODO: must uncomment
-    except:
-      wf( stackprinter.format(sys.exc_info()),'logs/cant.make.log', 'a')
-      raise
     wf(_as_hexad+"\n","logs/03.pickled_states_hex.tracer.log","a") # TODO: must uncomment
     self.pickleable_states.append(self.pickleable_state)
     return True

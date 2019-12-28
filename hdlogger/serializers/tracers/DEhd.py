@@ -1,4 +1,4 @@
-import sys, os, io, linecache, collections, inspect, threading, stackprinter, jsonpickle, copyreg, traceback, logging, optparse, contextlib, operator, json
+import sys, os, io, linecache, collections, inspect, threading, stackprinter, jsonpickle, copyreg, traceback, logging, optparse, contextlib, operator, json, operator, re
 import dill as pickle
 import pandas as pd
 from pickle import PicklingError
@@ -47,21 +47,23 @@ state_attrs = [
 def predicate(frame):
   code = frame.f_code
   filename = code.co_filename
-  if 'youtube' in filename: return True
-  return False
+  return 'youtube' in filename
 
-  def function_filter(self,funcname=self.state.funcname):
-    pass
+def filtered_function(funcname):
+  filtered_functions = []
+  return funcname in filtered_functions
 
-def function_filter(funcname):
-  filtered_functions = ['SOMEUN_NAMED_FUNCTION32452652']
-  return not (funcname in filtered_functions)
-
-def filename_filter(filename):
-  filtered_functions = [
-    'common.py'
+def filtered_filename(filename):
+  # /Users/alberthan/VSCodeProjects/HDLogger/youtube-dl/youtube_dl/extractor/common.py
+  filtered_filenames = [
+    r'.*\/common.py$',r'.*\/sre_parse/.py$',
+    r'.*\/options.py$',r'.*\/extractor/.py$',
     ]
-  return not (filename in filtered_functions)
+  filename:str = Path(filename).resolve().name
+  for ff in filtered_filenames:
+    if re.match(ff,filename):
+      return True
+  return False
 
 @singledispatch
 def arg_shortcut_preprocess(arg):
@@ -140,10 +142,11 @@ class HiDefTracer:
 
   def trace_dispatch(self, frame, event, arg):
     """this is the entry point for this class"""
-    wf(f"{frame=}\n{event=}\n{arg=}:{type(arg)=}\n",'logs/DEhd.initialize.138.log','a')
+    # wf(f"{frame=}\n{event=}\n{arg=}:{type(arg)=}\n",'logs/DEhd.initialize.138.log','a')
     if not frame: sys.settrace(None); return
     if not predicate(frame): return
-    if function_filter(frame.f_code.co_name): return
+    if filtered_function(frame.f_code.co_name): return
+    if filtered_filename(frame.f_code.co_filename): return
     try:
       assert self.initialize(frame, event, arg) # ears1
     except:

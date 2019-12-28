@@ -50,19 +50,32 @@ def predicate(frame):
   return 'youtube' in filename
 
 def filtered_function(funcname):
-  filtered_functions = []
-  return funcname in filtered_functions
+  filtered_functions = [
+    'add_info_extractor','add_default_info_extractors',
+    'extract_info',
+  ]
+  for ff in filtered_functions:
+    if m:=re.match(ff,funcname):
+      wf(f"{ff=}\n{funcname=}\n{m=}\n\n",'logs/filtered_function.true.log','a')
+      return True
+    else:
+      wf(f"{ff=}\n{funcname=}\n\n",'logs/filtered_function.false.log','a')
+  return False
 
 def filtered_filename(filename):
   # /Users/alberthan/VSCodeProjects/HDLogger/youtube-dl/youtube_dl/extractor/common.py
   filtered_filenames = [
     r'.*\/common.py$',r'.*\/sre_parse/.py$',
     r'.*\/options.py$',r'.*\/extractor/.py$',
-    ]
-  filename:str = Path(filename).resolve().name
+  ]
+  name:str = Path(filename).resolve().name
   for ff in filtered_filenames:
-    if re.match(ff,filename):
+    if m:=re.match(ff,filename):
+      # wf(f"{ff=}\n{filename=}\n{m=}\n\n",'logs/filtered_filename.true.log','a')
       return True
+    else:
+      # wf(f"{ff=}\n{filename=}\n\n",'logs/filtered_filename.false.log','a')
+      pass
   return False
 
 @singledispatch
@@ -143,10 +156,12 @@ class HiDefTracer:
   def trace_dispatch(self, frame, event, arg):
     """this is the entry point for this class"""
     # wf(f"{frame=}\n{event=}\n{arg=}:{type(arg)=}\n",'logs/DEhd.initialize.138.log','a')
-    if not frame: sys.settrace(None); return
-    if not predicate(frame): return
-    if filtered_function(frame.f_code.co_name): return
-    if filtered_filename(frame.f_code.co_filename): return
+    if not frame: sys.settrace(None); return None
+    if not predicate(frame): return None
+    if filtered_function(frame.f_code.co_name):
+      return None
+    if filtered_filename(frame.f_code.co_filename):
+      return None
     try:
       assert self.initialize(frame, event, arg) # ears1
     except:

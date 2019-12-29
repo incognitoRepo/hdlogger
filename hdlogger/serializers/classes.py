@@ -129,7 +129,7 @@ class CallEvt(BaseEvt):
     return s2
 
 class LineEvt(BaseEvt):
-  symbol =" _"
+  symbol = " _"
   def __init__(self, source=None, stack=None):
     self.source = source
     self.stack = stack

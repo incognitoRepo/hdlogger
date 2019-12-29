@@ -7,7 +7,7 @@ from collections import defaultdict
 from pathlib import Path
 from string import Template
 from typing import Any, Dict, List
-from ..serializers.classes import PickleableFrame, CallEvt, LineEvt, RetnEvt, ExcpEvt
+from hdlogger.serializers.classes import PickleableFrame, CallEvt, LineEvt, RetnEvt, ExcpEvt
 from ipdb import set_trace as st
 
 
@@ -87,7 +87,8 @@ class TraceProcessor:
 
   @property
   def dataframe(self):
-    if self._dataframe: return self._dataframe
+    if self._dataframe is not None:
+      return self._dataframe
     data = defaultdict(lambda: list())
     for state in self.pickleable_states:
       for k,v in state.__dict__.items():

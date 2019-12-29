@@ -63,18 +63,15 @@ def filtered_function(funcname):
   return False
 
 def filtered_filename(filename):
-  # /Users/alberthan/VSCodeProjects/HDLogger/youtube-dl/youtube_dl/extractor/common.py
   filtered_filenames = [
-    r'.*\/common.py$',r'.*\/sre_parse/.py$',
-    r'.*\/options.py$',r'.*\/extractor/.py$',
+    r'.*common.py$',r'.*sre_parse/.py$',
+    r'.*options.py$',r'.*extractor/.py$',
   ]
   name:str = Path(filename).resolve().name
   for ff in filtered_filenames:
     if m:=re.match(ff,filename):
-      # wf(f"{ff=}\n{filename=}\n{m=}\n\n",'logs/filtered_filename.true.log','a')
       return True
     else:
-      # wf(f"{ff=}\n{filename=}\n\n",'logs/filtered_filename.false.log','a')
       pass
   return False
 
@@ -145,7 +142,7 @@ class VariablesWatcher:
 
 class HiDefTracer:
 
-  def __init__(self): #,vars=None):
+  def __init__(self):
     self.state = None
     self.pickleable_state = None
     self.pickleable_states = []
@@ -155,7 +152,6 @@ class HiDefTracer:
 
   def trace_dispatch(self, frame, event, arg):
     """this is the entry point for this class"""
-    # wf(f"{frame=}\n{event=}\n{arg=}:{type(arg)=}\n",'logs/DEhd.initialize.138.log','a')
     if not frame: sys.settrace(None); return None
     if not predicate(frame): return None
     if filtered_function(frame.f_code.co_name):
@@ -212,7 +208,7 @@ class HiDefTracer:
     try:
       pickleable = self.pickleable_state.f_locals
     except:
-      wf( stackprinter.format(sys.exc_info()),'logs/tracer.dispatch_call.log', 'a')
+      wf(stackprinter.format(sys.exc_info()),'logs/tracer.dispatch_call.log', 'a')
       raise
     self.user_call(frame, pickleable)
     return self.trace_dispatch
@@ -254,7 +250,7 @@ class HiDefTracer:
   def user_call(self, frame, argument_list):
     logging.debug('user_call')
     try:
-      print(self.pickleable_state.format_call)
+      print(self.pickleable_state.format_call.strip())
     except:
       wf(stackprinter.format(sys.exc_info()),'logs/tracer.user_call.log','a')
       raise
@@ -262,16 +258,16 @@ class HiDefTracer:
 
   def user_line(self, frame, pickleable):
     logging.debug('user_line')
-    print(self.pickleable_state.format_line)
+    print(self.pickleable_state.format_line.strip())
     return self.trace_dispatch
 
   def user_return(self, frame, return_value):
     logging.debug('user_return')
-    print(self.pickleable_state.format_return)
+    print(self.pickleable_state.format_return.strip())
 
   def user_exception(self, frame, exc_info):
     logging.debug('user_exception')
-    print(self.pickleable_state.format_exception)
+    print(self.pickleable_state.format_exception.strip())
     return self.trace_dispatch
 
   @singledispatchmethod

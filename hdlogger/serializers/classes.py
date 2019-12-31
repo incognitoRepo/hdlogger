@@ -114,7 +114,6 @@ class CallEvt(BaseEvt):
 
   @property
   def nonstatic(self):
-    # assert set(self.callargs.keys()).issuperset(self.varnames), f"{self.callargs=}, {self.varnames}\n"
     function, callargs = self.function, self.callargs
     fmtdlns = prettyprinter.pformat(self.callargs).splitlines()
     _first_as_str,*_rest_as_list = fmtdlns
@@ -363,6 +362,20 @@ class PickleableState:
     static,pseudo,nonsta = callevt.static(static_vars),callevt.pseudo_static,callevt.nonstatic
     return static+pseudo+nonsta
 
+  def pkl_format_call(self):
+    PickleableState._stack.append(f"{self.module}.{self.function}")
+    self.stack = PickleableState._stack[:]
+    callevt = CallEvt(
+      self.function,
+      self.f_locals,
+      self.callargs,
+      self.f_code.co_varnames[:self.f_code.co_argcount],
+      self.stack
+    )
+    static_vars = (self.st_count,self.filename,f"{self.lineno:<5}",self.event)
+    static,pseudo,nonsta = callevt.static(static_vars),callevt.pseudo_static,callevt.nonstatic
+    return (static, pseudo, nonsta)
+
   @property
   def format_line(self):
     lineevt = LineEvt(self.source, self.stack)
@@ -370,6 +383,13 @@ class PickleableState:
     static,pseudo,nonsta = lineevt.static(static_vars),lineevt.pseudo_static,lineevt.nonstatic
     self.stack = PickleableState._stack[:]
     return static+pseudo+nonsta
+
+  def pkl_format_line(self):
+    lineevt = LineEvt(self.source, self.stack)
+    static_vars = (self.st_count,self.filename,f"{self.lineno:<5}",self.event)
+    static,pseudo,nonsta = lineevt.static(static_vars),lineevt.pseudo_static,lineevt.nonstatic
+    self.stack = PickleableState._stack[:]
+    return (static, pseudo, nonsta)
 
   @property
   def format_return(self):
@@ -383,6 +403,15 @@ class PickleableState:
     self.stack = PickleableState._stack[:]
     return static+pseudo+nonsta
 
+  def pkl_format_return(self):
+    retnevt = RetnEvt(self.function, self.arg, self.stack)
+    static_vars = (self.st_count,self.filename,f"{self.lineno:<5}",self.event)
+    static,pseudo,nonsta = retnevt.static(static_vars),retnevt.pseudo_static,retnevt.nonstatic
+    if PickleableState._stack:
+      PickleableState._stack.pop()
+    self.stack = PickleableState._stack[:]
+    return (static, pseudo, nonsta)
+
   @property
   def format_exception(self):
     excpevt = ExcpEvt(self.function, self.arg, self.stack)
@@ -390,6 +419,13 @@ class PickleableState:
     static,pseudo,nonsta = excpevt.static(static_vars),excpevt.pseudo_static,excpevt.nonstatic
     self.stack = PickleableState._stack[:]
     return static+pseudo+nonsta
+
+  def pkl_format_exception(self):
+    excpevt = ExcpEvt(self.function, self.arg, self.stack)
+    static_vars = (self.st_count,self.filename,f"{self.lineno:<5}",self.event)
+    static,pseudo,nonsta = excpevt.static(static_vars),excpevt.pseudo_static,excpevt.nonstatic
+    self.stack = PickleableState._stack[:]
+    return (static, pseudo, nonsta)
 
 class PickleableGenerator:
   def __init__(self,state,f_locals,pid):

@@ -198,7 +198,6 @@ class HiDefTracer:
       _as_dict = self.pickleable_state.asdict()
       _as_bytes = pickle.dumps(self.pickleable_state)
       _as_hexad = _as_bytes.hex()
-      # wf(pformat(_as_dict)+"\n",'logs/02.pickleable_states.tracer.log', 'a') # TODO: must uncomment
     wf(_as_hexad+"\n","logs/03.pickled_states_hex.tracer.log","a") # TODO: must uncomment
     self.pickleable_states.append(self.pickleable_state)
     return True
@@ -250,7 +249,10 @@ class HiDefTracer:
   def user_call(self, frame, argument_list):
     logging.debug('user_call')
     try:
-      print(self.pickleable_state.format_call.strip())
+      pkl = pickle.dumps(self.pickleable_state.pkl_format_call)
+      hexa = pkl.hex()
+      wf(hexa, 'logs/tracer.user_call.pkl', 'a')
+      # print(self.pickleable_state.format_call.strip())
     except:
       wf(stackprinter.format(sys.exc_info()),'logs/tracer.user_call.log','a')
       raise
@@ -258,16 +260,37 @@ class HiDefTracer:
 
   def user_line(self, frame, pickleable):
     logging.debug('user_line')
-    print(self.pickleable_state.format_line.strip())
+    try:
+      pkl = pickle.dumps(self.pickleable_state.pkl_format_line)
+      hexa = pkl.hex()
+      wf(hexa, 'logs/tracer.user_line.pkl', 'a')
+      # print(self.pickleable_state.format_line.strip())
+    except:
+      wf(stackprinter.format(sys.exc_info()),'logs/tracer.user_line.log''a')
+      raise
     return self.trace_dispatch
 
   def user_return(self, frame, return_value):
     logging.debug('user_return')
-    print(self.pickleable_state.format_return.strip())
+    try:
+      pkl = pickle.dumps(self.pickleable_state.pkl_format_return)
+      hexa = pkl.hex()
+      wf(hexa, 'logs/tracer.user_return.pkl', 'a')
+      # print(self.pickleable_state.format_return.strip())
+    except:
+      wf(stackprinter.format(sys.exc_info()),'logs/user_return','a')
+      raise
 
   def user_exception(self, frame, exc_info):
     logging.debug('user_exception')
-    print(self.pickleable_state.format_exception.strip())
+    try:
+      pkl = pickle.dumps(self.pickleable_state.pkl_format_exception)
+      hexa = pkl.hex()
+      wf(hexa, 'logs/tracer.user_exception.pkl', 'a')
+      # print(self.pickleable_state.format_exception.strip())
+    except:
+      wf(stackprinter.format(sys.exc_info()),'logs/user_exception','a')
+      raise
     return self.trace_dispatch
 
   @singledispatchmethod

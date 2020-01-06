@@ -4,9 +4,18 @@ from itertools import count
 from pathlib import Path
 from typing import Iterable, Container, Collection
 
+memo = {}
+
 def wf(obj,filename,mode="a"):
+  pass
   end = f"\n{'-~'*40}\n"
-  path = Path(filename)
+  path = Path(filename).resolve()
+  if not path in memo:
+    if path.exists(): # the first time seeing a file this run with file from last run existing
+      path.unlink()
+      memo[path] = 1
+  else:
+    memo[path] += 1
   if not path.parent.exists():
     path.mkdir(parents=True, exist_ok=True)
   if isinstance(obj, bytes):

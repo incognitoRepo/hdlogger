@@ -17,8 +17,8 @@ setup(
     description='Sample package for Python-Guide.org',
     long_description=readme,
     author='Albert Han',
-    author_email='me@ah.han',
-    url='https://github.com/hanah/hdlogger',
+    author_email='incognitoRepo@outlook.com',
+    url='https://github.com/incognitoRepo/hdlogger',
     license=license,
     packages=find_packages(exclude=('tests', 'docs'))
 )

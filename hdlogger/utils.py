@@ -7,7 +7,7 @@ from typing import Iterable, Container, Collection
 memo = {}
 
 def wf(obj,filename,mode="a"):
-  pass
+  # pass
   end = f"\n{'-~'*40}\n"
   path = Path(filename).resolve()
   if not path in memo:

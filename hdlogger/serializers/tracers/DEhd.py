@@ -351,7 +351,7 @@ if __name__ == '__main__':
   main()
 
 
-class PickleableFrame:
-  """recreate the entire frame"""
-  def __init__(self):
-    pass
+# class PickleableFrame:
+#   """recreate the entire frame"""
+#   def __init__(self):
+#     pass
